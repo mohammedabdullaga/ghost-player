@@ -1,0 +1,620 @@
+package com.eliteprime.app.ui.screens.live
+
+import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import coil3.compose.AsyncImage
+import com.eliteprime.app.data.local.entity.Category
+import com.eliteprime.app.data.local.entity.EPGProgram
+import com.eliteprime.app.data.local.entity.LiveStream
+import com.eliteprime.app.ui.components.*
+import com.eliteprime.app.ui.theme.AppColors
+import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.*
+
+private object LivePalette {
+    val paneFill = Color.Black.copy(alpha = 0.35f)
+    val paneBorder = AppColors.ArenaOrange.copy(alpha = 0.14f)
+    val hairline = Color.White.copy(alpha = 0.08f)
+    val textSecondary = Color.White.copy(alpha = 0.6f)
+    val textTertiary = Color.White.copy(alpha = 0.38f)
+}
+
+@Composable
+fun MobileLiveTvScreen(
+    onBack: () -> Unit,
+    onNavigateToSearch: () -> Unit,
+    onNavigateToMovies: () -> Unit,
+    onNavigateToSeries: () -> Unit,
+    onPlayChannel: (LiveStream) -> Unit,
+    viewModel: LiveViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    val previewChannel by viewModel.previewChannel.collectAsState()
+    val epgList by viewModel.currentEpg.collectAsState()
+    val currentTime = remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
+    
+    var showAddGroupDialog by remember { mutableStateOf(false) }
+    var newGroupName by remember { mutableStateOf("") }
+    var selectedChannelForOptions by remember { mutableStateOf<LiveStream?>(null) }
+    var selectedCategoryForOptions by remember { mutableStateOf<Category?>(null) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime.value = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+            delay(60000)
+        }
+    }
+
+    AppBackground {
+        Column(modifier = Modifier.fillMaxSize()) {
+            LiveTopNavBar(
+                currentTime = currentTime.value,
+                onBack = onBack,
+                onNavigateToSearch = onNavigateToSearch,
+                onNavigateToMovies = onNavigateToMovies,
+                onNavigateToSeries = onNavigateToSeries
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // --- Pane 1: Categories ---
+                PaneSurface(modifier = Modifier.weight(0.28f)) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(text = if (uiState.isCategoryReorderMode) "REORDERING" else "GROUPS", color = LivePalette.textSecondary, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
+                            
+                            if (uiState.isCategoryReorderMode) {
+                                TextButton(onClick = { viewModel.saveCategoryOrder() }) {
+                                    Text("DONE", color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                                }
+                            } else {
+                                IconButton(onClick = { showAddGroupDialog = true }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Add, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.size(16.dp))
+                                }
+                            }
+                        }
+                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(LivePalette.hairline))
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                        ) {
+                            items(uiState.categories) { category ->
+                                if (uiState.isCategoryReorderMode) {
+                                    ReorderCategoryRow(
+                                        category = category,
+                                        onMoveUp = { viewModel.moveCategoryUp(category) },
+                                        onMoveDown = { viewModel.moveCategoryDown(category) }
+                                    )
+                                } else {
+                                    CategoryTabWithLongClick(
+                                        category = category,
+                                        isSelected = category.id == uiState.selectedCategory?.id,
+                                        onClick = { viewModel.selectCategory(category) },
+                                        onLongClick = { selectedCategoryForOptions = category }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // --- Pane 2: Channel List ---
+                PaneSurface(modifier = Modifier.weight(0.32f)) {
+                    Column {
+                        PaneHeader(title = uiState.selectedCategory?.categoryName ?: "CHANNELS")
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(vertical = 8.dp)
+                        ) {
+                            items(uiState.filteredChannels) { channel ->
+                                ChannelRowWithLongClick(
+                                    channel = channel,
+                                    isSelected = previewChannel?.id == channel.id,
+                                    onClick = { 
+                                        if (previewChannel?.id == channel.id) {
+                                            onPlayChannel(channel)
+                                        } else {
+                                            viewModel.previewChannel(channel)
+                                        }
+                                    },
+                                    onLongClick = { selectedChannelForOptions = channel }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // --- Pane 3: Preview & EPG ---
+                PaneSurface(modifier = Modifier.weight(0.4f)) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                    ) {
+                        // Preview Player Area
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(16f / 9f)
+                                .padding(12.dp),
+                            color = Color.Black,
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, LivePalette.hairline)
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                if (previewChannel != null) {
+                                    PlayerRenderView(
+                                        playerEngine = viewModel.playerEngine,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.Transparent)
+                                            .clickable { onPlayChannel(previewChannel!!) }
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.PlayCircle,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(48.dp),
+                                        tint = LivePalette.textTertiary
+                                    )
+                                }
+                            }
+                        }
+
+                        // Channel Info & EPG Area
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                        ) {
+                            if (previewChannel != null) {
+                                Text(
+                                    text = "LIVE NOW",
+                                    color = AppColors.ArenaOrange,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 10.sp,
+                                    letterSpacing = 1.sp
+                                )
+                                Text(
+                                    text = previewChannel!!.name,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                
+                                Spacer(modifier = Modifier.height(12.dp))
+                                
+                                Text(
+                                    text = "UPCOMING GUIDE",
+                                    color = Color.White.copy(alpha = 0.4f),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp,
+                                    letterSpacing = 0.5.sp
+                                )
+                                
+                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(LivePalette.hairline))
+                                
+                                val now = System.currentTimeMillis()
+                                LazyColumn(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentPadding = PaddingValues(vertical = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    if (epgList.isEmpty()) {
+                                        item {
+                                            Text(
+                                                "No upcoming programs found",
+                                                color = LivePalette.textSecondary,
+                                                fontSize = 13.sp,
+                                                modifier = Modifier.padding(vertical = 8.dp)
+                                            )
+                                        }
+                                    } else {
+                                        items(epgList) { program ->
+                                            val isCurrent = now in program.startTimestamp..program.stopTimestamp
+                                            EpgRow(program, isCurrent)
+                                        }
+                                    }
+                                }
+                            } else {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text(
+                                        "Select a channel to see guide",
+                                        color = LivePalette.textTertiary,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Dialogs ---
+        
+        if (showAddGroupDialog) {
+            AlertDialog(
+                onDismissRequest = { showAddGroupDialog = false },
+                title = { Text("Create New Group") },
+                text = {
+                    OutlinedTextField(
+                        value = newGroupName,
+                        onValueChange = { newGroupName = it },
+                        placeholder = { Text("Group Name") },
+                        singleLine = true
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.addCustomGroup(newGroupName)
+                        showAddGroupDialog = false
+                        newGroupName = ""
+                    }) { Text("CREATE", color = AppColors.ArenaOrange) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showAddGroupDialog = false }) { Text("CANCEL") }
+                }
+            )
+        }
+
+        selectedChannelForOptions?.let { channel ->
+            AlertDialog(
+                onDismissRequest = { selectedChannelForOptions = null },
+                title = { Text(channel.name, fontWeight = FontWeight.Bold) },
+                text = {
+                    Column {
+                        ListItem(
+                            headlineContent = { Text(if (channel.isFavorite) "Remove from Favorites" else "Add to Favorites") },
+                            leadingContent = { Icon(if (channel.isFavorite) Icons.Default.Star else Icons.Default.StarBorder, null, tint = AppColors.ArenaOrange) },
+                            modifier = Modifier.clickable { 
+                                viewModel.toggleFavorite(channel)
+                                selectedChannelForOptions = null
+                            }
+                        )
+                        ListItem(
+                            headlineContent = { Text("Hide Channel") },
+                            leadingContent = { Icon(Icons.Default.VisibilityOff, null) },
+                            modifier = Modifier.clickable { 
+                                viewModel.hideChannel(channel)
+                                selectedChannelForOptions = null
+                            }
+                        )
+                        
+                        val groups = uiState.categories.filter { it.id >= 1000000 }
+                        if (groups.isNotEmpty()) {
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = LivePalette.hairline)
+                            Text("ADD TO GROUP", style = MaterialTheme.typography.labelSmall, color = AppColors.ArenaOrange, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                            groups.forEach { group ->
+                                ListItem(
+                                    headlineContent = { Text(group.categoryName) },
+                                    modifier = Modifier.clickable { 
+                                        viewModel.addToGroup(channel, group)
+                                        selectedChannelForOptions = null
+                                    }
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { selectedChannelForOptions = null }) { Text("CLOSE") }
+                }
+            )
+        }
+
+        selectedCategoryForOptions?.let { category ->
+            AlertDialog(
+                onDismissRequest = { selectedCategoryForOptions = null },
+                title = { Text(category.categoryName) },
+                text = {
+                    Column {
+                        if (category.id >= 1000000) {
+                            ListItem(
+                                headlineContent = { Text("Delete Group", color = Color.Red) },
+                                leadingContent = { Icon(Icons.Default.Delete, null, tint = Color.Red) },
+                                modifier = Modifier.clickable { 
+                                    viewModel.deleteCustomGroup(category)
+                                    selectedCategoryForOptions = null
+                                }
+                            )
+                        }
+                        ListItem(
+                            headlineContent = { Text("Reorder Groups") },
+                            leadingContent = { Icon(Icons.Default.Reorder, null) },
+                            modifier = Modifier.clickable { 
+                                viewModel.enterCategoryReorderMode()
+                                selectedCategoryForOptions = null
+                            }
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { selectedCategoryForOptions = null }) { Text("CLOSE") }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryTabWithLongClick(
+    category: Category,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onClick() },
+                    onLongPress = { onLongClick() }
+                )
+            },
+        color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.12f) else Color.Transparent,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.width(3.dp).height(18.dp).clip(CircleShape).background(if (isSelected) AppColors.ArenaOrange else Color.Transparent))
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = category.categoryName,
+                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                fontSize = 13.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReorderCategoryRow(
+    category: Category,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        color = Color.White.copy(alpha = 0.05f),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(category.categoryName, color = Color.White, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            IconButton(onClick = onMoveUp, modifier = Modifier.size(24.dp)) {
+                Icon(Icons.Default.ArrowUpward, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(16.dp))
+            }
+            IconButton(onClick = onMoveDown, modifier = Modifier.size(24.dp)) {
+                Icon(Icons.Default.ArrowDownward, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(16.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChannelRowWithLongClick(
+    channel: LiveStream,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onClick() },
+                    onLongPress = { onLongClick() }
+                )
+            },
+        color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.1f) else Color.Transparent,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (channel.streamIcon != null) {
+                    AsyncImage(model = channel.streamIcon, contentDescription = null, modifier = Modifier.fillMaxSize().padding(6.dp), contentScale = ContentScale.Fit)
+                } else {
+                    Icon(Icons.Default.Tv, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White.copy(alpha = 0.4f))
+                }
+                if (channel.isFavorite) {
+                    Box(modifier = Modifier.align(Alignment.TopEnd).offset(x=4.dp, y=(-4).dp).size(14.dp).background(AppColors.ArenaOrange, CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Star, null, tint = Color.White, modifier = Modifier.size(8.dp))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(channel.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("No EPG Data", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+@Composable
+private fun EpgRow(program: EPGProgram, isCurrent: Boolean) {
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    val startTime = remember(program.startTimestamp) { timeFormat.format(Date(program.startTimestamp)) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(if (isCurrent) Color.White.copy(alpha = 0.05f) else Color.Transparent, RoundedCornerShape(8.dp))
+            .padding(if (isCurrent) 8.dp else 0.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(44.dp)) {
+            Text(
+                text = startTime,
+                color = if (isCurrent) AppColors.ArenaOrange else Color.White.copy(alpha = 0.6f),
+                fontWeight = if (isCurrent) FontWeight.Black else FontWeight.Bold,
+                fontSize = 12.sp
+            )
+            if (isCurrent) {
+                Text("NOW", color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 8.sp)
+            }
+        }
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = program.title,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            
+            if (isCurrent) {
+                val progress = remember(program.startTimestamp, program.stopTimestamp) {
+                    val now = System.currentTimeMillis()
+                    val total = program.stopTimestamp - program.startTimestamp
+                    if (total > 0) (now - program.startTimestamp).toFloat() / total else 0f
+                }
+                LinearProgressIndicator(
+                    progress = { progress.coerceIn(0f, 1f) },
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).height(3.dp),
+                    color = AppColors.ArenaOrange,
+                    trackColor = Color.White.copy(alpha = 0.1f),
+                    strokeCap = StrokeCap.Round
+                )
+            }
+            
+            if (!program.description.isNullOrBlank()) {
+                Text(
+                    text = program.description!!,
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 12.sp,
+                    maxLines = if (isCurrent) 3 else 1,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 16.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiveTopNavBar(
+    currentTime: String,
+    onBack: () -> Unit,
+    onNavigateToSearch: () -> Unit,
+    onNavigateToMovies: () -> Unit,
+    onNavigateToSeries: () -> Unit
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.06f), CircleShape)
+            ) {
+                Icon(Icons.Default.Home, contentDescription = "Home", tint = Color.White, modifier = Modifier.size(20.dp))
+            }
+
+            ArenaLiveLogo(textSize = 20.sp)
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            NavTabButton(label = "Live TV", icon = Icons.Default.LiveTv, isActive = true, onClick = {})
+            NavTabButton(label = "Movies", icon = Icons.Default.Movie, isActive = false, onClick = onNavigateToMovies)
+            NavTabButton(label = "Series", icon = Icons.Default.VideoLibrary, isActive = false, onClick = onNavigateToSeries)
+
+            IconButton(
+                onClick = onNavigateToSearch,
+                modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.06f), CircleShape)
+            ) {
+                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White, modifier = Modifier.size(20.dp))
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Text(text = currentTime, color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        }
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(LivePalette.hairline))
+    }
+}
+
+@Composable
+private fun PaneSurface(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Surface(
+        modifier = modifier.fillMaxHeight(),
+        color = LivePalette.paneFill,
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, LivePalette.paneBorder)
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun PaneHeader(title: String) {
+    Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+        Text(text = title.uppercase(), color = Color.White.copy(alpha = 0.6f), fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
+    }
+    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(LivePalette.hairline))
+}
