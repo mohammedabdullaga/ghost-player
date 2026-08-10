@@ -11,6 +11,7 @@ import com.eliteprime.app.data.remote.XtreamUrlFactory
 import com.eliteprime.app.data.repository.TvContinuationRepository
 import com.eliteprime.app.domain.model.StreamInfo
 import com.eliteprime.app.domain.model.StreamType
+import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
 import com.eliteprime.app.player.*
 import com.eliteprime.app.player.playback.PlayerErrorClassifier
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +27,7 @@ class PlayerViewModel @Inject constructor(
     val globalPlayerState: GlobalPlayerState,
     private val boxStore: BoxStore,
     private val tvContinuationRepository: TvContinuationRepository,
+    private val playbackHistoryRepository: PlaybackHistoryRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -152,14 +154,15 @@ class PlayerViewModel @Inject constructor(
 
     private fun checkResumeProgress() {
         if (type == "live") return
-        val historyBox = boxStore.boxFor(PlaybackHistory::class.java)
-        val history = historyBox.query().equal(PlaybackHistory_.streamId, streamId).build().findFirst()
-        if (history != null && history.lastPositionMs > 10000) { // More than 10 seconds
-            _resumePrompt.value = ResumePromptState(
-                show = true,
-                positionMs = history.lastPositionMs,
-                title = title
-            )
+        viewModelScope.launch {
+            val history = playbackHistoryRepository.getPlaybackHistory(streamId, type, 0) // TODO: Handle actual providerId
+            if (history != null && history.lastPositionMs > 10000) {
+                _resumePrompt.value = ResumePromptState(
+                    show = true,
+                    positionMs = history.lastPositionMs,
+                    title = title
+                )
+            }
         }
     }
 
@@ -177,18 +180,44 @@ class PlayerViewModel @Inject constructor(
             if (account != null) {
                 var extension: String? = null
                 var directUrl: String? = null
+                var poster: String? = null
+                var backdrop: String? = null
+                var sId: Long? = null
+                var seasonNum: Int? = null
+                var epNum: Int? = null
 
                 when (type) {
                     "movie" -> {
                         val movie = boxStore.boxFor(Movie::class.java).get(streamId)
                         extension = movie?.containerExtension
                         directUrl = movie?.directSource
+                        poster = movie?.streamIcon
+                        backdrop = movie?.backdropUrl
                     }
                     "series" -> {
                         val episode = boxStore.boxFor(Episode::class.java).get(streamId)
                         extension = episode?.containerExtension
+                        poster = episode?.coverUrl
+                        sId = episode?.seriesId
+                        seasonNum = episode?.seasonNumber
+                        epNum = episode?.episodeNumber
                     }
                 }
+
+                // Initial history record
+                playbackHistoryRepository.recordPlayback(
+                    PlaybackHistory(
+                        streamId = streamId,
+                        providerId = account.id,
+                        name = title,
+                        type = type,
+                        posterUrl = poster,
+                        backdropUrl = backdrop,
+                        seriesId = sId,
+                        seasonNumber = seasonNum,
+                        episodeNumber = epNum
+                    )
+                )
 
                 val url = if (type == "download") {
                     title
@@ -256,42 +285,14 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun savePlaybackProgress(pos: Long) {
-        val historyBox = boxStore.boxFor(PlaybackHistory::class.java)
-        
-        var poster: String? = null
-        var backdrop: String? = null
-        
-        when (type) {
-            "movie" -> {
-                val movie = boxStore.boxFor(Movie::class.java).get(streamId)
-                poster = movie?.streamIcon
-                backdrop = movie?.backdropUrl
-            }
-            "series" -> {
-                val episode = boxStore.boxFor(Episode::class.java).get(streamId)
-                poster = episode?.coverUrl
-                // Series backdrop usually comes from the series entity, but for now we'll just use poster if available
-            }
-        }
-
-        val history = PlaybackHistory(
-            streamId = streamId,
-            name = title,
-            type = type,
-            lastPositionMs = pos,
-            durationMs = duration.value,
-            posterUrl = poster,
-            backdropUrl = backdrop,
-            lastPlayedAt = System.currentTimeMillis()
-        )
-        val existing = historyBox.query().equal(PlaybackHistory_.streamId, streamId).build().findFirst()
-        if (existing != null) {
-            history.id = existing.id
-        }
-        historyBox.put(history)
-        
         viewModelScope.launch {
-            tvContinuationRepository.pushToLauncher(listOf(history))
+            playbackHistoryRepository.updateResumePosition(
+                streamId = streamId,
+                type = type,
+                providerId = 0, // TODO
+                positionMs = pos,
+                durationMs = duration.value
+            )
         }
     }
 

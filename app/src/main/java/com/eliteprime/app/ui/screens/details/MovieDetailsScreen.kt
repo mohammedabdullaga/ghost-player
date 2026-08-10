@@ -38,6 +38,7 @@ import coil3.compose.AsyncImage
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.util.formatPositionMs
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
 
@@ -149,7 +150,8 @@ fun MovieDetailsScreen(
                             // 5. Action Row (Play + Download)
                             PrimaryActionRow(
                                 onPlay = { onPlay(movie) },
-                                onDownload = { /* TODO: Download Manager */ },
+                                onDownload = { viewModel.downloadMovie() },
+                                watchProgress = movie.watchProgress,
                                 isTv = isTv,
                                 playFocusRequester = playButtonFocusRequester
                             )
@@ -341,7 +343,13 @@ private fun TagRow(genre: String?, rating: Double) {
 }
 
 @Composable
-private fun PrimaryActionRow(onPlay: () -> Unit, onDownload: () -> Unit, isTv: Boolean, playFocusRequester: FocusRequester) {
+private fun PrimaryActionRow(
+    onPlay: () -> Unit,
+    onDownload: () -> Unit,
+    watchProgress: Long,
+    isTv: Boolean,
+    playFocusRequester: FocusRequester
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(DetailSpacing.md), modifier = Modifier.fillMaxWidth()) {
         if (isTv) {
             TvSurface(
@@ -357,7 +365,12 @@ private fun PrimaryActionRow(onPlay: () -> Unit, onDownload: () -> Unit, isTv: B
                 Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                     Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(24.dp), tint = Color.Unspecified)
                     Spacer(Modifier.width(DetailSpacing.xs))
-                    Text("PLAY NOW", fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.Unspecified)
+                    Text(
+                        text = if (watchProgress > 10000) "RESUME FROM ${formatPositionMs(watchProgress)}" else "PLAY NOW",
+                        fontWeight = FontWeight.Black, 
+                        fontSize = 14.sp, 
+                        color = Color.Unspecified
+                    )
                 }
             }
 
@@ -387,7 +400,11 @@ private fun PrimaryActionRow(onPlay: () -> Unit, onDownload: () -> Unit, isTv: B
             ) {
                 Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(DetailSpacing.xs))
-                Text("PLAY NOW", fontWeight = FontWeight.Black, fontSize = 13.sp)
+                Text(
+                    text = if (watchProgress > 10000) "RESUME FROM ${formatPositionMs(watchProgress)}" else "PLAY NOW",
+                    fontWeight = FontWeight.Black, 
+                    fontSize = 13.sp
+                )
             }
             OutlinedIconButton(
                 onClick = onDownload,

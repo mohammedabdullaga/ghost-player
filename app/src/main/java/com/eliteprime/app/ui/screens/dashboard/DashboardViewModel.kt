@@ -3,6 +3,7 @@ package com.eliteprime.app.ui.screens.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.local.entity.*
+import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
@@ -14,7 +15,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
-    private val boxStore: BoxStore
+    private val boxStore: BoxStore,
+    private val playbackHistoryRepository: PlaybackHistoryRepository
 ) : ViewModel() {
 
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
@@ -32,16 +34,15 @@ class DashboardViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeData() {
         viewModelScope.launch {
-            // Optimization: Use count() instead of fetching full lists for the dashboard summary
             combine(
                 accountBox.query().equal(XtreamAccount_.isActive, true).build().flow(),
                 liveBox.query().build().flow(),
                 movieBox.query().build().flow(),
-                seriesBox.query().build().flow()
-            ) { accounts, liveQuery, moviesQuery, seriesQuery ->
+                seriesBox.query().build().flow(),
+                playbackHistoryRepository.getRecentlyWatched(50)
+            ) { accounts, liveQuery, moviesQuery, seriesQuery, history ->
                 val activeAccount = accounts.firstOrNull()
                 
-                // Perform counts in background
                 DashboardUiState(
                     isLoading = false,
                     liveCount = liveBox.count().toInt(),
@@ -51,7 +52,8 @@ class DashboardViewModel @Inject constructor(
                         expirationDate = activeAccount?.expiryDate,
                         status = activeAccount?.status ?: "",
                         maxConnections = activeAccount?.maxConnections ?: 0
-                    )
+                    ),
+                    continueWatching = history
                 )
             }
             .flowOn(Dispatchers.Default)

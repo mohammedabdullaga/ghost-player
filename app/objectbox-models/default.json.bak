@@ -387,7 +387,7 @@
     },
     {
       "id": "5:4458746768857130668",
-      "lastPropertyId": "9:6046164600248564580",
+      "lastPropertyId": "13:1361443169453617604",
       "name": "PlaybackHistory",
       "properties": [
         {
@@ -437,6 +437,26 @@
           "id": "9:6046164600248564580",
           "name": "posterUrl",
           "type": 9
+        },
+        {
+          "id": "10:7248825405876257966",
+          "name": "providerId",
+          "type": 6
+        },
+        {
+          "id": "11:2343282242182912940",
+          "name": "seriesId",
+          "type": 6
+        },
+        {
+          "id": "12:2332610616290314377",
+          "name": "seasonNumber",
+          "type": 5
+        },
+        {
+          "id": "13:1361443169453617604",
+          "name": "episodeNumber",
+          "type": 5
         }
       ],
       "relations": []
@@ -707,13 +727,7 @@
           "type": 6
         }
       ],
-      "relations": [
-        {
-          "id": "1:476970813737427691",
-          "name": "episodes",
-          "targetId": "8:8375585262319354259"
-        }
-      ]
+      "relations": []
     },
     {
       "id": "10:5312987089823156697",
@@ -776,10 +790,141 @@
         }
       ],
       "relations": []
+    },
+    {
+      "id": "12:570403733061803585",
+      "lastPropertyId": "25:4652205212483986113",
+      "name": "DownloadEntity",
+      "properties": [
+        {
+          "id": "1:3951814623519536026",
+          "name": "objectBoxId",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "3:6077227682932209177",
+          "name": "providerId",
+          "type": 6
+        },
+        {
+          "id": "4:1752332203458086910",
+          "name": "contentType",
+          "type": 9
+        },
+        {
+          "id": "5:4937141065573492204",
+          "name": "contentId",
+          "type": 6
+        },
+        {
+          "id": "6:8969999252942287628",
+          "name": "contentName",
+          "type": 9
+        },
+        {
+          "id": "7:834525031341998339",
+          "name": "streamUrl",
+          "type": 9
+        },
+        {
+          "id": "8:760142147952601600",
+          "name": "sourceStreamUrl",
+          "type": 9
+        },
+        {
+          "id": "9:1796096307106645495",
+          "name": "sourceStreamId",
+          "type": 6
+        },
+        {
+          "id": "10:8781580006004620848",
+          "name": "containerExtension",
+          "type": 9
+        },
+        {
+          "id": "11:1640329669950004228",
+          "name": "posterUrl",
+          "type": 9
+        },
+        {
+          "id": "12:8128043186303593626",
+          "name": "outputUri",
+          "type": 9
+        },
+        {
+          "id": "13:607619596005377316",
+          "name": "outputDisplayPath",
+          "type": 9
+        },
+        {
+          "id": "14:7423499249200048710",
+          "name": "status",
+          "type": 9
+        },
+        {
+          "id": "15:6227013390808414661",
+          "name": "bytesWritten",
+          "type": 6
+        },
+        {
+          "id": "16:7683019375973608265",
+          "name": "totalBytes",
+          "type": 6
+        },
+        {
+          "id": "17:6418378305967029485",
+          "name": "supportsResume",
+          "type": 1
+        },
+        {
+          "id": "18:8294092530514292358",
+          "name": "retryCount",
+          "type": 5
+        },
+        {
+          "id": "19:4461417214140538452",
+          "name": "createdAt",
+          "type": 6
+        },
+        {
+          "id": "20:5436076965435643863",
+          "name": "completedAt",
+          "type": 6
+        },
+        {
+          "id": "21:2071767159617335485",
+          "name": "failureReason",
+          "type": 9
+        },
+        {
+          "id": "22:972831462178091223",
+          "name": "seriesId",
+          "type": 6
+        },
+        {
+          "id": "23:1564242147607656410",
+          "name": "seasonNumber",
+          "type": 5
+        },
+        {
+          "id": "24:265633177330250145",
+          "name": "episodeNumber",
+          "type": 5
+        },
+        {
+          "id": "25:4652205212483986113",
+          "name": "downloadId",
+          "indexId": "25:8084169191951253757",
+          "type": 9,
+          "flags": 2048
+        }
+      ],
+      "relations": []
     }
   ],
-  "lastEntityId": "11:8514026431768022754",
-  "lastIndexId": "23:2779713205573441171",
+  "lastEntityId": "12:570403733061803585",
+  "lastIndexId": "25:8084169191951253757",
   "lastRelationId": "1:476970813737427691",
   "lastSequenceId": "0:0",
   "modelVersion": 5,
@@ -788,15 +933,19 @@
   "retiredIndexUids": [
     5631153703288299470,
     685500345956679392,
-    4455687027855511558
+    4455687027855511558,
+    8849852981268645401
   ],
   "retiredPropertyUids": [
     2013678500759769819,
     1074958602230769442,
     3513782147494652350,
     1698903217808297720,
-    7343797172803350396
+    7343797172803350396,
+    8534284500597381695
   ],
-  "retiredRelationUids": [],
+  "retiredRelationUids": [
+    476970813737427691
+  ],
   "version": 1
 }

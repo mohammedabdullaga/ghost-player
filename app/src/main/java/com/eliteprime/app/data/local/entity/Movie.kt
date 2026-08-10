@@ -31,7 +31,9 @@ data class Movie(
     var genre: String? = null,
     var duration: String? = null,
     @Index var isFavorite: Boolean = false,
-    var lastWatchedAt: Long = 0
+    var lastWatchedAt: Long = 0,
+    var watchProgress: Long = 0,
+    var totalDuration: Long = 0
 ) {
     lateinit var category: ToOne<Category>
 }

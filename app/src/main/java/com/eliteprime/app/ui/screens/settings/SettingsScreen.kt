@@ -1,5 +1,8 @@
 package com.eliteprime.app.ui.screens.settings
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,6 +41,7 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.XtreamAccount
+import com.eliteprime.app.domain.model.DownloadStorageConfig
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
@@ -199,6 +203,8 @@ fun SettingsScreen(
                                 GeneralSettingsContent(
                                     currentLanguage = uiState.language,
                                     onLanguageChange = { viewModel.setLanguage(it) },
+                                    storageConfig = uiState.storageConfig,
+                                    onFolderSelected = { viewModel.updateStorageConfig(it) },
                                     isTv = isTv
                                 )
                             }
@@ -256,42 +262,88 @@ fun SettingsScreen(
 private fun GeneralSettingsContent(
     currentLanguage: String,
     onLanguageChange: (String) -> Unit,
+    storageConfig: DownloadStorageConfig,
+    onFolderSelected: (Uri) -> Unit,
     isTv: Boolean
 ) {
+    val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri?.let(onFolderSelected)
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         item {
-            Text(
-                text = stringResource(R.string.settings_language),
-                color = Color.White.copy(alpha = 0.6f),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 0.5.sp
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(R.string.settings_language),
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    LanguageChip(
+                        label = "English",
+                        isActive = currentLanguage == "en",
+                        onClick = { onLanguageChange("en") },
+                        isTv = isTv,
+                        modifier = Modifier.weight(1f)
+                    )
+                    LanguageChip(
+                        label = "العربية",
+                        isActive = currentLanguage == "ar",
+                        onClick = { onLanguageChange("ar") },
+                        isTv = isTv,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         }
-        
+
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                LanguageChip(
-                    label = "English",
-                    isActive = currentLanguage == "en",
-                    onClick = { onLanguageChange("en") },
-                    isTv = isTv,
-                    modifier = Modifier.weight(1f)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "DOWNLOAD FOLDER",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
                 )
-                LanguageChip(
-                    label = "العربية",
-                    isActive = currentLanguage == "ar",
-                    onClick = { onLanguageChange("ar") },
-                    isTv = isTv,
-                    modifier = Modifier.weight(1f)
-                )
+                
+                Surface(
+                    onClick = { folderLauncher.launch(null) },
+                    color = Color.White.copy(alpha = 0.05f),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(Icons.Default.Folder, null, tint = AppColors.ArenaOrange)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = storageConfig.displayName ?: "Default (App Storage)",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = "Select where to save downloaded content",
+                                color = Color.White.copy(alpha = 0.4f),
+                                fontSize = 11.sp
+                            )
+                        }
+                        Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.3f))
+                    }
+                }
             }
         }
     }

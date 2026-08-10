@@ -5,6 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.repository.XtreamRepository
+import com.eliteprime.app.domain.model.DownloadContentType
+import com.eliteprime.app.domain.model.DownloadRequest
+import com.eliteprime.app.domain.repository.DownloadManager
+import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
@@ -18,6 +22,8 @@ import javax.inject.Inject
 class SeriesDetailsViewModel @Inject constructor(
     private val boxStore: BoxStore,
     private val xtreamRepository: XtreamRepository,
+    private val downloadManager: DownloadManager,
+    private val playbackHistoryRepository: PlaybackHistoryRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -25,6 +31,7 @@ class SeriesDetailsViewModel @Inject constructor(
     private val seriesBox = boxStore.boxFor(Series::class.java)
     private val seasonBox = boxStore.boxFor(Season::class.java)
     private val episodeBox = boxStore.boxFor(Episode::class.java)
+    private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
 
     val series = seriesBox.query().equal(Series_.id, seriesId).build().flow().map { it.firstOrNull() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -36,12 +43,28 @@ class SeriesDetailsViewModel @Inject constructor(
         seasonBox.query().equal(Season_.seriesId, seriesId).build().flow(),
         episodeBox.query().equal(Episode_.seriesId, seriesId).build().flow()
     ) { seasonList, _ ->
-        // Important: Force reload relation to get latest episodes
         seasonList.sortedBy { it.seasonNumber }.onEach { season ->
             season.episodes.reset() 
             season.episodes.sortBy { it.episodeNumber }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val resumeEpisode = seasons.map { seasonList ->
+        var lastWatched: Episode? = null
+        for (season in seasonList) {
+            for (episode in season.episodes) {
+                if (episode.watchProgress > 0) {
+                    if (lastWatched == null || episode.lastWatchedAt > lastWatched.lastWatchedAt) {
+                        lastWatched = episode
+                    }
+                }
+            }
+        }
+        if (lastWatched == null && seasonList.isNotEmpty()) {
+            lastWatched = seasonList.first().episodes.firstOrNull()
+        }
+        lastWatched
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val selectedSeason = combine(seasons, _selectedSeasonNumber) { list, number ->
         if (list.isEmpty()) null
@@ -65,7 +88,6 @@ class SeriesDetailsViewModel @Inject constructor(
                 .flow()
                 .map { list ->
                     if (list.isEmpty()) {
-                        // Fallback: if same category is empty, just show any other series
                         seriesBox.query().notEqual(Series_.id, s.id).build().find(0, 12)
                     } else {
                         list.take(12)
@@ -96,6 +118,27 @@ class SeriesDetailsViewModel @Inject constructor(
             val current = series.value ?: return@launch
             current.isFavorite = !current.isFavorite
             seriesBox.put(current)
+        }
+    }
+
+    fun downloadEpisode(episode: Episode) {
+        viewModelScope.launch {
+            val s = series.value ?: return@launch
+            val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@launch
+            
+            val request = DownloadRequest(
+                providerId = account.id,
+                contentType = DownloadContentType.SERIES_EPISODE,
+                contentId = episode.id,
+                contentName = "${s.name} - ${episode.title}",
+                streamUrl = "", 
+                containerExtension = episode.containerExtension,
+                posterUrl = episode.coverUrl ?: s.cover,
+                seriesId = s.id,
+                seasonNumber = episode.seasonNumber,
+                episodeNumber = episode.episodeNumber
+            )
+            downloadManager.enqueueDownload(request)
         }
     }
 }

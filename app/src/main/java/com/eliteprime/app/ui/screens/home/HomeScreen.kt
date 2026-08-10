@@ -10,6 +10,8 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
@@ -36,9 +38,7 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
-import com.eliteprime.app.ui.components.AppBackground
-import com.eliteprime.app.ui.components.ArenaLiveLogo
-import com.eliteprime.app.ui.components.NavTabButton
+import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
@@ -60,7 +60,7 @@ private object HomeRadius {
     val md = 14.dp
 }
 
-private enum class HomeFocusIndex { LIVE, MOVIES, SERIES }
+private enum class HomeFocusIndex { CONTINUE, MOVIES, SERIES }
 
 @Composable
 fun HomeScreen(
@@ -70,6 +70,7 @@ fun HomeScreen(
     onNavigateToMovies: () -> Unit,
     onNavigateToSeries: () -> Unit,
     onNavigateToDownloads: () -> Unit,
+    onNavigateToContinueWatching: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -79,20 +80,18 @@ fun HomeScreen(
     var showExitDialog by remember { mutableStateOf(false) }
 
     val isTv = context.isTelevisionDevice()
-    val liveTvFocusRequester = remember { FocusRequester() }
+    val continueFocusRequester = remember { FocusRequester() }
     val moviesFocusRequester = remember { FocusRequester() }
     val seriesFocusRequester = remember { FocusRequester() }
     
-    var lastFocusedIndex by rememberSaveable { mutableStateOf(HomeFocusIndex.LIVE) }
+    var lastFocusedIndex by rememberSaveable { mutableStateOf(HomeFocusIndex.CONTINUE) }
 
     // Restore focus to the card we were on instantly
     LaunchedEffect(Unit) {
         if (isTv) {
-            // Delay 100ms is usually the sweet spot for the UI tree to be ready
-            // but short enough that the user doesn't see a "jump" from the top bar.
             delay(100)
             when (lastFocusedIndex) {
-                HomeFocusIndex.LIVE -> liveTvFocusRequester.requestFocus()
+                HomeFocusIndex.CONTINUE -> continueFocusRequester.requestFocus()
                 HomeFocusIndex.MOVIES -> moviesFocusRequester.requestFocus()
                 HomeFocusIndex.SERIES -> seriesFocusRequester.requestFocus()
             }
@@ -139,16 +138,16 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 HomeHeroCard(
-                    title = stringResource(R.string.nav_live_tv).uppercase(),
-                    description = stringResource(R.string.dashboard_live_desc),
-                    icon = Icons.Default.LiveTv,
+                    title = "CONTINUE WATCHING",
+                    description = if (uiState.continueWatching.isEmpty()) "Your history is empty" else "Pick up where you left off",
+                    icon = Icons.Default.History,
                     accentColor = Color(0xFFFF4500),
-                    onClick = onNavigateToLiveTv,
+                    onClick = onNavigateToContinueWatching,
                     modifier = Modifier
                         .weight(1f)
                         .aspectRatio(1.5f)
-                        .focusRequester(liveTvFocusRequester)
-                        .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.LIVE }
+                        .focusRequester(continueFocusRequester)
+                        .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.CONTINUE }
                 )
                 HomeHeroCard(
                     title = stringResource(R.string.nav_movies).uppercase(),

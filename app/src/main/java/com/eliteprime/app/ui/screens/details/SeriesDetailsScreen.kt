@@ -42,6 +42,7 @@ import com.eliteprime.app.data.local.entity.Season
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.util.formatPositionMs
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
 
@@ -58,6 +59,7 @@ fun SeriesDetailsScreen(
     val series = seriesState
     val seasons by viewModel.seasons.collectAsState()
     val selectedSeason by viewModel.selectedSeason.collectAsState()
+    val resumeEpisode by viewModel.resumeEpisode.collectAsState()
     val relatedSeries by viewModel.relatedSeries.collectAsState()
     val isTv = LocalContext.current.isTelevisionDevice()
     
@@ -139,6 +141,47 @@ fun SeriesDetailsScreen(
                                 )
                             }
 
+                            if (resumeEpisode != null) {
+                                val hasProgress = resumeEpisode!!.watchProgress > 10000L
+                                val buttonText = if (hasProgress) {
+                                    "RESUME S${resumeEpisode!!.seasonNumber} E${resumeEpisode!!.episodeNumber} FROM ${formatPositionMs(resumeEpisode!!.watchProgress)}"
+                                } else {
+                                    "PLAY S${resumeEpisode!!.seasonNumber} E${resumeEpisode!!.episodeNumber}"
+                                }
+
+                                Row(modifier = Modifier.padding(vertical = 4.dp)) {
+                                    if (isTv) {
+                                        TvSurface(
+                                            onClick = { onPlayEpisode(resumeEpisode!!) },
+                                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                                            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+                                            colors = ClickableSurfaceDefaults.colors(
+                                                containerColor = AppColors.ArenaOrange,
+                                                focusedContainerColor = Color.White
+                                            ),
+                                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp))
+                                        ) {
+                                            Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                                Icon(Icons.Default.PlayArrow, null, tint = Color.Unspecified)
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(buttonText, fontWeight = FontWeight.Black, fontSize = 13.sp, color = Color.Unspecified)
+                                            }
+                                        }
+                                    } else {
+                                        Button(
+                                            onClick = { onPlayEpisode(resumeEpisode!!) },
+                                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
+                                            shape = RoundedCornerShape(12.dp)
+                                        ) {
+                                            Icon(Icons.Default.PlayArrow, null)
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(buttonText, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                                        }
+                                    }
+                                }
+                            }
+
                             TagRow(genre = null, rating = series.rating)
                             
                             if (!series.plot.isNullOrBlank()) {
@@ -182,6 +225,7 @@ fun SeriesDetailsScreen(
                                     index = index + 1,
                                     fallbackImageUrl = series.cover ?: series.backdropUrl,
                                     onClick = { onPlayEpisode(episode) },
+                                    onDownloadClick = { viewModel.downloadEpisode(episode) },
                                     isTv = isTv
                                 )
                             }
@@ -524,6 +568,7 @@ private fun EpisodeRow(
     index: Int,
     fallbackImageUrl: String?,
     onClick: () -> Unit,
+    onDownloadClick: () -> Unit,
     isTv: Boolean
 ) {
     if (isTv) {
@@ -540,7 +585,7 @@ private fun EpisodeRow(
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
-            EpisodeRowContent(episode, index, fallbackImageUrl)
+            EpisodeRowContent(episode, index, fallbackImageUrl, onDownloadClick, onClick)
         }
     } else {
         Surface(
@@ -550,13 +595,13 @@ private fun EpisodeRow(
             color = DetailSurface.cardFill,
             border = BorderStroke(1.dp, DetailSurface.hairline)
         ) {
-            EpisodeRowContent(episode, index, fallbackImageUrl)
+            EpisodeRowContent(episode, index, fallbackImageUrl, onDownloadClick, onClick)
         }
     }
 }
 
 @Composable
-private fun EpisodeRowContent(episode: Episode, index: Int, fallbackImageUrl: String?) {
+private fun EpisodeRowContent(episode: Episode, index: Int, fallbackImageUrl: String?, onDownloadClick: () -> Unit, onPlayClick: () -> Unit) {
     Row(modifier = Modifier.fillMaxSize().padding(DetailSpacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(DetailSpacing.sm)) {
         Box(modifier = Modifier.fillMaxHeight().aspectRatio(1.6f).clip(RoundedCornerShape(DetailRadius.sm)).background(Color.Black)) {
             AsyncImage(
@@ -588,12 +633,27 @@ private fun EpisodeRowContent(episode: Episode, index: Int, fallbackImageUrl: St
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (!episode.duration.isNullOrBlank()) {
+            
+            if (episode.watchProgress > 0 && episode.totalDuration > 0) {
+                val epProgress = (episode.watchProgress.toFloat() / episode.totalDuration).coerceIn(0f, 1f)
+                Spacer(Modifier.height(4.dp))
+                LinearProgressIndicator(
+                    progress = { epProgress },
+                    modifier = Modifier.fillMaxWidth(0.6f).height(2.dp),
+                    color = AppColors.ArenaOrange,
+                    trackColor = Color.White.copy(alpha = 0.1f)
+                )
+            } else if (!episode.duration.isNullOrBlank()) {
                 Spacer(Modifier.height(2.dp))
                 Text(text = episode.duration!!, color = DetailSurface.textTertiary, fontSize = 11.sp)
             }
         }
-        Surface(onClick = {}, modifier = Modifier.size(32.dp), shape = CircleShape, color = AppColors.ArenaOrange) {
+
+        IconButton(onClick = onDownloadClick, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Default.Download, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
+        }
+
+        Surface(onClick = onPlayClick, modifier = Modifier.size(32.dp), shape = CircleShape, color = AppColors.ArenaOrange) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(16.dp))
             }

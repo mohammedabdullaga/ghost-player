@@ -16,7 +16,10 @@ data class Episode(
     @SerializedName("plot") var plot: String? = null,
     @SerializedName("cover_big") var coverUrl: String? = null,
     var streamId: Long = 0, // Resolved stream id for playback
-    var seriesId: Long = 0
+    var seriesId: Long = 0,
+    var watchProgress: Long = 0,
+    var totalDuration: Long = 0,
+    var lastWatchedAt: Long = 0
 ) {
     lateinit var season: ToOne<Season>
 }

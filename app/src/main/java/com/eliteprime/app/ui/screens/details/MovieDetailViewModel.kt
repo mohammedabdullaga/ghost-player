@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.repository.XtreamRepository
+import com.eliteprime.app.domain.model.DownloadContentType
+import com.eliteprime.app.domain.model.DownloadRequest
+import com.eliteprime.app.domain.repository.DownloadManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
@@ -18,11 +21,13 @@ import javax.inject.Inject
 class MovieDetailViewModel @Inject constructor(
     private val boxStore: BoxStore,
     private val xtreamRepository: XtreamRepository,
+    private val downloadManager: DownloadManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val movieId: Long = savedStateHandle.get<Long>("id") ?: 0
     private val movieBox = boxStore.boxFor(Movie::class.java)
+    private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
 
     val movie = movieBox.query().equal(Movie_.id, movieId).build().flow().map { it.firstOrNull() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
@@ -59,6 +64,24 @@ class MovieDetailViewModel @Inject constructor(
             val current = movie.value ?: return@launch
             current.isFavorite = !current.isFavorite
             movieBox.put(current)
+        }
+    }
+
+    fun downloadMovie() {
+        viewModelScope.launch {
+            val m = movie.value ?: return@launch
+            val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@launch
+            
+            val request = DownloadRequest(
+                providerId = account.id,
+                contentType = DownloadContentType.MOVIE,
+                contentId = m.id,
+                contentName = m.name,
+                streamUrl = "", // Managed by DownloadManager
+                containerExtension = m.containerExtension,
+                posterUrl = m.streamIcon
+            )
+            downloadManager.enqueueDownload(request)
         }
     }
 }

@@ -7,26 +7,31 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -38,12 +43,18 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
+import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.LiveStream
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
+import com.eliteprime.app.data.local.entity.PlaybackHistory
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
+import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // --- Detail UI Tokens ---
 object DetailSpacing {
@@ -160,7 +171,7 @@ fun CategoryTab(
                 .focusRequester(focusRequester),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isSelected) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
+                containerColor = if (isSelected) AppColors.FocusBrown.copy(alpha = 0.45f) else Color.Black.copy(alpha = 0.45f),
                 focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f),
                 pressedContainerColor = AppColors.FocusBrown
             ),
@@ -225,7 +236,7 @@ fun ChannelRow(
                 .focusRequester(focusRequester),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isSelected) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
+                containerColor = if (isSelected) AppColors.FocusBrown.copy(alpha = 0.45f) else Color.Black.copy(alpha = 0.45f),
                 focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
@@ -299,7 +310,7 @@ fun VodPosterCard(
                 focusedBorder = Border(BorderStroke(3.dp, Color.White))
             )
         ) {
-            VodPosterCardContent(movie.name, movie.streamIcon, movie.rating.toFloat(), movie.isFavorite, isFocused)
+            VodPosterCardContent(movie.name, movie.streamIcon, movie.rating.toFloat(), movie.isFavorite, movie.watchProgress, movie.totalDuration, isFocused)
         }
     } else {
         Column(
@@ -311,7 +322,7 @@ fun VodPosterCard(
                     detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() })
                 }
         ) {
-            VodPosterCardContent(movie.name, movie.streamIcon, movie.rating.toFloat(), movie.isFavorite, false)
+            VodPosterCardContent(movie.name, movie.streamIcon, movie.rating.toFloat(), movie.isFavorite, movie.watchProgress, movie.totalDuration, false)
         }
     }
 }
@@ -342,7 +353,7 @@ fun SeriesPosterCard(
                 focusedBorder = Border(BorderStroke(3.dp, Color.White))
             )
         ) {
-            VodPosterCardContent(series.name, series.cover, series.rating.toFloat(), series.isFavorite, isFocused)
+            VodPosterCardContent(series.name, series.cover, series.rating.toFloat(), series.isFavorite, 0, 0, isFocused)
         }
     } else {
         Column(
@@ -354,13 +365,21 @@ fun SeriesPosterCard(
                     detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() })
                 }
         ) {
-            VodPosterCardContent(series.name, series.cover, series.rating.toFloat(), series.isFavorite, false)
+            VodPosterCardContent(series.name, series.cover, series.rating.toFloat(), series.isFavorite, 0, 0, false)
         }
     }
 }
 
 @Composable
-private fun VodPosterCardContent(name: String, posterUrl: String?, rating: Float, isFavorite: Boolean, isFocused: Boolean) {
+private fun VodPosterCardContent(
+    name: String, 
+    posterUrl: String?, 
+    rating: Float, 
+    isFavorite: Boolean, 
+    watchProgress: Long = 0,
+    totalDuration: Long = 0,
+    isFocused: Boolean
+) {
     Column(
         modifier = Modifier
             .background(
@@ -412,6 +431,19 @@ private fun VodPosterCardContent(name: String, posterUrl: String?, rating: Float
                 ) {
                     Icon(Icons.Default.Star, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.padding(6.dp).size(12.dp))
                 }
+            }
+            
+            if (watchProgress > 0 && totalDuration > 0) {
+                val progress = (watchProgress.toFloat() / totalDuration).coerceIn(0f, 1f)
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(3.dp),
+                    color = AppColors.ArenaOrange,
+                    trackColor = Color.Transparent
+                )
             }
         }
         
@@ -504,5 +536,130 @@ fun StatusPill(
             fontSize = 10.sp,
             letterSpacing = 0.5.sp
         )
+    }
+}
+
+@Composable
+fun ContinueWatchingRow(
+    items: List<PlaybackHistory>,
+    onItemClick: (PlaybackHistory) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (items.isEmpty()) return
+
+    Column(modifier = modifier.fillMaxWidth().padding(vertical = 16.dp)) {
+        Text(
+            text = "CONTINUE WATCHING",
+            style = EyebrowStyle,
+            color = Color.White.copy(alpha = 0.6f),
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+        )
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(items) { history ->
+                ContinueWatchingCard(
+                    history = history,
+                    onClick = { onItemClick(history) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ContinueWatchingCard(
+    history: PlaybackHistory,
+    onClick: () -> Unit
+) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    var isFocused by remember { mutableStateOf(false) }
+    
+    val progress = if (history.durationMs > 0) {
+        (history.lastPositionMs.toFloat() / history.durationMs).coerceIn(0f, 1f)
+    } else 0f
+
+    val content = @Composable {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AsyncImage(
+                model = history.backdropUrl ?: history.posterUrl,
+                contentDescription = history.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().alpha(0.8f)
+            )
+            
+            // Bottom Scrim
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))))
+            )
+            
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp)
+            ) {
+                Text(
+                    text = history.name,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if ((history.type == "series" || history.type == "series_episode") && history.seasonNumber != null) {
+                    Text(
+                        text = "S${history.seasonNumber} E${history.episodeNumber}",
+                        color = Color.White.copy(alpha = 0.6f),
+                        fontSize = 11.sp
+                    )
+                }
+            }
+            
+            // Progress Bar at bottom
+            if (progress > 0) {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .align(Alignment.BottomCenter),
+                    color = AppColors.ArenaOrange,
+                    trackColor = Color.Transparent
+                )
+            }
+        }
+    }
+
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            modifier = Modifier
+                .width(220.dp)
+                .aspectRatio(16f / 9f)
+                .onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+            border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+        ) {
+            content()
+        }
+    } else {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier
+                .width(200.dp)
+                .aspectRatio(16f / 9f),
+            shape = RoundedCornerShape(14.dp),
+            color = Color.Black.copy(alpha = 0.45f),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+        ) {
+            content()
+        }
     }
 }

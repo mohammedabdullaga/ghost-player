@@ -37,6 +37,9 @@ import com.eliteprime.app.ui.screens.details.MovieDetailsScreen
 import com.eliteprime.app.ui.screens.details.MovieDetailViewModel
 import com.eliteprime.app.ui.screens.details.SeriesDetailsScreen
 import com.eliteprime.app.ui.screens.details.SeriesDetailsViewModel
+import com.eliteprime.app.ui.screens.downloads.DownloadsScreen
+import com.eliteprime.app.ui.screens.downloads.DownloadViewModel
+import com.eliteprime.app.ui.screens.dashboard.ContinueWatchingGridScreen
 
 @Composable
 fun AppNavigation(
@@ -81,7 +84,8 @@ fun AppNavigation(
                 onNavigateToLiveTv = { stopPlayerAndNavigate("live") },
                 onNavigateToMovies = { stopPlayerAndNavigate("movies") },
                 onNavigateToSeries = { stopPlayerAndNavigate("series") },
-                onNavigateToDownloads = { stopPlayerAndNavigate("downloads") }
+                onNavigateToDownloads = { stopPlayerAndNavigate("downloads") },
+                onNavigateToContinueWatching = { navController.navigate("continue_watching") }
             )
         }
         composable("live") {
@@ -151,9 +155,14 @@ fun AppNavigation(
             )
         }
         composable("downloads") {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Downloads Coming Soon", color = Color.White)
-            }
+            DownloadsScreen(onBack = { navController.popBackStack() })
+        }
+        composable("continue_watching") {
+            ContinueWatchingGridScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToMovieDetails = { id -> navController.navigate("movie_details/$id") },
+                onNavigateToSeriesDetails = { id -> navController.navigate("series_details/$id") }
+            )
         }
         composable("settings") {
             SettingsScreen(

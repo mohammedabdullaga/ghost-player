@@ -15,6 +15,7 @@ compose-tv-material = "1.0.1"
 engage = "1.6.0"
 engage-tv = "1.1.0"
 tvprovider = "1.1.0"
+documentfile = "1.0.1"
 media3 = "1.9.2"
 hilt = "2.60.1"
 hilt-work = "1.2.0"
@@ -37,6 +38,7 @@ androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "j
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 
 # Serialization
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }

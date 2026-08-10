@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.compose.tv.material)
     implementation(libs.engage.tv)
     implementation(libs.androidx.tvprovider)
+    implementation(libs.androidx.documentfile)
 
     // REMOVED: ObjectBox manual dependencies. The plugin handles this for you!
 

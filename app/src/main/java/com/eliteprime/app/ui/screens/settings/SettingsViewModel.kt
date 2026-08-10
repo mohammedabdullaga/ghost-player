@@ -1,10 +1,13 @@
 package com.eliteprime.app.ui.screens.settings
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.repository.XtreamRepository
+import com.eliteprime.app.domain.model.DownloadStorageConfig
+import com.eliteprime.app.domain.repository.DownloadManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.Box
 import io.objectbox.BoxStore
@@ -22,14 +25,16 @@ data class SettingsUiState(
     val seriesCount: Long = 0,
     val epgCount: Long = 0,
     val isSyncing: Boolean = false,
-    val language: String = "en"
+    val language: String = "en",
+    val storageConfig: DownloadStorageConfig = DownloadStorageConfig()
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val boxStore: BoxStore,
     private val xtreamRepository: XtreamRepository,
-    private val preferenceRepository: PreferenceRepository
+    private val preferenceRepository: PreferenceRepository,
+    private val downloadManager: DownloadManager
 ) : ViewModel() {
 
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
@@ -55,7 +60,8 @@ class SettingsViewModel @Inject constructor(
         reactiveCount(seriesBox),
         reactiveCount(epgBox),
         _isSyncing,
-        preferenceRepository.language
+        preferenceRepository.language,
+        downloadManager.observeStorageState()
     ) { params ->
         SettingsUiState(
             account = params[0] as? XtreamAccount,
@@ -64,7 +70,8 @@ class SettingsViewModel @Inject constructor(
             seriesCount = params[3] as Long,
             epgCount = params[4] as Long,
             isSyncing = params[5] as Boolean,
-            language = params[6] as String
+            language = params[6] as String,
+            storageConfig = params[7] as DownloadStorageConfig
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
@@ -88,6 +95,12 @@ class SettingsViewModel @Inject constructor(
 
     fun setLanguage(lang: String) {
         preferenceRepository.setLanguage(lang)
+    }
+
+    fun updateStorageConfig(uri: Uri) {
+        viewModelScope.launch {
+            downloadManager.updateStorageConfig(uri.toString(), uri.path)
+        }
     }
 
     fun updateAccount(account: XtreamAccount) {

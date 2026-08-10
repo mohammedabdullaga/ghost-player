@@ -1,6 +1,7 @@
 package com.eliteprime.app.data.repository
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -14,15 +15,19 @@ import javax.inject.Singleton
 class PreferenceRepository @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    private val prefs: SharedPreferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+
     private val _language = MutableStateFlow(getCurrentLanguage())
     val language: StateFlow<String> = _language
+
+    private val _downloadTreeUri = MutableStateFlow(prefs.getString("download_tree_uri", null))
+    val downloadTreeUri: StateFlow<String?> = _downloadTreeUri
 
     private fun getCurrentLanguage(): String {
         val locales = AppCompatDelegate.getApplicationLocales()
         if (!locales.isEmpty) {
             return locales.get(0)?.language ?: "en"
         }
-        // Fallback to device locale or "en"
         return Locale.getDefault().language.let { if (it == "ar") "ar" else "en" }
     }
 
@@ -32,9 +37,12 @@ class PreferenceRepository @Inject constructor(
         _language.value = lang
     }
 
+    fun setDownloadTreeUri(uri: String?) {
+        prefs.edit().putString("download_tree_uri", uri).apply()
+        _downloadTreeUri.value = uri
+    }
+
     fun applySavedLocale() {
-        // This is handled automatically by AppCompat due to autoStoreLocales=true in Manifest
-        // but we update our flow to match reality
         _language.value = getCurrentLanguage()
     }
 }
