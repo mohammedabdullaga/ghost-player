@@ -31,6 +31,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Border
@@ -480,5 +481,28 @@ fun PaneSurface(modifier: Modifier = Modifier, content: @Composable () -> Unit) 
         border = BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.18f))
     ) {
         content()
+    }
+}
+
+@Composable
+fun StatusPill(
+    label: String,
+    containerColor: Color,
+    contentColor: Color = Color.White,
+    horizontalPadding: Dp = 12.dp,
+    verticalPadding: Dp = 4.dp
+) {
+    Surface(
+        color = containerColor,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding),
+            color = contentColor,
+            fontWeight = FontWeight.Black,
+            fontSize = 10.sp,
+            letterSpacing = 0.5.sp
+        )
     }
 }
