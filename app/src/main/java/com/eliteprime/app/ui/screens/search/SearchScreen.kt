@@ -89,9 +89,12 @@ fun SearchScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+    val isTv = LocalContext.current.isTelevisionDevice()
 
     LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
+        if (isTv) {
+            focusRequester.requestFocus()
+        }
     }
 
     AppBackground {

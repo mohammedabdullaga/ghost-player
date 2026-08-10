@@ -12,11 +12,13 @@ import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
 import androidx.core.view.WindowCompat
 import com.eliteprime.app.data.local.entity.XtreamAccount
 import com.eliteprime.app.data.local.entity.XtreamAccount_
+import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.player.GlobalPlayerState
 import com.eliteprime.app.player.PlayerEngine
 import com.eliteprime.app.player.PlayerViewMode
@@ -30,11 +32,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
 
     @Inject lateinit var boxStore: BoxStore
     @Inject lateinit var globalPlayerState: GlobalPlayerState
     @Inject lateinit var playerEngine: PlayerEngine
+    @Inject lateinit var preferenceRepository: PreferenceRepository
 
     private val _pictureInPictureModeFlow = MutableStateFlow(false)
     val pictureInPictureModeFlow: StateFlow<Boolean> = _pictureInPictureModeFlow.asStateFlow()
@@ -44,6 +47,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        preferenceRepository.applySavedLocale()
         
         WindowCompat.setDecorFitsSystemWindows(window, false)
 

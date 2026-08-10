@@ -20,20 +20,20 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eliteprime.app.R
 import com.eliteprime.app.pairing.ProviderQrPairingState
-import com.eliteprime.app.pairing.ProviderQrPairingStatus
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.ArenaLiveLogo
 import com.eliteprime.app.util.isTelevisionDevice
+import kotlinx.coroutines.delay
 
 private val ArenaOrange = Color(0xFFFF6029)
 
@@ -52,7 +52,7 @@ fun LoginScreen(
 
     val context = LocalContext.current
     val isTv = context.isTelevisionDevice()
-
+    
     LaunchedEffect(state) {
         if (state is LoginState.Success) {
             onLoginSuccess()
@@ -82,8 +82,7 @@ fun LoginScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .imePadding(),
+                    .padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
                 if (isTv) {
@@ -143,28 +142,22 @@ private fun TvLoginLayout(
         ) {
             // LEFT SIDE: Manual Login
             Box(modifier = Modifier.weight(1.1f)) {
-                AnimatedContent(
-                    targetState = state is LoginState.Loading,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "tv-form-vs-sync"
-                ) { isSyncing ->
-                    if (isSyncing) {
-                        SyncProgressView(syncProgress)
-                    } else {
-                        Column {
-                            LoginForm(
-                                username = user,
-                                onUsernameChange = onUserChange,
-                                password = pass,
-                                onPasswordChange = onPassChange,
-                                passwordVisible = passwordVisible,
-                                onTogglePasswordVisible = onTogglePasswordVisible,
-                                onSubmit = onSubmit
-                            )
-                            if (state is LoginState.Error) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                ErrorBanner(state.message)
-                            }
+                if (state is LoginState.Loading) {
+                    SyncProgressView(syncProgress)
+                } else {
+                    Column {
+                        LoginForm(
+                            username = user,
+                            onUsernameChange = onUserChange,
+                            password = pass,
+                            onPasswordChange = onPassChange,
+                            passwordVisible = passwordVisible,
+                            onTogglePasswordVisible = onTogglePasswordVisible,
+                            onSubmit = onSubmit
+                        )
+                        if (state is LoginState.Error) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            ErrorBanner(state.message)
                         }
                     }
                 }
@@ -204,20 +197,20 @@ private fun TvLoginLayout(
                     }
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        text = "تسجيل الدخول عبر الهاتف",
+                        text = stringResource(R.string.login_qr_title),
                         style = MaterialTheme.typography.titleMedium,
                         color = Color.White,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "امسح الرمز لادخال البيانات بسرعة وسهولة من هاتفك المحمول",
+                        text = stringResource(R.string.login_qr_msg),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.5f),
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
                     )
                     Text(
-                        text = "يجب ان يكون الهاتف على نفس شبكة الواي فاي",
+                        text = stringResource(R.string.login_qr_footer),
                         style = MaterialTheme.typography.labelSmall,
                         color = ArenaOrange.copy(alpha = 0.8f),
                         fontWeight = FontWeight.Bold
@@ -247,8 +240,8 @@ private fun MobileLoginLayout(
         modifier = Modifier
             .widthIn(max = 420.dp)
             .verticalScroll(rememberScrollState())
-            .padding(24.dp)
-            .offset(y = (-40).dp),
+            .imePadding() // Pushes only the content inside the scrollable column
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -261,24 +254,18 @@ private fun MobileLoginLayout(
                 modifier = Modifier.padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                AnimatedContent(
-                    targetState = state is LoginState.Loading,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "login-form-vs-sync"
-                ) { isSyncing ->
-                    if (isSyncing) {
-                        SyncProgressView(syncProgress)
-                    } else {
-                        LoginForm(
-                            username = user,
-                            onUsernameChange = onUserChange,
-                            password = pass,
-                            onPasswordChange = onPassChange,
-                            passwordVisible = passwordVisible,
-                            onTogglePasswordVisible = onTogglePasswordVisible,
-                            onSubmit = onSubmit
-                        )
-                    }
+                if (state is LoginState.Loading) {
+                    SyncProgressView(syncProgress)
+                } else {
+                    LoginForm(
+                        username = user,
+                        onUsernameChange = onUserChange,
+                        password = pass,
+                        onPasswordChange = onPassChange,
+                        passwordVisible = passwordVisible,
+                        onTogglePasswordVisible = onTogglePasswordVisible,
+                        onSubmit = onSubmit
+                    )
                 }
             }
         }
@@ -300,9 +287,12 @@ private fun LoginForm(
     onTogglePasswordVisible: () -> Unit,
     onSubmit: () -> Unit
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Text(
-            text = "SIGN IN",
+            text = stringResource(R.string.login_title),
             color = ArenaOrange,
             fontWeight = FontWeight.Black,
             fontSize = 11.sp,
@@ -310,7 +300,7 @@ private fun LoginForm(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Enter your credentials to start",
+            text = stringResource(R.string.login_subtitle),
             style = MaterialTheme.typography.titleMedium,
             color = Color.White.copy(alpha = 0.6f),
             fontWeight = FontWeight.Medium,
@@ -318,38 +308,45 @@ private fun LoginForm(
         )
         Spacer(modifier = Modifier.height(32.dp))
 
-        OutlinedTextField(
-            value = username,
-            onValueChange = onUsernameChange,
-            placeholder = { Text("Username", color = Color.White.copy(alpha = 0.35f)) },
+        // Single Column with spacedBy ensures fields never overlap
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(20.dp),
-            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
-            colors = loginFieldColors()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(
-            value = password,
-            onValueChange = onPasswordChange,
-            placeholder = { Text("Password", color = Color.White.copy(alpha = 0.35f)) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(20.dp),
-            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
-            trailingIcon = {
-                IconButton(onClick = onTogglePasswordVisible) {
-                    Icon(
-                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.35f)
-                    )
-                }
-            },
-            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            colors = loginFieldColors()
-        )
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            OutlinedTextField(
+                value = username,
+                onValueChange = onUsernameChange,
+                placeholder = { Text(stringResource(R.string.login_username), color = Color.White.copy(alpha = 0.35f)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(20.dp),
+                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
+                colors = loginFieldColors()
+            )
+            
+            OutlinedTextField(
+                value = password,
+                onValueChange = onPasswordChange,
+                placeholder = { Text(stringResource(R.string.login_password), color = Color.White.copy(alpha = 0.35f)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(20.dp),
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
+                trailingIcon = {
+                    IconButton(onClick = onTogglePasswordVisible) {
+                        Icon(
+                            imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.35f)
+                        )
+                    }
+                },
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                colors = loginFieldColors()
+            )
+        }
+        
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
@@ -358,7 +355,7 @@ private fun LoginForm(
             shape = RoundedCornerShape(20.dp),
             colors = ButtonDefaults.buttonColors(containerColor = ArenaOrange)
         ) {
-            Text("LOGIN", fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+            Text(stringResource(R.string.login_btn), fontWeight = FontWeight.Black, letterSpacing = 1.sp)
         }
     }
 }

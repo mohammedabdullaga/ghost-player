@@ -11,6 +11,30 @@
     <string name="nav_logout">Log Out</string>
     <string name="nav_logout_subtitle">Sign out and clear all local data</string>
 
+    <string name="settings_account">Account</string>
+    <string name="settings_general">General</string>
+    <string name="settings_playback">Playback</string>
+    <string name="settings_about">About</string>
+    <string name="settings_language">Language / اللغة</string>
+    <string name="settings_refresh_data">Refresh Data</string>
+    <string name="settings_edit_account">Edit Account</string>
+    <string name="settings_logout_confirm_title">Log Out</string>
+    <string name="settings_logout_confirm_msg">Are you sure you want to log out and clear all local data?</string>
+
+    <string name="login_title">SIGN IN</string>
+    <string name="login_subtitle">Enter your credentials to start</string>
+    <string name="login_username">Username</string>
+    <string name="login_password">Password</string>
+    <string name="login_btn">LOGIN</string>
+    <string name="login_qr_title">Login via Phone</string>
+    <string name="login_qr_msg">Scan the code to enter data quickly and easily from your mobile phone</string>
+    <string name="login_qr_footer">Phone must be on the same Wi-Fi network</string>
+
+    <string name="dashboard_expires">EXPIRES ON</string>
+    <string name="dashboard_live_desc">Watch live channels from around the world</string>
+    <string name="dashboard_movies_desc">Explore thousands of movies in high quality</string>
+    <string name="dashboard_series_desc">Binge the best TV shows and exclusive series</string>
+
     <string name="player_audio">Audio</string>
     <string name="player_subs">Subs</string>
     <string name="player_live_now">Now Playing</string>

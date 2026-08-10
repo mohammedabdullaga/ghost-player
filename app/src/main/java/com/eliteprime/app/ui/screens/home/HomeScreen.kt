@@ -140,7 +140,7 @@ fun HomeScreen(
             ) {
                 HomeHeroCard(
                     title = stringResource(R.string.nav_live_tv).uppercase(),
-                    description = "Watch live channels from around the world",
+                    description = stringResource(R.string.dashboard_live_desc),
                     icon = Icons.Default.LiveTv,
                     accentColor = Color(0xFFFF4500),
                     onClick = onNavigateToLiveTv,
@@ -152,7 +152,7 @@ fun HomeScreen(
                 )
                 HomeHeroCard(
                     title = stringResource(R.string.nav_movies).uppercase(),
-                    description = "Explore thousands of movies in high quality",
+                    description = stringResource(R.string.dashboard_movies_desc),
                     icon = Icons.Default.Movie,
                     accentColor = Color(0xFFFFB300),
                     onClick = onNavigateToMovies,
@@ -164,7 +164,7 @@ fun HomeScreen(
                 )
                 HomeHeroCard(
                     title = stringResource(R.string.nav_series).uppercase(),
-                    description = "Binge the best TV shows and exclusive series",
+                    description = stringResource(R.string.dashboard_series_desc),
                     icon = Icons.Default.Tv,
                     accentColor = Color(0xFF00BFFF),
                     onClick = onNavigateToSeries,
@@ -210,7 +210,7 @@ private fun HomeTopNavBar(
         ) {
             HomeRoundIconButton(
                 icon = Icons.Default.Home, 
-                contentDescription = "Home", 
+                contentDescription = stringResource(R.string.nav_home), 
                 onClick = {}, 
                 isActive = true
             )
@@ -223,9 +223,9 @@ private fun HomeTopNavBar(
             NavTabButton(label = stringResource(R.string.nav_movies), icon = Icons.Default.Movie, isActive = false, onClick = onNavigateToMovies)
             NavTabButton(label = stringResource(R.string.nav_series), icon = Icons.Default.VideoLibrary, isActive = false, onClick = onNavigateToSeries)
 
-            HomeRoundIconButton(icon = Icons.Default.Search, contentDescription = "Search", onClick = onNavigateToSearch)
+            HomeRoundIconButton(icon = Icons.Default.Search, contentDescription = stringResource(R.string.nav_search), onClick = onNavigateToSearch)
             HomeRoundIconButton(icon = Icons.Default.FileDownload, contentDescription = "Downloads", onClick = onNavigateToDownloads)
-            HomeRoundIconButton(icon = Icons.Default.Settings, contentDescription = "Settings", onClick = onNavigateToSettings)
+            HomeRoundIconButton(icon = Icons.Default.Settings, contentDescription = stringResource(R.string.nav_settings), onClick = onNavigateToSettings)
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -312,7 +312,7 @@ private fun ExpiryBadge(date: String) {
             }
             Column {
                 Text(
-                    text = "EXPIRES ON",
+                    text = stringResource(R.string.dashboard_expires),
                     color = Color.White.copy(alpha = 0.4f),
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Medium
@@ -488,7 +488,7 @@ fun ExitConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Exit App", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.settings_logout_confirm_title), fontWeight = FontWeight.Bold) },
         text = { Text("Are you sure you want to exit?") },
         confirmButton = {
             TextButton(onClick = onConfirm) {

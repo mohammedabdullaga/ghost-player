@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">إيليت برايم</string>
+
+    <string name="nav_home">الرئيسية</string>
+    <string name="nav_live_tv">البث المباشر</string>
+    <string name="nav_movies">الأفلام</string>
+    <string name="nav_series">المسلسلات</string>
+    <string name="nav_settings">الإعدادات</string>
+    <string name="nav_search">البحث</string>
+    <string name="nav_logout">تسجيل الخروج</string>
+    <string name="nav_logout_subtitle">تسجيل الخروج ومسح جميع البيانات المحلية</string>
+
+    <string name="settings_account">الحساب</string>
+    <string name="settings_general">عام</string>
+    <string name="settings_playback">التشغيل</string>
+    <string name="settings_about">حول</string>
+    <string name="settings_language">اللغة</string>
+    <string name="settings_refresh_data">تحديث البيانات</string>
+    <string name="settings_edit_account">تعديل الحساب</string>
+    <string name="settings_logout_confirm_title">تسجيل الخروج</string>
+    <string name="settings_logout_confirm_msg">هل أنت متأكد أنك تريد تسجيل الخروج ومسح جميع البيانات المحلية؟</string>
+
+    <string name="login_title">تسجيل الدخول</string>
+    <string name="login_subtitle">أدخل بيانات الاعتماد الخاصة بك للبدء</string>
+    <string name="login_username">اسم المستخدم</string>
+    <string name="login_password">كلمة المرور</string>
+    <string name="login_btn">دخول</string>
+    <string name="login_qr_title">تسجيل الدخول عبر الهاتف</string>
+    <string name="login_qr_msg">امسح الرمز لادخال البيانات بسرعة وسهولة من هاتفك المحمول</string>
+    <string name="login_qr_footer">يجب ان يكون الهاتف على نفس شبكة الواي فاي</string>
+
+    <string name="dashboard_expires">ينتهي في</string>
+    <string name="dashboard_live_desc">شاهد القنوات المباشرة من جميع أنحاء العالم</string>
+    <string name="dashboard_movies_desc">استكشف آلاف الأفلام بجودة عالية</string>
+    <string name="dashboard_series_desc">شاهد أفضل البرامج التلفزيونية والمسلسلات الحصرية</string>
+
+    <string name="player_audio">الصوت</string>
+    <string name="player_subs">الترجمة</string>
+    <string name="player_live_now">يعرض الآن</string>
+    <string name="player_resume_title">استئناف التشغيل</string>
+    <string name="player_resume_at_format">استئناف عند %1$s</string>
+    <string name="player_resume_start_over">البدء من جديد</string>
+    <string name="player_resume_btn">استئناف</string>
+    <string name="player_buffering">جاري التحميل...</string>
+    <string name="player_error_title">خطأ في التشغيل</string>
+</resources>

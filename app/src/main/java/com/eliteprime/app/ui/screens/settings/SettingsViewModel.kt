@@ -3,6 +3,7 @@ package com.eliteprime.app.ui.screens.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.local.entity.*
+import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.repository.XtreamRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.Box
@@ -20,13 +21,15 @@ data class SettingsUiState(
     val movieCount: Long = 0,
     val seriesCount: Long = 0,
     val epgCount: Long = 0,
-    val isSyncing: Boolean = false
+    val isSyncing: Boolean = false,
+    val language: String = "en"
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val boxStore: BoxStore,
-    private val xtreamRepository: XtreamRepository
+    private val xtreamRepository: XtreamRepository,
+    private val preferenceRepository: PreferenceRepository
 ) : ViewModel() {
 
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
@@ -37,11 +40,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _isSyncing = MutableStateFlow(false)
 
-    // Optimization: Use count() instead of loading full lists into memory
     private fun <T> reactiveCount(box: Box<T>): Flow<Long> = callbackFlow {
         val subscription = boxStore.subscribe(box.entityClass)
             .observer { trySend(box.count()) }
-        // Initial emit
         trySend(box.count())
         awaitClose { subscription.cancel() }
     }
@@ -53,7 +54,8 @@ class SettingsViewModel @Inject constructor(
         reactiveCount(movieBox),
         reactiveCount(seriesBox),
         reactiveCount(epgBox),
-        _isSyncing
+        _isSyncing,
+        preferenceRepository.language
     ) { params ->
         SettingsUiState(
             account = params[0] as? XtreamAccount,
@@ -61,11 +63,11 @@ class SettingsViewModel @Inject constructor(
             movieCount = params[2] as Long,
             seriesCount = params[3] as Long,
             epgCount = params[4] as Long,
-            isSyncing = params[5] as Boolean
+            isSyncing = params[5] as Boolean,
+            language = params[6] as String
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
-    // Backward compatibility for existing code
     val account = uiState.map { it.account }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun syncAll() {
@@ -82,6 +84,10 @@ class SettingsViewModel @Inject constructor(
                 _isSyncing.value = false
             }
         }
+    }
+
+    fun setLanguage(lang: String) {
+        preferenceRepository.setLanguage(lang)
     }
 
     fun updateAccount(account: XtreamAccount) {

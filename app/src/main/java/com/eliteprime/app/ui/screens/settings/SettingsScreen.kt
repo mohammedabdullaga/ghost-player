@@ -6,8 +6,10 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
@@ -42,11 +44,11 @@ import com.eliteprime.app.util.isTelevisionDevice
 import java.text.SimpleDateFormat
 import java.util.*
 
-private enum class SettingCategory(val label: String, val icon: ImageVector) {
-    ACCOUNT("Account", Icons.Default.Person),
-    GENERAL("General", Icons.Default.Settings),
-    PLAYBACK("Playback", Icons.Default.PlayCircle),
-    ABOUT("About", Icons.Default.Info),
+private enum class SettingCategory(val labelRes: Int, val icon: ImageVector) {
+    ACCOUNT(R.string.settings_account, Icons.Default.Person),
+    GENERAL(R.string.settings_general, Icons.Default.Settings),
+    PLAYBACK(R.string.settings_playback, Icons.Default.PlayCircle),
+    ABOUT(R.string.settings_about, Icons.Default.Info),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,6 +63,7 @@ fun SettingsScreen(
     val isTv = LocalContext.current.isTelevisionDevice()
     
     var showEditDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     AppBackground {
         Scaffold(
@@ -69,13 +72,33 @@ fun SettingsScreen(
             topBar = {
                 TopAppBar(
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Black.copy(alpha = 0.4f),
+                        containerColor = Color.Black.copy(alpha = 0.2f),
                         titleContentColor = Color.White
                     ),
-                    title = { Text("Settings", fontWeight = FontWeight.Bold) },
+                    title = { ArenaLiveLogo(textSize = 22.sp) },
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        if (isTv) {
+                            TvSurface(
+                                onClick = onBack,
+                                modifier = Modifier.padding(8.dp).size(36.dp),
+                                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+                                colors = ClickableSurfaceDefaults.colors(
+                                    containerColor = Color.Black.copy(alpha = 0.45f),
+                                    focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                                ),
+                                shape = ClickableSurfaceDefaults.shape(CircleShape),
+                                border = ClickableSurfaceDefaults.border(
+                                    focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                                )
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        } else {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                            }
                         }
                     }
                 )
@@ -91,9 +114,9 @@ fun SettingsScreen(
                 // --- SIDEBAR ---
                 Surface(
                     modifier = Modifier.weight(0.32f).fillMaxHeight(),
-                    color = Color.Black.copy(alpha = 0.3f),
+                    color = Color.Black.copy(alpha = 0.65f),
                     shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                    border = BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.18f))
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
@@ -101,7 +124,7 @@ fun SettingsScreen(
                     ) {
                         SettingCategory.entries.forEach { category ->
                             SidebarItem(
-                                label = category.label,
+                                label = stringResource(category.labelRes),
                                 icon = category.icon,
                                 isSelected = selectedCategory == category,
                                 isTv = isTv,
@@ -114,9 +137,9 @@ fun SettingsScreen(
                 // --- CONTENT ---
                 Surface(
                     modifier = Modifier.weight(0.68f).fillMaxHeight(),
-                    color = Color.Black.copy(alpha = 0.3f),
+                    color = Color.Black.copy(alpha = 0.65f),
                     shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                    border = BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.18f))
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         Row(
@@ -127,7 +150,7 @@ fun SettingsScreen(
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 Icon(selectedCategory.icon, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
                                 Text(
-                                    text = selectedCategory.label.uppercase(),
+                                    text = stringResource(selectedCategory.labelRes).uppercase(),
                                     color = Color.White,
                                     fontWeight = FontWeight.Black,
                                     fontSize = 13.sp,
@@ -167,13 +190,17 @@ fun SettingsScreen(
                                     item {
                                         LogoutButton(
                                             isTv = isTv,
-                                            onLogout = {
-                                                viewModel.logout()
-                                                onLogout()
-                                            }
+                                            onLogout = { showLogoutDialog = true }
                                         )
                                     }
                                 }
+                            }
+                            SettingCategory.GENERAL -> {
+                                GeneralSettingsContent(
+                                    currentLanguage = uiState.language,
+                                    onLanguageChange = { viewModel.setLanguage(it) },
+                                    isTv = isTv
+                                )
                             }
                             else -> {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -187,6 +214,32 @@ fun SettingsScreen(
         }
     }
     
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text(stringResource(R.string.settings_logout_confirm_title), fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.settings_logout_confirm_msg)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLogoutDialog = false
+                    viewModel.logout()
+                    onLogout()
+                }) {
+                    Text(stringResource(R.string.nav_logout).uppercase(), color = Color(0xFFEF5350), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text(stringResource(android.R.string.cancel), color = Color.White.copy(alpha = 0.6f))
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color(0xFF1A1C1E),
+            titleContentColor = Color.White,
+            textContentColor = Color.White.copy(alpha = 0.7f)
+        )
+    }
+    
     if (showEditDialog && uiState.account != null) {
         EditAccountDialog(
             account = uiState.account!!,
@@ -196,6 +249,103 @@ fun SettingsScreen(
                 showEditDialog = false
             }
         )
+    }
+}
+
+@Composable
+private fun GeneralSettingsContent(
+    currentLanguage: String,
+    onLanguageChange: (String) -> Unit,
+    isTv: Boolean
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Text(
+                text = stringResource(R.string.settings_language),
+                color = Color.White.copy(alpha = 0.6f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp
+            )
+        }
+        
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                LanguageChip(
+                    label = "English",
+                    isActive = currentLanguage == "en",
+                    onClick = { onLanguageChange("en") },
+                    isTv = isTv,
+                    modifier = Modifier.weight(1f)
+                )
+                LanguageChip(
+                    label = "العربية",
+                    isActive = currentLanguage == "ar",
+                    onClick = { onLanguageChange("ar") },
+                    isTv = isTv,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LanguageChip(
+    label: String,
+    isActive: Boolean,
+    onClick: () -> Unit,
+    isTv: Boolean,
+    modifier: Modifier = Modifier
+) {
+    if (isTv) {
+        var isFocused by remember { mutableStateOf(false) }
+        TvSurface(
+            onClick = onClick,
+            modifier = modifier
+                .height(56.dp)
+                .onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.05f),
+                focusedContainerColor = AppColors.FocusBrown
+            ),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+            border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = label,
+                    color = Color.White,
+                    fontWeight = if (isActive || isFocused) FontWeight.Black else FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+        }
+    } else {
+        Surface(
+            onClick = onClick,
+            modifier = modifier.height(56.dp),
+            color = if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.1f),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.1f))
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = label,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+        }
     }
 }
 
@@ -399,14 +549,14 @@ private fun AccountSettingsCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 SettingsActionButton(
-                    label = if (isSyncing) "Syncing..." else "Refresh Data",
+                    label = if (isSyncing) stringResource(R.string.player_buffering) else stringResource(R.string.settings_refresh_data),
                     onClick = onRefresh,
                     isPrimary = true,
                     isTv = isTv,
                     modifier = Modifier.weight(1.5f)
                 )
                 SettingsActionButton(
-                    label = "Edit Account",
+                    label = stringResource(R.string.settings_edit_account),
                     onClick = onEdit,
                     isTv = isTv,
                     modifier = Modifier.weight(1f)
@@ -570,9 +720,9 @@ private fun LogoutButtonContent(color: Color, isFocused: Boolean) {
     ) {
         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
         Column {
-            Text("Log Out", color = color, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(stringResource(R.string.nav_logout), color = color, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Text(
-                text = "Sign out and clear all local data", 
+                text = stringResource(R.string.nav_logout_subtitle), 
                 color = if (isFocused) Color.White.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.6f), 
                 fontSize = 11.sp
             )
@@ -593,9 +743,14 @@ private fun EditAccountDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Edit Account", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.settings_edit_account), fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = serverUrl, onValueChange = { serverUrl = it }, label = { Text("Server URL") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("Username") }, modifier = Modifier.fillMaxWidth())
@@ -606,12 +761,12 @@ private fun EditAccountDialog(
             TextButton(onClick = {
                 onSave(account.copy(name = name, serverUrl = serverUrl, username = username, password = password))
             }) {
-                Text("SAVE", color = AppColors.ArenaOrange, fontWeight = FontWeight.Bold)
+                Text(stringResource(android.R.string.ok), color = AppColors.ArenaOrange, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("CANCEL", color = Color.White.copy(alpha = 0.6f))
+                Text(stringResource(android.R.string.cancel), color = Color.White.copy(alpha = 0.6f))
             }
         },
         containerColor = Color(0xFF1A1C1E),
