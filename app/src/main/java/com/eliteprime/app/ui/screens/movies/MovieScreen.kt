@@ -17,10 +17,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.tv.material3.Surface
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.tv.material3.Border
+import androidx.tv.material3.ClickableSurfaceDefaults
+import com.eliteprime.app.util.isTelevisionDevice
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
@@ -31,6 +39,7 @@ import java.util.*
 private object VodSpacing {
     val lg = 20.dp
     val xs = 8.dp
+    val md = 16.dp
 }
 
 private object VodPalette {
@@ -61,6 +70,7 @@ fun MovieScreen(
 
     AppBackground {
         Column(modifier = Modifier.fillMaxSize()) {
+            // Top Nav Bar (Optional on TV if Sidebar is used, but kept for Mobile/Tablet)
             VodTopNavBar(
                 currentTime = currentTime.value,
                 title = "MOVIES",
@@ -100,16 +110,17 @@ fun MovieScreen(
                     Column(modifier = Modifier.fillMaxSize()) {
                         VodPaneHeader(title = uiState.selectedCategory?.categoryName ?: "MOVIES")
                         LazyVerticalGrid(
-                            columns = GridCells.Adaptive(140.dp),
+                            columns = GridCells.Fixed(4),
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(VodSpacing.md),
+                            horizontalArrangement = Arrangement.spacedBy(VodSpacing.md),
                             verticalArrangement = Arrangement.spacedBy(24.dp)
                         ) {
                             items(uiState.filteredMovies) { movie ->
                                 VodPosterCard(
                                     movie = movie,
-                                    onClick = { onMovieClick(movie) }
+                                    onClick = { onMovieClick(movie) },
+                                    onLongClick = { viewModel.toggleFavorite(movie) }
                                 )
                             }
                         }
@@ -135,27 +146,25 @@ private fun VodTopNavBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.06f), CircleShape)
-            ) {
-                Icon(Icons.Default.Home, contentDescription = "Home", tint = Color.White, modifier = Modifier.size(20.dp))
-            }
+            VodRoundIconButton(
+                icon = Icons.Default.Home, 
+                contentDescription = "Home", 
+                onClick = onBack
+            )
 
             ArenaLiveLogo(textSize = 20.sp)
 
             Spacer(modifier = Modifier.width(8.dp))
 
             NavTabButton(label = "Live TV", icon = Icons.Default.LiveTv, isActive = false, onClick = onNavigateToLiveTv)
-            NavTabButton(label = "Movies", icon = Icons.Default.Movie, isActive = title == "MOVIES", onClick = {})
-            NavTabButton(label = "Series", icon = Icons.Default.VideoLibrary, isActive = title == "SERIES", onClick = onNavigateToSeries)
+            NavTabButton(label = "Movies", icon = Icons.Default.Movie, isActive = true, onClick = {})
+            NavTabButton(label = "Series", icon = Icons.Default.VideoLibrary, isActive = false, onClick = onNavigateToSeries)
 
-            IconButton(
-                onClick = onNavigateToSearch,
-                modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.06f), CircleShape)
-            ) {
-                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White, modifier = Modifier.size(20.dp))
-            }
+            VodRoundIconButton(
+                icon = Icons.Default.Search, 
+                contentDescription = "Search", 
+                onClick = onNavigateToSearch
+            )
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -183,4 +192,56 @@ private fun VodPaneHeader(title: String) {
         Text(text = title.uppercase(), color = VodPalette.textSecondary, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
     }
     Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(VodPalette.hairline))
+}
+
+@Composable
+private fun VodRoundIconButton(
+    icon: ImageVector, 
+    contentDescription: String?, 
+    onClick: () -> Unit,
+    isActive: Boolean = false
+) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    var isFocused by remember { mutableStateOf(false) }
+
+    if (isTv) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier
+                .size(40.dp)
+                .onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f),
+                focusedContainerColor = AppColors.ArenaOrange
+            ),
+            shape = ClickableSurfaceDefaults.shape(CircleShape),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+            )
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    icon, 
+                    contentDescription = contentDescription, 
+                    tint = if (isActive || isFocused) Color.White else Color.White.copy(alpha = 0.8f), 
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    } else {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.06f),
+                CircleShape
+            )
+        ) {
+            Icon(
+                icon, 
+                contentDescription = contentDescription, 
+                tint = if (isActive) AppColors.ArenaOrange else Color.White, 
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
 }

@@ -28,6 +28,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil3.compose.AsyncImage
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.tv.material3.Border
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Surface
+import com.eliteprime.app.util.isTelevisionDevice
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.EPGProgram
 import com.eliteprime.app.data.local.entity.LiveStream
@@ -39,7 +46,7 @@ import java.util.*
 
 private object LivePalette {
     val paneFill = Color.Black.copy(alpha = 0.35f)
-    val paneBorder = AppColors.ArenaOrange.copy(alpha = 0.14f)
+    val paneBorder = Color.White.copy(alpha = 0.08f)
     val hairline = Color.White.copy(alpha = 0.08f)
     val textSecondary = Color.White.copy(alpha = 0.6f)
     val textTertiary = Color.White.copy(alpha = 0.38f)
@@ -179,13 +186,17 @@ fun MobileLiveTvScreen(
                                 if (previewChannel != null) {
                                     PlayerRenderView(
                                         playerEngine = viewModel.playerEngine,
+                                        globalPlayerState = viewModel.globalPlayerState,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .background(Color.Transparent)
-                                            .clickable { onPlayChannel(previewChannel!!) }
+                                            .clickable { 
+                                                viewModel.globalPlayerState.enterFullScreen(viewModel.playerEngine)
+                                                onPlayChannel(previewChannel!!) 
+                                            }
                                     )
                                 } else {
                                     Icon(
@@ -569,12 +580,11 @@ private fun LiveTopNavBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.06f), CircleShape)
-            ) {
-                Icon(Icons.Default.Home, contentDescription = "Home", tint = Color.White, modifier = Modifier.size(20.dp))
-            }
+            LiveRoundIconButton(
+                icon = Icons.Default.Home, 
+                contentDescription = "Home", 
+                onClick = onBack
+            )
 
             ArenaLiveLogo(textSize = 20.sp)
 
@@ -584,18 +594,69 @@ private fun LiveTopNavBar(
             NavTabButton(label = "Movies", icon = Icons.Default.Movie, isActive = false, onClick = onNavigateToMovies)
             NavTabButton(label = "Series", icon = Icons.Default.VideoLibrary, isActive = false, onClick = onNavigateToSeries)
 
-            IconButton(
-                onClick = onNavigateToSearch,
-                modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.06f), CircleShape)
-            ) {
-                Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.White, modifier = Modifier.size(20.dp))
-            }
+            LiveRoundIconButton(
+                icon = Icons.Default.Search, 
+                contentDescription = "Search", 
+                onClick = onNavigateToSearch
+            )
 
             Spacer(modifier = Modifier.weight(1f))
 
             Text(text = currentTime, color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(LivePalette.hairline))
+    }
+}
+
+@Composable
+private fun LiveRoundIconButton(
+    icon: ImageVector, 
+    contentDescription: String?, 
+    onClick: () -> Unit,
+    isActive: Boolean = false
+) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    var isFocused by remember { mutableStateOf(false) }
+
+    if (isTv) {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier
+                .size(40.dp)
+                .onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f),
+                focusedContainerColor = AppColors.ArenaOrange
+            ),
+            shape = ClickableSurfaceDefaults.shape(CircleShape),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+            )
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    icon, 
+                    contentDescription = contentDescription, 
+                    tint = if (isActive || isFocused) Color.White else Color.White.copy(alpha = 0.8f), 
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    } else {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.06f),
+                CircleShape
+            )
+        ) {
+            Icon(
+                icon, 
+                contentDescription = contentDescription, 
+                tint = if (isActive) AppColors.ArenaOrange else Color.White, 
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 

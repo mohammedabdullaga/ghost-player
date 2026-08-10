@@ -5,7 +5,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -19,6 +18,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -30,12 +31,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.tv.material3.Border
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.ArenaLiveLogo
 import com.eliteprime.app.ui.components.NavTabButton
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -167,12 +172,12 @@ private fun HomeTopNavBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(HomeSpacing.sm)
         ) {
-            IconButton(
-                onClick = { /* Already Home */ },
-                modifier = Modifier.size(40.dp).background(AppColors.ArenaOrange.copy(alpha = 0.15f), CircleShape)
-            ) {
-                Icon(Icons.Default.Home, contentDescription = "Home", tint = AppColors.ArenaOrange, modifier = Modifier.size(20.dp))
-            }
+            HomeRoundIconButton(
+                icon = Icons.Default.Home, 
+                contentDescription = "Home", 
+                onClick = {}, 
+                isActive = true
+            )
 
             ArenaLiveLogo(textSize = 20.sp)
 
@@ -195,12 +200,52 @@ private fun HomeTopNavBar(
 }
 
 @Composable
-private fun HomeRoundIconButton(icon: ImageVector, contentDescription: String?, onClick: () -> Unit) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.06f), CircleShape)
-    ) {
-        Icon(icon, contentDescription = contentDescription, tint = Color.White, modifier = Modifier.size(20.dp))
+private fun HomeRoundIconButton(
+    icon: ImageVector, 
+    contentDescription: String?, 
+    onClick: () -> Unit,
+    isActive: Boolean = false
+) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    var isFocused by remember { mutableStateOf(false) }
+
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            modifier = Modifier
+                .size(40.dp)
+                .onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f),
+                focusedContainerColor = AppColors.ArenaOrange
+            ),
+            shape = ClickableSurfaceDefaults.shape(CircleShape),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+            )
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    icon, 
+                    contentDescription = contentDescription, 
+                    tint = if (isActive || isFocused) Color.White else Color.White.copy(alpha = 0.8f), 
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    } else {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.06f), CircleShape)
+        ) {
+            Icon(
+                icon, 
+                contentDescription = contentDescription, 
+                tint = if (isActive) AppColors.ArenaOrange else Color.White, 
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 
@@ -256,116 +301,143 @@ fun HomeHeroCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
+    val isTv = LocalContext.current.isTelevisionDevice()
+    val focusRequester = remember { FocusRequester() }
     var isFocused by remember { mutableStateOf(false) }
 
-    Surface(
-        onClick = onClick,
-        interactionSource = interactionSource,
-        modifier = modifier
-            .onFocusChanged { isFocused = it.isFocused }
-            .graphicsLayer {
-                val scale = if (isFocused) 1.05f else 1f
-                scaleX = scale
-                scaleY = scale
-            },
-        color = Color.Transparent,
-        shape = RoundedCornerShape(HomeRadius.xl)
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            modifier = modifier
+                .focusRequester(focusRequester)
+                .onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(HomeRadius.xl)),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent
+            ),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(3.dp, accentColor))
+            )
+        ) {
+            HomeHeroCardContent(title, description, icon, accentColor, isFocused)
+        }
+    } else {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        Surface(
+            onClick = onClick,
+            interactionSource = interactionSource,
+            modifier = modifier,
+            color = Color.Transparent,
+            shape = RoundedCornerShape(HomeRadius.xl)
+        ) {
+            HomeHeroCardContent(title, description, icon, accentColor, isPressed)
+        }
+    }
+}
+
+@Composable
+private fun HomeHeroCardContent(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    accentColor: Color,
+    isActive: Boolean
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(HomeRadius.xl))
+            .background(Color.White.copy(alpha = 0.05f))
+            .border(
+                width = 1.dp,
+                color = if (isActive) accentColor else Color.White.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(HomeRadius.xl)
+            )
     ) {
+        // Vertical scrim for text legibility
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(HomeRadius.xl))
-                .background(Color.White.copy(alpha = 0.05f))
-                .border(
-                    width = if (isFocused) 2.dp else 1.dp,
-                    color = if (isFocused || isPressed) accentColor else Color.White.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(HomeRadius.xl)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color.Black.copy(alpha = 0.15f), Color.Black.copy(alpha = 0.75f))
+                    )
                 )
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(accentColor.copy(alpha = 0.28f), Color.Transparent),
+                        radius = 260f
+                    ),
+                    alpha = if (isActive) 1f else 0.7f
+                )
+        )
+
+        Column(
+            modifier = Modifier.fillMaxSize().padding(HomeSpacing.md)
         ) {
-            // Vertical scrim for text legibility
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Black.copy(alpha = 0.15f), Color.Black.copy(alpha = 0.75f))
-                        )
-                    )
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(accentColor.copy(alpha = 0.28f), Color.Transparent),
-                            radius = 260f
-                        ),
-                        alpha = if (isPressed || isFocused) 1f else 0.7f
-                    )
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = accentColor,
+                modifier = Modifier.align(Alignment.End).size(28.dp)
             )
 
-            Column(
-                modifier = Modifier.fillMaxSize().padding(HomeSpacing.md)
+            Spacer(modifier = Modifier.weight(1f))
+
+            Text(
+                text = title,
+                color = Color.White,
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 24.sp,
+                letterSpacing = 0.3.sp
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Text(
+                text = description,
+                color = Color.White.copy(alpha = 0.7f),
+                fontSize = 11.sp,
+                lineHeight = 14.sp,
+                maxLines = 2,
+                modifier = Modifier.fillMaxWidth(0.75f)
+            )
+
+            Spacer(modifier = Modifier.height(HomeSpacing.sm))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.align(Alignment.End).size(28.dp)
+                Box(
+                    modifier = Modifier
+                        .width(30.dp)
+                        .height(2.dp)
+                        .background(accentColor, RoundedCornerShape(1.dp))
                 )
 
-                Spacer(modifier = Modifier.weight(1f))
-
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 24.sp,
-                    letterSpacing = 0.3.sp
-                )
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Text(
-                    text = description,
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp,
-                    maxLines = 2,
-                    modifier = Modifier.fillMaxWidth(0.75f)
-                )
-
-                Spacer(modifier = Modifier.height(HomeSpacing.sm))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Surface(
+                    onClick = {},
+                    modifier = Modifier.size(34.dp),
+                    shape = CircleShape,
+                    color = accentColor,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .width(30.dp)
-                            .height(2.dp)
-                            .background(accentColor, RoundedCornerShape(1.dp))
-                    )
-
-                    Surface(
-                        onClick = onClick,
-                        modifier = Modifier.size(34.dp),
-                        shape = CircleShape,
-                        color = accentColor,
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }

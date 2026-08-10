@@ -15,6 +15,8 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.eliteprime.app.player.GlobalPlayerState
+import com.eliteprime.app.player.PlayerEngine
 import com.eliteprime.app.ui.screens.home.HomeScreen
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
 import com.eliteprime.app.ui.screens.live.MobileLiveTvScreen
@@ -39,10 +41,24 @@ import com.eliteprime.app.ui.screens.details.SeriesDetailsViewModel
 @Composable
 fun AppNavigation(
     navController: NavHostController,
+    playerEngine: PlayerEngine,
+    globalPlayerState: GlobalPlayerState,
     modifier: Modifier = Modifier,
     startDestination: String = "login"
 ) {
+    val stopPlayerAndNavigate = { route: String ->
+        globalPlayerState.hide()
+        playerEngine.stop()
+        navController.navigate(route) {
+            popUpTo("home") { saveState = true }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     val navigateToHome = {
+        globalPlayerState.hide()
+        playerEngine.stop()
         navController.navigate("home") {
             popUpTo("home") { inclusive = true }
             launchSingleTop = true
@@ -60,20 +76,20 @@ fun AppNavigation(
         composable("home") {
             HomeScreen(
                 viewModel = hiltViewModel<DashboardViewModel>(),
-                onNavigateToSearch = { navController.navigate("search") },
-                onNavigateToSettings = { navController.navigate("settings") },
-                onNavigateToLiveTv = { navController.navigate("live") },
-                onNavigateToMovies = { navController.navigate("movies") },
-                onNavigateToSeries = { navController.navigate("series") },
-                onNavigateToDownloads = { navController.navigate("downloads") }
+                onNavigateToSearch = { stopPlayerAndNavigate("search") },
+                onNavigateToSettings = { stopPlayerAndNavigate("settings") },
+                onNavigateToLiveTv = { stopPlayerAndNavigate("live") },
+                onNavigateToMovies = { stopPlayerAndNavigate("movies") },
+                onNavigateToSeries = { stopPlayerAndNavigate("series") },
+                onNavigateToDownloads = { stopPlayerAndNavigate("downloads") }
             )
         }
         composable("live") {
             MobileLiveTvScreen(
                 onBack = navigateToHome,
-                onNavigateToSearch = { navController.navigate("search") },
-                onNavigateToMovies = { navController.navigate("movies") },
-                onNavigateToSeries = { navController.navigate("series") },
+                onNavigateToSearch = { stopPlayerAndNavigate("search") },
+                onNavigateToMovies = { stopPlayerAndNavigate("movies") },
+                onNavigateToSeries = { stopPlayerAndNavigate("series") },
                 onPlayChannel = { channel ->
                     navController.navigate("player/${channel.id}/live/${channel.name}")
                 }
@@ -82,9 +98,9 @@ fun AppNavigation(
         composable("movies") {
             MovieScreen(
                 onBack = navigateToHome,
-                onNavigateToSearch = { navController.navigate("search") },
-                onNavigateToLiveTv = { navController.navigate("live") },
-                onNavigateToSeries = { navController.navigate("series") },
+                onNavigateToSearch = { stopPlayerAndNavigate("search") },
+                onNavigateToLiveTv = { stopPlayerAndNavigate("live") },
+                onNavigateToSeries = { stopPlayerAndNavigate("series") },
                 onMovieClick = { movie ->
                     navController.navigate("movie_details/${movie.id}")
                 }
@@ -93,9 +109,9 @@ fun AppNavigation(
         composable("series") {
             SeriesScreen(
                 onBack = navigateToHome,
-                onNavigateToSearch = { navController.navigate("search") },
-                onNavigateToLiveTv = { navController.navigate("live") },
-                onNavigateToMovies = { navController.navigate("movies") },
+                onNavigateToSearch = { stopPlayerAndNavigate("search") },
+                onNavigateToLiveTv = { stopPlayerAndNavigate("live") },
+                onNavigateToMovies = { stopPlayerAndNavigate("movies") },
                 onSeriesClick = { series ->
                     navController.navigate("series_details/${series.id}")
                 }

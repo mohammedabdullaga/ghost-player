@@ -51,6 +51,7 @@ interface PlayerEngine {
     val isMuted: StateFlow<Boolean>
     val timeshiftState: StateFlow<LiveTimeshiftState>
     val renderSurfaceType: StateFlow<PlayerRenderSurfaceType>
+    val prepareStatus: StateFlow<StreamInfo?>
 
     fun prepare(streamInfo: StreamInfo)
     fun play()
@@ -65,6 +66,7 @@ interface PlayerEngine {
     fun selectVideoTrack(trackId: String)
     fun selectSubtitleTrack(trackId: String?)
     fun setSubtitleStyle(style: PlayerSubtitleStyle)
+    fun renewStreamUrl(streamInfo: StreamInfo)
     fun release()
 
     fun createRenderView(

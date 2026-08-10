@@ -3,10 +3,13 @@ package com.eliteprime.app.ui.screens.live
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.local.entity.*
+import com.eliteprime.app.data.remote.XtreamUrlFactory
 import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.domain.model.StreamInfo
 import com.eliteprime.app.domain.model.StreamType
+import com.eliteprime.app.player.GlobalPlayerState
 import com.eliteprime.app.player.PlayerEngine
+import com.eliteprime.app.player.PlayerViewMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
@@ -22,6 +25,7 @@ import javax.inject.Inject
 class LiveViewModel @Inject constructor(
     private val boxStore: BoxStore,
     val playerEngine: PlayerEngine,
+    val globalPlayerState: GlobalPlayerState,
     private val xtreamRepository: XtreamRepository
 ) : ViewModel() {
 
@@ -122,15 +126,21 @@ class LiveViewModel @Inject constructor(
     }
 
     fun previewChannel(channel: LiveStream) {
-        if (_previewChannel.value?.id == channel.id) return
+        if (_previewChannel.value?.id == channel.id && playerEngine.isPlaying.value) return
         _previewChannel.value = channel
         
         viewModelScope.launch {
             xtreamRepository.fetchEpgForChannel(channel)
             val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst()
             if (account != null) {
-                val url = "${account.serverUrl}live/${account.username}/${account.password}/${channel.id}.ts"
-                playerEngine.prepare(StreamInfo(channel.id, channel.name, url, StreamType.LIVE))
+                val url = XtreamUrlFactory.buildPlaybackUrl(
+                    serverUrl = account.serverUrl,
+                    username = account.username,
+                    password = account.password,
+                    kind = "live",
+                    streamId = channel.id
+                )
+                playerEngine.prepare(StreamInfo(channel.id, channel.name, url, StreamType.MPEG_TS))
                 playerEngine.play()
             }
         }
@@ -233,7 +243,11 @@ class LiveViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        playerEngine.release()
+        // DO NOT stop the engine if we are in Full Screen mode, 
+        // as this engine is likely being handed off to the PlayerScreen.
+        if (globalPlayerState.mode.value != PlayerViewMode.FULLSCREEN) {
+            playerEngine.stop()
+        }
     }
 }
 

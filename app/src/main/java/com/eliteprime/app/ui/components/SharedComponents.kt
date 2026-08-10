@@ -3,7 +3,7 @@ package com.eliteprime.app.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -24,18 +24,24 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.tv.material3.Border
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.LiveStream
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.util.isTelevisionDevice
 
 @Composable
 fun SubFilterChip(
@@ -72,34 +78,61 @@ fun CategoryTab(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val isTv = LocalContext.current.isTelevisionDevice()
     val focusRequester = remember { FocusRequester() }
     var isFocused by remember { mutableStateOf(false) }
 
-    Surface(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp)
-            .onFocusChanged { isFocused = it.isFocused }
-            .focusRequester(focusRequester),
-        color = if (isSelected || isFocused) AppColors.ArenaOrange.copy(alpha = 0.12f) else Color.Transparent,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(modifier = Modifier.width(3.dp).height(18.dp).clip(CircleShape).background(if (isSelected) AppColors.ArenaOrange else Color.Transparent))
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = category.categoryName,
-                color = if (isSelected || isFocused) Color.White else Color.White.copy(alpha = 0.6f),
-                fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp)
+                .onFocusChanged { isFocused = it.isFocused }
+                .focusRequester(focusRequester),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.Transparent,
+                focusedContainerColor = AppColors.ArenaOrange.copy(alpha = 0.3f),
+                pressedContainerColor = AppColors.ArenaOrange.copy(alpha = 0.4f)
+            ),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
+        ) {
+            CategoryTabContent(category, isSelected || isFocused)
         }
+    } else {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.12f) else Color.Transparent,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            CategoryTabContent(category, isSelected)
+        }
+    }
+}
+
+@Composable
+private fun CategoryTabContent(category: Category, isActive: Boolean) {
+    Row(
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.width(3.dp).height(18.dp).clip(CircleShape).background(if (isActive) AppColors.ArenaOrange else Color.Transparent))
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = category.categoryName,
+            color = if (isActive) Color.White else Color.White.copy(alpha = 0.6f),
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -110,40 +143,64 @@ fun ChannelRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
+    val isTv = LocalContext.current.isTelevisionDevice()
     var isFocused by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
 
-    Surface(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 3.dp)
-            .onFocusChanged { isFocused = it.isFocused }
-            .focusRequester(focusRequester),
-        color = if (isSelected || isFocused) AppColors.ArenaOrange.copy(alpha = 0.1f) else Color.Transparent,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .onFocusChanged { isFocused = it.isFocused }
+                .focusRequester(focusRequester),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.15f) else Color.Transparent,
+                focusedContainerColor = AppColors.ArenaOrange.copy(alpha = 0.25f)
+            ),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+            )
         ) {
-            Box(
-                modifier = Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (channel.streamIcon != null) {
-                    AsyncImage(model = channel.streamIcon, contentDescription = null, modifier = Modifier.fillMaxSize().padding(6.dp), contentScale = ContentScale.Fit)
-                } else {
-                    Icon(Icons.Default.Tv, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White.copy(alpha = 0.4f))
-                }
-            }
+            ChannelRowContent(channel, isSelected || isFocused)
+        }
+    } else {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 3.dp),
+            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.1f) else Color.Transparent,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            ChannelRowContent(channel, isSelected)
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(channel.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("No EPG Data", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+@Composable
+private fun ChannelRowContent(channel: LiveStream, isActive: Boolean) {
+    Row(
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (channel.streamIcon != null) {
+                AsyncImage(model = channel.streamIcon, contentDescription = null, modifier = Modifier.fillMaxSize().padding(6.dp), contentScale = ContentScale.Fit)
+            } else {
+                Icon(Icons.Default.Tv, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White.copy(alpha = 0.4f))
             }
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(channel.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("No EPG Data", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -151,121 +208,114 @@ fun ChannelRow(
 @Composable
 fun VodPosterCard(
     movie: Movie,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    var isFocused by remember { mutableStateOf(false) }
+    val isTv = LocalContext.current.isTelevisionDevice()
     val focusRequester = remember { FocusRequester() }
+    var isFocused by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .onFocusChanged { isFocused = it.isFocused }
-            .focusRequester(focusRequester)
-            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-            .graphicsLayer {
-                val scale = if (isFocused) 1.05f else 1f
-                scaleX = scale
-                scaleY = scale
-            }
-    ) {
-        Box(
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(2f / 3f)
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color.White.copy(alpha = 0.05f))
-                .border(
-                    width = if (isFocused) 2.dp else 1.dp,
-                    color = if (isFocused || isPressed) AppColors.ArenaOrange else Color.White.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(18.dp)
-                )
-        ) {
-            AsyncImage(
-                model = movie.streamIcon,
-                contentDescription = movie.name,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                .onFocusChanged { isFocused = it.isFocused }
+                .focusRequester(focusRequester),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent
+            ),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(3.dp, AppColors.ArenaOrange))
             )
-
-            if (movie.rating > 0) {
-                Surface(
-                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
-                    color = Color.Black.copy(alpha = 0.6f),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.size(10.dp))
-                        Text("%.1f".format(movie.rating), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
+        ) {
+            VodPosterCardContent(movie.name, movie.streamIcon, movie.rating.toFloat(), movie.isFavorite, isFocused)
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = movie.name,
-            color = if (isFocused) Color.White else Color.White.copy(alpha = 0.8f),
-            fontSize = 12.sp,
-            fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
-        )
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() })
+                }
+        ) {
+            VodPosterCardContent(movie.name, movie.streamIcon, movie.rating.toFloat(), movie.isFavorite, false)
+        }
     }
 }
 
 @Composable
 fun SeriesPosterCard(
     series: Series,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    var isFocused by remember { mutableStateOf(false) }
+    val isTv = LocalContext.current.isTelevisionDevice()
     val focusRequester = remember { FocusRequester() }
+    var isFocused by remember { mutableStateOf(false) }
 
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { isFocused = it.isFocused }
+                .focusRequester(focusRequester),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent
+            ),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(3.dp, AppColors.ArenaOrange))
+            )
+        ) {
+            VodPosterCardContent(series.name, series.cover, series.rating.toFloat(), series.isFavorite, isFocused)
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() })
+                }
+        ) {
+            VodPosterCardContent(series.name, series.cover, series.rating.toFloat(), series.isFavorite, false)
+        }
+    }
+}
+
+@Composable
+private fun VodPosterCardContent(name: String, posterUrl: String?, rating: Float, isFavorite: Boolean, isFocused: Boolean) {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .onFocusChanged { isFocused = it.isFocused }
-            .focusRequester(focusRequester)
-            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-            .graphicsLayer {
-                val scale = if (isFocused) 1.05f else 1f
-                scaleX = scale
-                scaleY = scale
-            }
+            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(18.dp))
+            .border(
+                width = if (isFocused) 2.dp else 1.dp,
+                color = if (isFocused) AppColors.ArenaOrange else Color.White.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(18.dp)
+            )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color.White.copy(alpha = 0.05f))
-                .border(
-                    width = if (isFocused) 2.dp else 1.dp,
-                    color = if (isFocused || isPressed) AppColors.ArenaOrange else Color.White.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(18.dp)
-                )
+                .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
         ) {
             AsyncImage(
-                model = series.cover,
-                contentDescription = series.name,
+                model = posterUrl,
+                contentDescription = name,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
 
-            if (series.rating > 0) {
+            if (rating > 0) {
                 Surface(
                     modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
                     color = Color.Black.copy(alpha = 0.6f),
@@ -277,25 +327,49 @@ fun SeriesPosterCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(Icons.Default.Star, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.size(10.dp))
-                        Text("%.1f".format(series.rating), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("%.1f".format(rating), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
+
+            if (isFavorite) {
+                Surface(
+                    modifier = Modifier.align(Alignment.BottomStart),
+                    color = Color.Black.copy(alpha = 0.55f),
+                    shape = RoundedCornerShape(topEnd = 8.dp)
+                ) {
+                    Icon(Icons.Default.Star, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.padding(6.dp).size(12.dp))
+                }
+            }
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = series.name,
-            color = if (isFocused) Color.White else Color.White.copy(alpha = 0.8f),
-            fontSize = 12.sp,
-            fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
-        )
+        
+        // Caption strip - matching old app look
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(34.dp)
+                .background(Color.White.copy(alpha = 0.05f))
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = name.cleanVodName(),
+                color = if (isFocused) Color.White else Color.White.copy(alpha = 0.8f),
+                fontSize = 11.sp,
+                fontWeight = if (isFocused) FontWeight.Black else FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
+}
+
+private fun String.cleanVodName(): String {
+    val endYearRegex = Regex("\\s*[(\\[\\-]?\\d{4}[)\\]]?\\s*$")
+    val startYearRegex = Regex("^\\s*[(\\[]?\\d{4}[)\\]]?\\s*[-]?\\s*")
+    return this.replace(endYearRegex, "").replace(startYearRegex, "").trim()
 }
 
 @Composable

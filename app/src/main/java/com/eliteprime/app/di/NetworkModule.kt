@@ -14,10 +14,18 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import okhttp3.ConnectionPool
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
+import java.util.concurrent.TimeUnit
+import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.SSLContext
+import javax.net.ssl.X509TrustManager
 import javax.inject.Singleton
 
 @Module
@@ -66,11 +74,41 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
+        val trustAllManager = object : X509TrustManager {
+            override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
+            override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
+            override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+        }
+        val sslContext = SSLContext.getInstance("TLS").apply {
+            init(null, arrayOf(trustAllManager), SecureRandom())
+        }
+
         return OkHttpClient.Builder()
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
+            .sslSocketFactory(sslContext.socketFactory, trustAllManager)
+            .hostnameVerifier(HostnameVerifier { _, _ -> true })
+            .connectTimeout(NetworkTimeoutConfig.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .readTimeout(NetworkTimeoutConfig.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(NetworkTimeoutConfig.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .connectionPool(ConnectionPool(32, 5, TimeUnit.MINUTES))
+            .dispatcher(Dispatcher().apply {
+                maxRequests = 64
+                maxRequestsPerHost = 20
             })
-            .addInterceptor(RateLimitInterceptor(30))
+            .addInterceptor { chain ->
+                val request = chain.request()
+                val builder = request.newBuilder()
+                if (request.header("User-Agent").isNullOrBlank()) {
+                    builder.header("User-Agent", "ELITPRIME/1.0 (Android; Media3; OkHttp)")
+                }
+                chain.proceed(builder.build())
+            }
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.HEADERS
+            })
+            .addInterceptor(RateLimitInterceptor(60))
             .build()
     }
 
@@ -95,4 +133,10 @@ object NetworkModule {
             .build()
             .create(XtreamApi::class.java)
     }
+}
+
+object NetworkTimeoutConfig {
+    const val CONNECT_TIMEOUT_SECONDS = 30L
+    const val READ_TIMEOUT_SECONDS = 30L
+    const val WRITE_TIMEOUT_SECONDS = 30L
 }

@@ -248,7 +248,7 @@
     },
     {
       "id": "4:112902235009265691",
-      "lastPropertyId": "22:6983655969092958314",
+      "lastPropertyId": "24:6079371726043336832",
       "name": "Movie",
       "properties": [
         {
@@ -359,6 +359,16 @@
           "type": 11,
           "flags": 520,
           "relationTarget": "Category"
+        },
+        {
+          "id": "23:7310845853993712968",
+          "name": "isFavorite",
+          "type": 1
+        },
+        {
+          "id": "24:6079371726043336832",
+          "name": "lastWatchedAt",
+          "type": 6
         }
       ],
       "relations": []
@@ -421,7 +431,7 @@
     },
     {
       "id": "6:3145241634662153145",
-      "lastPropertyId": "18:2401786025442410974",
+      "lastPropertyId": "20:5743076777253418061",
       "name": "Series",
       "properties": [
         {
@@ -512,6 +522,16 @@
           "type": 11,
           "flags": 520,
           "relationTarget": "Category"
+        },
+        {
+          "id": "19:5526008631682671054",
+          "name": "isFavorite",
+          "type": 1
+        },
+        {
+          "id": "20:5743076777253418061",
+          "name": "lastWatchedAt",
+          "type": 6
         }
       ],
       "relations": []

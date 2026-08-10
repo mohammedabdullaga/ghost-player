@@ -28,7 +28,9 @@ data class Movie(
     var cast: String? = null,
     var director: String? = null,
     var genre: String? = null,
-    var duration: String? = null
+    var duration: String? = null,
+    var isFavorite: Boolean = false,
+    var lastWatchedAt: Long = 0
 ) {
     lateinit var category: ToOne<Category>
 }

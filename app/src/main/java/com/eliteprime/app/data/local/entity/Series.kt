@@ -24,7 +24,9 @@ data class Series(
     var tmdbId: Long = 0,
     var backdropUrl: String? = null,
     var isTrendingThisWeek: Boolean = false,
-    var trendingRank: Int = 0
+    var trendingRank: Int = 0,
+    var isFavorite: Boolean = false,
+    var lastWatchedAt: Long = 0
 ) {
     lateinit var category: ToOne<Category>
 }
