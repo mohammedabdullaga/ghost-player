@@ -8,6 +8,7 @@ import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
 import io.objectbox.query.QueryBuilder
 import io.objectbox.query.QueryBuilder.StringOrder
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
@@ -22,6 +23,7 @@ class MovieViewModel @Inject constructor(
         const val CAT_ID_FAVORITES = -1L
         const val CAT_ID_CONTINUE = -2L
         const val CAT_ID_ALL = -3L
+        private const val FAST_LOAD_LIMIT = 500L
     }
 
     private val categoryBox = boxStore.boxFor(Category::class.java)
@@ -49,38 +51,47 @@ class MovieViewModel @Inject constructor(
         val currentId = selectedId ?: CAT_ID_ALL
         val currentSelected = allCategories.find { it.id == currentId } ?: virtualCats.last()
 
-        val baseMovies = when (currentId) {
-            CAT_ID_ALL -> movieBox.query().build().find()
-            CAT_ID_FAVORITES -> movieBox.query().equal(Movie_.isFavorite, true).build().find()
-            CAT_ID_CONTINUE -> {
-                val histories = historyBox.query()
-                    .equal(PlaybackHistory_.type, "movie", StringOrder.CASE_INSENSITIVE)
-                    .order(PlaybackHistory_.lastPlayedAt, QueryBuilder.DESCENDING)
-                    .build()
-                    .find()
-                
-                val movieIds = histories.map { it.streamId }
-                // Fetch movies
-                val moviesList = movieBox.get(movieIds.toLongArray()).filterNotNull()
-                val movieMap = moviesList.associateBy { it.id }
-                movieIds.mapNotNull { movieMap[it] }
+        val movies = if (query.isNotEmpty()) {
+            // Instant Search: Perform search directly in DB for high performance
+            val qb = movieBox.query().contains(Movie_.name, query, StringOrder.CASE_INSENSITIVE)
+            if (currentId != CAT_ID_ALL && currentId > 0) {
+                qb.equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
             }
-            else -> {
-                movieBox.query().equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE).build().find()
+            qb.build().find(0, FAST_LOAD_LIMIT)
+        } else {
+            when (currentId) {
+                CAT_ID_ALL -> movieBox.query().build().find(0, FAST_LOAD_LIMIT)
+                CAT_ID_FAVORITES -> movieBox.query().equal(Movie_.isFavorite, true).build().find()
+                CAT_ID_CONTINUE -> {
+                    val histories = historyBox.query()
+                        .equal(PlaybackHistory_.type, "movie", StringOrder.CASE_INSENSITIVE)
+                        .order(PlaybackHistory_.lastPlayedAt, QueryBuilder.DESCENDING)
+                        .build()
+                        .find()
+                    
+                    val movieIds = histories.map { it.streamId }
+                    val moviesList = movieBox.get(movieIds.toLongArray()).filterNotNull()
+                    val movieMap = moviesList.associateBy { it.id }
+                    movieIds.mapNotNull { movieMap[it] }
+                }
+                else -> {
+                    movieBox.query()
+                        .equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+                        .build()
+                        .find()
+                }
             }
-        }
-
-        val filteredMovies = if (query.isEmpty()) baseMovies else {
-            baseMovies.filter { it.name.contains(query, ignoreCase = true) }
         }
 
         MovieUiState(
             categories = allCategories,
             selectedCategory = currentSelected,
-            filteredMovies = filteredMovies,
+            filteredMovies = movies,
             isLoading = false
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MovieUiState())
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MovieUiState())
 
     fun selectCategory(category: Category) {
         _selectedCategoryId.value = category.id

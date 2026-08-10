@@ -217,8 +217,8 @@ private fun HomeRoundIconButton(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f),
-                focusedContainerColor = AppColors.ArenaOrange
+                containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
             ),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             border = ClickableSurfaceDefaults.border(
@@ -237,7 +237,7 @@ private fun HomeRoundIconButton(
     } else {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.06f), CircleShape)
+            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.35f), CircleShape)
         ) {
             Icon(
                 icon, 
@@ -314,11 +314,11 @@ fun HomeHeroCard(
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(HomeRadius.xl)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color.Transparent,
-                focusedContainerColor = Color.Transparent
+                containerColor = Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = accentColor.copy(alpha = 0.8f) // DYNAMIC COLOR FOCUS
             ),
             border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(3.dp, accentColor))
+                focusedBorder = Border(BorderStroke(3.dp, Color.White))
             )
         ) {
             HomeHeroCardContent(title, description, icon, accentColor, isFocused)
@@ -350,10 +350,10 @@ private fun HomeHeroCardContent(
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(HomeRadius.xl))
-            .background(Color.White.copy(alpha = 0.05f))
+            .background(if (isActive) Color.Transparent else Color.Black.copy(alpha = 0.55f))
             .border(
                 width = 1.dp,
-                color = if (isActive) accentColor else Color.White.copy(alpha = 0.08f),
+                color = if (isActive) Color.White else Color.White.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(HomeRadius.xl)
             )
     ) {
@@ -385,7 +385,7 @@ private fun HomeHeroCardContent(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = accentColor,
+                tint = if (isActive) Color.White else accentColor,
                 modifier = Modifier.align(Alignment.End).size(28.dp)
             )
 
@@ -421,21 +421,21 @@ private fun HomeHeroCardContent(
                     modifier = Modifier
                         .width(30.dp)
                         .height(2.dp)
-                        .background(accentColor, RoundedCornerShape(1.dp))
+                        .background(if (isActive) Color.White else accentColor, RoundedCornerShape(1.dp))
                 )
 
                 Surface(
                     onClick = {},
                     modifier = Modifier.size(34.dp),
                     shape = CircleShape,
-                    color = accentColor,
+                    color = if (isActive) Color.White else accentColor,
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = if (isActive) AppColors.ArenaOrange else Color.White,
                             modifier = Modifier.size(16.dp)
                         )
                     }

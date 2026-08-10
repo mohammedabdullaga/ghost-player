@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,22 +17,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.tv.material3.Surface
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
-import com.eliteprime.app.util.isTelevisionDevice
+import androidx.tv.material3.Surface
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -43,9 +45,9 @@ private object VodSpacing {
 }
 
 private object VodPalette {
-    val paneFill = Color.Black.copy(alpha = 0.35f)
-    val paneBorder = AppColors.ArenaOrange.copy(alpha = 0.14f)
-    val hairline = Color.White.copy(alpha = 0.08f)
+    val paneFill = Color.Black.copy(alpha = 0.65f)
+    val paneBorder = AppColors.ArenaOrange.copy(alpha = 0.18f)
+    val hairline = Color.White.copy(alpha = 0.1f)
     val textSecondary = Color.White.copy(alpha = 0.6f)
 }
 
@@ -60,6 +62,24 @@ fun MovieScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val currentTime = remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
+
+    val movieGridState = rememberLazyGridState()
+    val context = LocalContext.current
+    val isTv = context.isTelevisionDevice()
+    val movieFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
+
+    // Auto-focus first movie or maintain focus on last selected
+    LaunchedEffect(uiState.filteredMovies) {
+        if (isTv && uiState.filteredMovies.isNotEmpty()) {
+            delay(500)
+            movieFocusRequesters[uiState.filteredMovies.first().id]?.requestFocus()
+        }
+    }
+
+    // Reset scroll when category changes
+    LaunchedEffect(uiState.selectedCategory) {
+        movieGridState.scrollToItem(0)
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -110,6 +130,7 @@ fun MovieScreen(
                     Column(modifier = Modifier.fillMaxSize()) {
                         VodPaneHeader(title = uiState.selectedCategory?.categoryName ?: "MOVIES")
                         LazyVerticalGrid(
+                            state = movieGridState,
                             columns = GridCells.Fixed(4),
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(VodSpacing.md),
@@ -117,8 +138,10 @@ fun MovieScreen(
                             verticalArrangement = Arrangement.spacedBy(24.dp)
                         ) {
                             items(uiState.filteredMovies) { movie ->
+                                val focusRequester = movieFocusRequesters.getOrPut(movie.id) { FocusRequester() }
                                 VodPosterCard(
                                     movie = movie,
+                                    modifier = Modifier.focusRequester(focusRequester),
                                     onClick = { onMovieClick(movie) },
                                     onLongClick = { viewModel.toggleFavorite(movie) }
                                 )
@@ -212,8 +235,8 @@ private fun VodRoundIconButton(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f),
-                focusedContainerColor = AppColors.ArenaOrange
+                containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
             ),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             border = ClickableSurfaceDefaults.border(
@@ -232,7 +255,7 @@ private fun VodRoundIconButton(
     } else {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.06f),
+            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.35f),
                 CircleShape
             )
         ) {

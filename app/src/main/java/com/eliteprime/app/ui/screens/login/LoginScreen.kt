@@ -2,6 +2,7 @@ package com.eliteprime.app.ui.screens.login
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,16 +16,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eliteprime.app.pairing.ProviderQrPairingState
+import com.eliteprime.app.pairing.ProviderQrPairingStatus
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.ArenaLiveLogo
+import com.eliteprime.app.util.isTelevisionDevice
 
 private val ArenaOrange = Color(0xFFFF6029)
 
@@ -39,10 +48,20 @@ fun LoginScreen(
 
     val state by viewModel.loginState.collectAsState()
     val syncProgress by viewModel.syncProgress.collectAsState()
+    val pairingState by viewModel.pairingState.collectAsState()
+
+    val context = LocalContext.current
+    val isTv = context.isTelevisionDevice()
 
     LaunchedEffect(state) {
         if (state is LoginState.Success) {
             onLoginSuccess()
+        }
+    }
+
+    LaunchedEffect(isTv) {
+        if (isTv) {
+            viewModel.startQrPairing()
         }
     }
 
@@ -67,52 +86,206 @@ fun LoginScreen(
                     .imePadding(),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    modifier = Modifier
-                        .widthIn(max = 420.dp)
-                        .verticalScroll(rememberScrollState())
-                        .padding(24.dp)
-                        .offset(y = (-40).dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Surface(
-                        color = Color.White.copy(alpha = 0.04f),
-                        shape = RoundedCornerShape(28.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            AnimatedContent(
-                                targetState = state is LoginState.Loading,
-                                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                                label = "login-form-vs-sync"
-                            ) { isSyncing ->
-                                if (isSyncing) {
-                                    SyncProgressView(syncProgress)
-                                } else {
-                                    LoginForm(
-                                        username = user,
-                                        onUsernameChange = { user = it },
-                                        password = pass,
-                                        onPasswordChange = { pass = it },
-                                        passwordVisible = passwordVisible,
-                                        onTogglePasswordVisible = { passwordVisible = !passwordVisible },
-                                        onSubmit = { viewModel.login(user, pass) }
-                                    )
-                                }
+                if (isTv) {
+                    TvLoginLayout(
+                        state = state,
+                        syncProgress = syncProgress,
+                        pairingState = pairingState,
+                        user = user,
+                        onUserChange = { user = it },
+                        pass = pass,
+                        onPassChange = { pass = it },
+                        passwordVisible = passwordVisible,
+                        onTogglePasswordVisible = { passwordVisible = !passwordVisible },
+                        onSubmit = { viewModel.login(user, pass) }
+                    )
+                } else {
+                    MobileLoginLayout(
+                        state = state,
+                        syncProgress = syncProgress,
+                        user = user,
+                        onUserChange = { user = it },
+                        pass = pass,
+                        onPassChange = { pass = it },
+                        passwordVisible = passwordVisible,
+                        onTogglePasswordVisible = { passwordVisible = !passwordVisible },
+                        onSubmit = { viewModel.login(user, pass) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvLoginLayout(
+    state: LoginState,
+    syncProgress: SyncProgress,
+    pairingState: ProviderQrPairingState,
+    user: String,
+    onUserChange: (String) -> Unit,
+    pass: String,
+    onPassChange: (String) -> Unit,
+    passwordVisible: Boolean,
+    onTogglePasswordVisible: () -> Unit,
+    onSubmit: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.widthIn(max = 940.dp),
+        color = Color.Black.copy(alpha = 0.65f),
+        shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+    ) {
+        Row(
+            modifier = Modifier.padding(48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(64.dp)
+        ) {
+            // LEFT SIDE: Manual Login
+            Box(modifier = Modifier.weight(1.1f)) {
+                AnimatedContent(
+                    targetState = state is LoginState.Loading,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "tv-form-vs-sync"
+                ) { isSyncing ->
+                    if (isSyncing) {
+                        SyncProgressView(syncProgress)
+                    } else {
+                        Column {
+                            LoginForm(
+                                username = user,
+                                onUsernameChange = onUserChange,
+                                password = pass,
+                                onPasswordChange = onPassChange,
+                                passwordVisible = passwordVisible,
+                                onTogglePasswordVisible = onTogglePasswordVisible,
+                                onSubmit = onSubmit
+                            )
+                            if (state is LoginState.Error) {
+                                Spacer(modifier = Modifier.height(16.dp))
+                                ErrorBanner(state.message)
                             }
                         }
                     }
+                }
+            }
 
-                    if (state is LoginState.Error) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        ErrorBanner((state as LoginState.Error).message)
+            // Separator
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(260.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.White.copy(alpha = 0.1f), Color.Transparent)
+                        )
+                    )
+            )
+
+            // RIGHT SIDE: QR Code
+            Column(
+                modifier = Modifier.weight(0.9f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                pairingState.qrBitmap?.let { bitmap ->
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White,
+                        modifier = Modifier.size(200.dp)
+                    ) {
+                        Box(modifier = Modifier.padding(14.dp)) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = "QR Code",
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "تسجيل الدخول عبر الهاتف",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "امسح الرمز لادخال البيانات بسرعة وسهولة من هاتفك المحمول",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.5f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                    )
+                    Text(
+                        text = "يجب ان يكون الهاتف على نفس شبكة الواي فاي",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ArenaOrange.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Bold
+                    )
+                } ?: run {
+                    CircularProgressIndicator(color = ArenaOrange)
+                    Text("جاري إنشاء رمز QR...", color = Color.White.copy(alpha = 0.5f), modifier = Modifier.padding(top = 16.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MobileLoginLayout(
+    state: LoginState,
+    syncProgress: SyncProgress,
+    user: String,
+    onUserChange: (String) -> Unit,
+    pass: String,
+    onPassChange: (String) -> Unit,
+    passwordVisible: Boolean,
+    onTogglePasswordVisible: () -> Unit,
+    onSubmit: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .widthIn(max = 420.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp)
+            .offset(y = (-40).dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Surface(
+            color = Color.Black.copy(alpha = 0.65f),
+            shape = RoundedCornerShape(28.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AnimatedContent(
+                    targetState = state is LoginState.Loading,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "login-form-vs-sync"
+                ) { isSyncing ->
+                    if (isSyncing) {
+                        SyncProgressView(syncProgress)
+                    } else {
+                        LoginForm(
+                            username = user,
+                            onUsernameChange = onUserChange,
+                            password = pass,
+                            onPasswordChange = onPassChange,
+                            passwordVisible = passwordVisible,
+                            onTogglePasswordVisible = onTogglePasswordVisible,
+                            onSubmit = onSubmit
+                        )
                     }
                 }
             }
+        }
+
+        if (state is LoginState.Error) {
+            Spacer(modifier = Modifier.height(16.dp))
+            ErrorBanner(state.message)
         }
     }
 }
@@ -155,7 +328,7 @@ private fun LoginForm(
             leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
             colors = loginFieldColors()
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = password,
             onValueChange = onPasswordChange,

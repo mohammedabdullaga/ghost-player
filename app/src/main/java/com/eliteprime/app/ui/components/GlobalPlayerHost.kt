@@ -23,25 +23,22 @@ fun GlobalPlayerHost(
     val engine by globalPlayerState.activeEngine.collectAsStateWithLifecycle()
     val resizeMode by globalPlayerState.resizeMode.collectAsStateWithLifecycle()
 
-    AnimatedVisibility(
-        visible = mode == PlayerViewMode.FULLSCREEN && engine != null,
-        enter = fadeIn(),
-        exit = fadeOut(),
+    // LIGHTWEIGHT optimization: Completely remove from composition when hidden
+    if (mode == PlayerViewMode.HIDDEN || engine == null) {
+        return
+    }
+
+    Box(
         modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black)
     ) {
-        val effectiveEngine = engine ?: return@AnimatedVisibility
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-        ) {
-            PlayerRenderView(
-                playerEngine = effectiveEngine,
-                globalPlayerState = globalPlayerState,
-                isGlobalHost = true,
-                resizeMode = resizeMode,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+        PlayerRenderView(
+            playerEngine = engine!!,
+            globalPlayerState = globalPlayerState,
+            isGlobalHost = true,
+            resizeMode = resizeMode,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }

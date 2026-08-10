@@ -117,6 +117,9 @@ dependencies {
     // WorkManager
     implementation(libs.work.runtime.ktx)
 
+    // QR Code
+    implementation(libs.zxing.core)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

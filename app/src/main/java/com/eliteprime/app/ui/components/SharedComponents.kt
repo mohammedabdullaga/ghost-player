@@ -50,25 +50,58 @@ fun SubFilterChip(
     isActive: Boolean,
     onClick: () -> Unit
 ) {
-    Surface(
-        onClick = onClick,
-        color = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f),
-        shape = RoundedCornerShape(10.dp),
-        border = BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.08f))
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(12.dp), tint = if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.6f))
-            Text(
-                text = label,
-                color = if (isActive) Color.White else Color.White.copy(alpha = 0.6f),
-                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                fontSize = 11.sp
+    val isTv = LocalContext.current.isTelevisionDevice()
+    var isFocused by remember { mutableStateOf(false) }
+
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            modifier = Modifier
+                .onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isActive) AppColors.FocusBrown else Color.Black.copy(alpha = 0.85f),
+                focusedContainerColor = AppColors.FocusBrown,
+                pressedContainerColor = AppColors.FocusBrown
+            ),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
+        ) {
+            SubFilterChipContent(label, icon, isActive || isFocused)
         }
+    } else {
+        Surface(
+            onClick = onClick,
+            color = if (isActive) AppColors.ArenaOrange else Color.Black.copy(alpha = 0.85f),
+            shape = RoundedCornerShape(10.dp),
+            border = BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.15f))
+        ) {
+            SubFilterChipContent(label, icon, isActive)
+        }
+    }
+}
+
+@Composable
+private fun SubFilterChipContent(label: String, icon: ImageVector, active: Boolean) {
+    Row(
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Icon(
+            imageVector = icon, 
+            contentDescription = null, 
+            modifier = Modifier.size(14.dp), 
+            tint = if (active) Color.White else Color.White.copy(alpha = 0.6f)
+        )
+        Text(
+            text = label,
+            color = if (active) Color.White else Color.White.copy(alpha = 0.6f),
+            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+            fontSize = 12.sp
+        )
     }
 }
 
@@ -92,9 +125,9 @@ fun CategoryTab(
                 .focusRequester(focusRequester),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.Transparent,
-                focusedContainerColor = AppColors.ArenaOrange.copy(alpha = 0.3f),
-                pressedContainerColor = AppColors.ArenaOrange.copy(alpha = 0.4f)
+                containerColor = if (isSelected) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f),
+                pressedContainerColor = AppColors.FocusBrown
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             border = ClickableSurfaceDefaults.border(
@@ -109,7 +142,7 @@ fun CategoryTab(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 2.dp),
-            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.12f) else Color.Transparent,
+            color = if (isSelected) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
             shape = RoundedCornerShape(12.dp)
         ) {
             CategoryTabContent(category, isSelected)
@@ -157,8 +190,8 @@ fun ChannelRow(
                 .focusRequester(focusRequester),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.15f) else Color.Transparent,
-                focusedContainerColor = AppColors.ArenaOrange.copy(alpha = 0.25f)
+                containerColor = if (isSelected) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             border = ClickableSurfaceDefaults.border(
@@ -173,7 +206,7 @@ fun ChannelRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 3.dp),
-            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.1f) else Color.Transparent,
+            color = if (isSelected) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
             shape = RoundedCornerShape(12.dp)
         ) {
             ChannelRowContent(channel, isSelected)
@@ -208,37 +241,37 @@ private fun ChannelRowContent(channel: LiveStream, isActive: Boolean) {
 @Composable
 fun VodPosterCard(
     movie: Movie,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
-    val focusRequester = remember { FocusRequester() }
     var isFocused by remember { mutableStateOf(false) }
 
     if (isTv) {
         TvSurface(
             onClick = onClick,
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
-                .onFocusChanged { isFocused = it.isFocused }
-                .focusRequester(focusRequester),
+                .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color.Transparent,
-                focusedContainerColor = Color.Transparent
+                containerColor = Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.7f)
             ),
             border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(3.dp, AppColors.ArenaOrange))
+                focusedBorder = Border(BorderStroke(3.dp, Color.White))
             )
         ) {
             VodPosterCardContent(movie.name, movie.streamIcon, movie.rating.toFloat(), movie.isFavorite, isFocused)
         }
     } else {
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
+                .background(Color.Black.copy(alpha = 0.45f))
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() })
                 }
@@ -251,37 +284,37 @@ fun VodPosterCard(
 @Composable
 fun SeriesPosterCard(
     series: Series,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {}
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
-    val focusRequester = remember { FocusRequester() }
     var isFocused by remember { mutableStateOf(false) }
 
     if (isTv) {
         TvSurface(
             onClick = onClick,
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
-                .onFocusChanged { isFocused = it.isFocused }
-                .focusRequester(focusRequester),
+                .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color.Transparent,
-                focusedContainerColor = Color.Transparent
+                containerColor = Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.7f)
             ),
             border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(3.dp, AppColors.ArenaOrange))
+                focusedBorder = Border(BorderStroke(3.dp, Color.White))
             )
         ) {
             VodPosterCardContent(series.name, series.cover, series.rating.toFloat(), series.isFavorite, isFocused)
         }
     } else {
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
+                .background(Color.Black.copy(alpha = 0.45f))
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() })
                 }
@@ -295,10 +328,14 @@ fun SeriesPosterCard(
 private fun VodPosterCardContent(name: String, posterUrl: String?, rating: Float, isFavorite: Boolean, isFocused: Boolean) {
     Column(
         modifier = Modifier
-            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(18.dp))
+            .background(
+                if (isFocused) AppColors.FocusBrown.copy(alpha = 0.7f) 
+                else Color.White.copy(alpha = 0.05f), 
+                RoundedCornerShape(18.dp)
+            )
             .border(
                 width = if (isFocused) 2.dp else 1.dp,
-                color = if (isFocused) AppColors.ArenaOrange else Color.White.copy(alpha = 0.08f),
+                color = if (isFocused) Color.White else Color.White.copy(alpha = 0.08f),
                 shape = RoundedCornerShape(18.dp)
             )
     ) {
@@ -348,7 +385,7 @@ private fun VodPosterCardContent(name: String, posterUrl: String?, rating: Float
             modifier = Modifier
                 .fillMaxWidth()
                 .height(34.dp)
-                .background(Color.White.copy(alpha = 0.05f))
+                .background(if (isFocused) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.05f))
                 .padding(horizontal = 8.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -404,9 +441,9 @@ fun PaneHeader(title: String) {
 fun PaneSurface(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Surface(
         modifier = modifier.fillMaxHeight(),
-        color = Color.Black.copy(alpha = 0.35f),
+        color = Color.Black.copy(alpha = 0.65f),
         shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.14f))
+        border = BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.18f))
     ) {
         content()
     }

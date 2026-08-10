@@ -1,6 +1,5 @@
 package com.eliteprime.app.ui.screens.live
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,6 +8,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,36 +18,39 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil3.compose.AsyncImage
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Surface
-import com.eliteprime.app.util.isTelevisionDevice
+import androidx.tv.material3.Surface as TvSurface
+import coil3.compose.AsyncImage
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.EPGProgram
 import com.eliteprime.app.data.local.entity.LiveStream
+import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
 private object LivePalette {
-    val paneFill = Color.Black.copy(alpha = 0.35f)
-    val paneBorder = Color.White.copy(alpha = 0.08f)
-    val hairline = Color.White.copy(alpha = 0.08f)
+    val paneFill = Color.Black.copy(alpha = 0.65f)
+    val paneBorder = Color.White.copy(alpha = 0.12f)
+    val hairline = Color.White.copy(alpha = 0.1f)
     val textSecondary = Color.White.copy(alpha = 0.6f)
     val textTertiary = Color.White.copy(alpha = 0.38f)
 }
@@ -70,6 +73,32 @@ fun MobileLiveTvScreen(
     var newGroupName by remember { mutableStateOf("") }
     var selectedChannelForOptions by remember { mutableStateOf<LiveStream?>(null) }
     var selectedCategoryForOptions by remember { mutableStateOf<Category?>(null) }
+
+    val channelListState = rememberLazyListState()
+    val context = LocalContext.current
+    val isTv = context.isTelevisionDevice()
+    val channelFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
+    val globalMode by viewModel.globalPlayerState.mode.collectAsState()
+
+    // Restore focus to the active channel when returning from Full Screen or when switching categories
+    LaunchedEffect(previewChannel, uiState.selectedCategory, globalMode) {
+        if (isTv && previewChannel != null && globalMode == PlayerViewMode.HIDDEN) {
+            val index = uiState.filteredChannels.indexOfFirst { it.id == previewChannel!!.id }
+            if (index >= 0) {
+                // LIGHTWEIGHT: only scroll if needed to avoid heavy layout passes
+                if (!channelListState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
+                    channelListState.animateScrollToItem(index)
+                }
+                delay(300) 
+                channelFocusRequesters[previewChannel!!.id]?.requestFocus()
+            }
+        }
+    }
+
+    // Reset scroll when category changes
+    LaunchedEffect(uiState.selectedCategory) {
+        channelListState.scrollToItem(0)
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -145,13 +174,16 @@ fun MobileLiveTvScreen(
                     Column {
                         PaneHeader(title = uiState.selectedCategory?.categoryName ?: "CHANNELS")
                         LazyColumn(
+                            state = channelListState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(vertical = 8.dp)
                         ) {
                             items(uiState.filteredChannels) { channel ->
+                                val focusRequester = channelFocusRequesters.getOrPut(channel.id) { FocusRequester() }
                                 ChannelRowWithLongClick(
                                     channel = channel,
                                     isSelected = previewChannel?.id == channel.id,
+                                    focusRequester = focusRequester,
                                     onClick = { 
                                         if (previewChannel?.id == channel.id) {
                                             onPlayChannel(channel)
@@ -395,34 +427,65 @@ private fun CategoryTabWithLongClick(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { onClick() },
-                    onLongPress = { onLongClick() }
-                )
-            },
-        color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.12f) else Color.Transparent,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(modifier = Modifier.width(3.dp).height(18.dp).clip(CircleShape).background(if (isSelected) AppColors.ArenaOrange else Color.Transparent))
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = category.categoryName,
-                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+    val isTv = LocalContext.current.isTelevisionDevice()
+    var isFocused by remember { mutableStateOf(false) }
+
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            onLongClick = onLongClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp)
+                .onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f),
+                pressedContainerColor = AppColors.FocusBrown
+            ),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
+        ) {
+            CategoryTabContent(category, isSelected || isFocused)
         }
+    } else {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { onClick() },
+                        onLongPress = { onLongClick() }
+                    )
+                },
+            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.12f) else Color.Transparent,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            CategoryTabContent(category, isSelected)
+        }
+    }
+}
+
+@Composable
+private fun CategoryTabContent(category: Category, isActive: Boolean) {
+    Row(
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.width(3.dp).height(18.dp).clip(CircleShape).background(if (isActive) AppColors.ArenaOrange else Color.Transparent))
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = category.categoryName,
+            color = if (isActive) Color.White else Color.White.copy(alpha = 0.6f),
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -456,48 +519,81 @@ private fun ReorderCategoryRow(
 private fun ChannelRowWithLongClick(
     channel: LiveStream,
     isSelected: Boolean,
+    focusRequester: FocusRequester,
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 3.dp)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = { onClick() },
-                    onLongPress = { onLongClick() }
-                )
-            },
-        color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.1f) else Color.Transparent,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+    val isTv = LocalContext.current.isTelevisionDevice()
+    var isFocused by remember { mutableStateOf(false) }
+
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            onLongClick = onLongClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .onFocusChanged { isFocused = it.isFocused }
+                .focusRequester(focusRequester),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f),
+                pressedContainerColor = AppColors.FocusBrown
+            ),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+            )
         ) {
-            Box(
-                modifier = Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (channel.streamIcon != null) {
-                    AsyncImage(model = channel.streamIcon, contentDescription = null, modifier = Modifier.fillMaxSize().padding(6.dp), contentScale = ContentScale.Fit)
-                } else {
-                    Icon(Icons.Default.Tv, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White.copy(alpha = 0.4f))
-                }
-                if (channel.isFavorite) {
-                    Box(modifier = Modifier.align(Alignment.TopEnd).offset(x=4.dp, y=(-4).dp).size(14.dp).background(AppColors.ArenaOrange, CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Star, null, tint = Color.White, modifier = Modifier.size(8.dp))
-                    }
+            ChannelRowContent(channel, isSelected || isFocused)
+        }
+    } else {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { onClick() },
+                        onLongPress = { onLongClick() }
+                    )
+                },
+            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.1f) else Color.Transparent,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            ChannelRowContent(channel, isSelected)
+        }
+    }
+}
+
+@Composable
+private fun ChannelRowContent(channel: LiveStream, isActive: Boolean) {
+    Row(
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier.size(42.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.06f)).border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (channel.streamIcon != null) {
+                AsyncImage(model = channel.streamIcon, contentDescription = null, modifier = Modifier.fillMaxSize().padding(6.dp), contentScale = ContentScale.Fit)
+            } else {
+                Icon(Icons.Default.Tv, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White.copy(alpha = 0.4f))
+            }
+            if (channel.isFavorite) {
+                Box(modifier = Modifier.align(Alignment.TopEnd).offset(x=4.dp, y=(-4).dp).size(14.dp).background(AppColors.ArenaOrange, CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Star, null, tint = Color.White, modifier = Modifier.size(8.dp))
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(channel.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("No EPG Data", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(channel.name, color = if (isActive) Color.White else Color.White.copy(alpha = 0.9f), fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("No EPG Data", color = if (isActive) Color.White.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.4f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -619,15 +715,15 @@ private fun LiveRoundIconButton(
     var isFocused by remember { mutableStateOf(false) }
 
     if (isTv) {
-        Surface(
+        TvSurface(
             onClick = onClick,
             modifier = Modifier
                 .size(40.dp)
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f),
-                focusedContainerColor = AppColors.ArenaOrange
+                containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
             ),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             border = ClickableSurfaceDefaults.border(
@@ -646,9 +742,7 @@ private fun LiveRoundIconButton(
     } else {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.06f),
-                CircleShape
-            )
+            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.35f), CircleShape)
         ) {
             Icon(
                 icon, 

@@ -44,6 +44,7 @@ object AppColors {
     val LiveFocusBar = Color(0xFFFFFFFF)
 
     val ArenaOrange = Color(0xFFFF6029)
+    val FocusBrown = Color(0xFF3D2C24) // New Brown Focus color
 
     // Premium/Trending colors
     val Gold = Color(0xFFFFD700)

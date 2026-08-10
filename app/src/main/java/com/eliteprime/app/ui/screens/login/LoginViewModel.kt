@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.repository.XtreamRepository
+import com.eliteprime.app.pairing.ProviderQrPairingManager
+import com.eliteprime.app.pairing.ProviderQrPairingState
+import com.eliteprime.app.pairing.ProviderQrPairingStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -13,7 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val xtreamRepository: XtreamRepository,
-    private val configRepository: ConfigRepository
+    private val configRepository: ConfigRepository,
+    private val pairingManager: ProviderQrPairingManager
 ) : ViewModel() {
 
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
@@ -22,9 +26,31 @@ class LoginViewModel @Inject constructor(
     private val _syncProgress = MutableStateFlow(SyncProgress())
     val syncProgress: StateFlow<SyncProgress> = _syncProgress.asStateFlow()
 
+    val pairingState: StateFlow<ProviderQrPairingState> = pairingManager.state
+
     init {
         viewModelScope.launch {
             configRepository.fetchConfig()
+        }
+
+        // Auto-handle successful pairing login
+        pairingState.onEach { state ->
+            if (state.status == ProviderQrPairingStatus.COMPLETE) {
+                _loginState.value = LoginState.Loading
+                startSync()
+            }
+        }.launchIn(viewModelScope)
+    }
+
+    fun startQrPairing() {
+        viewModelScope.launch {
+            pairingManager.startPairing()
+        }
+    }
+
+    fun stopQrPairing() {
+        viewModelScope.launch {
+            pairingManager.stopPairing()
         }
     }
 
@@ -33,25 +59,36 @@ class LoginViewModel @Inject constructor(
             _loginState.value = LoginState.Loading
             val success = xtreamRepository.login(user, pass)
             if (success) {
-                // 1. Sync initial data
-                xtreamRepository.syncCategories()
-                xtreamRepository.syncAllStreams(
-                    onLiveProgress = { count -> _syncProgress.update { it.copy(liveCount = count) } },
-                    onMovieProgress = { count -> _syncProgress.update { it.copy(movieCount = count) } },
-                    onSeriesProgress = { count -> _syncProgress.update { it.copy(seriesCount = count) } }
-                )
-                
-                // 2. UX Countdown (15 seconds)
-                for (i in 15 downTo 0) {
-                    _syncProgress.update { it.copy(countdown = i) }
-                    delay(1000)
-                }
-                
-                _loginState.value = LoginState.Success
+                startSync()
             } else {
                 _loginState.value = LoginState.Error("Invalid credentials or server error")
             }
         }
+    }
+
+    private fun startSync() {
+        viewModelScope.launch {
+            // 1. Sync initial data
+            xtreamRepository.syncCategories()
+            xtreamRepository.syncAllStreams(
+                onLiveProgress = { count -> _syncProgress.update { it.copy(liveCount = count) } },
+                onMovieProgress = { count -> _syncProgress.update { it.copy(movieCount = count) } },
+                onSeriesProgress = { count -> _syncProgress.update { it.copy(seriesCount = count) } }
+            )
+            
+            // 2. UX Countdown (15 seconds)
+            for (i in 15 downTo 0) {
+                _syncProgress.update { it.copy(countdown = i) }
+                delay(1000)
+            }
+            
+            _loginState.value = LoginState.Success
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopQrPairing()
     }
 }
 

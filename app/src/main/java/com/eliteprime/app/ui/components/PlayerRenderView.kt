@@ -1,5 +1,6 @@
 package com.eliteprime.app.ui.components
 
+import android.os.Build
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
@@ -35,6 +36,12 @@ fun PlayerRenderView(
                 (view as? PlayerView)?.apply {
                     // Force a layout pass if the resize mode changed
                     requestLayout()
+                    // LIGHTWEIGHT optimization: explicitly avoid NaN frame rates on API 35
+                    if (Build.VERSION.SDK_INT >= 35) {
+                        try {
+                            setRequestedFrameRate(0f) // RESET to system default
+                        } catch (e: Exception) {}
+                    }
                 }
             }
         },

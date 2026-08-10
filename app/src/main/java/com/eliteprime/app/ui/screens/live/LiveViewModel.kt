@@ -14,6 +14,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
 import io.objectbox.query.QueryBuilder.StringOrder
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
@@ -53,37 +54,37 @@ class LiveViewModel @Inject constructor(
     private val _reorderCategories = MutableStateFlow<List<Category>>(emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
-    val uiState: StateFlow<LiveUiState> = combine(
-        combine(
-            categoryBox.query().build().flow(),
-            customGroupBox.query().build().flow()
-        ) { c, cg -> c to cg },
-        _selectedCategoryId,
-        _searchQuery.debounce(300),
-        _isReorderMode,
-        _reorderCategories
-    ) { (providerCats, customGroups), selectedId, query, reorderMode, reorderList ->
-        
+    private val categoriesFlow = combine(
+        categoryBox.query().build().flow(),
+        customGroupBox.query().build().flow()
+    ) { providerCats, customGroups ->
         val virtualCats = listOf(
             Category(id = CAT_ID_FAVORITES, categoryName = "★ Favorites", isVirtual = true),
             Category(id = CAT_ID_RECENT, categoryName = "🕒 Recent", isVirtual = true),
             Category(id = CAT_ID_ALL, categoryName = "All Channels", isVirtual = true)
         )
-
         val customGroupCats = customGroups
             .filter { it.groupType == "live" }
             .map { cg ->
                 Category(id = cg.id + 1000000, categoryName = cg.name, isVirtual = true, order = cg.groupOrder)
             }
+        (virtualCats + customGroupCats + providerCats.filter { it.type == "live" && !it.isHidden }).sortedBy { it.order }
+    }.distinctUntilChanged()
 
-        val allCategories = if (reorderMode) reorderList else {
-            virtualCats + (customGroupCats + providerCats.filter { it.type == "live" && !it.isHidden }).sortedBy { it.order }
-        }
+    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
+    val uiState: StateFlow<LiveUiState> = combine(
+        categoriesFlow,
+        _selectedCategoryId,
+        _searchQuery.debounce(300),
+        _isReorderMode,
+        _reorderCategories
+    ) { allCategories, selectedId, query, reorderMode, reorderList ->
         
+        val categories = if (reorderMode) reorderList else allCategories
         val currentId = selectedId ?: CAT_ID_ALL
-        val currentSelected = allCategories.find { it.id == currentId } ?: virtualCats.first()
+        val currentSelected = categories.find { it.id == currentId } ?: allCategories.first()
 
-        val channels = when (currentId) {
+        val baseChannels = when (currentId) {
             CAT_ID_ALL -> liveBox.query().build().find()
             CAT_ID_FAVORITES -> liveBox.query().equal(LiveStream_.isFavorite, true).build().find()
             CAT_ID_RECENT -> liveBox.query().notEqual(LiveStream_.lastWatchedAt, 0L).orderDesc(LiveStream_.lastWatchedAt).build().find(0, 50)
@@ -96,16 +97,22 @@ class LiveViewModel @Inject constructor(
                     liveBox.query().equal(LiveStream_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE).build().find()
                 }
             }
-        }.filter { !it.isHidden && (query.isEmpty() || it.name.contains(query, ignoreCase = true)) }
+        }
+
+        val filteredChannels = baseChannels.filter { 
+            !it.isHidden && (query.isEmpty() || it.name.contains(query, ignoreCase = true)) 
+        }
 
         LiveUiState(
-            categories = allCategories,
+            categories = categories,
             selectedCategory = currentSelected,
-            filteredChannels = channels,
+            filteredChannels = filteredChannels,
             isLoading = false,
             isCategoryReorderMode = reorderMode
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LiveUiState())
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LiveUiState())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val currentEpg: StateFlow<List<EPGProgram>> = _previewChannel.flatMapLatest { channel ->
@@ -115,7 +122,9 @@ class LiveViewModel @Inject constructor(
             .order(EPGProgram_.startTimestamp)
             .build()
             .flow()
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun selectCategory(category: Category) {
         _selectedCategoryId.value = category.id

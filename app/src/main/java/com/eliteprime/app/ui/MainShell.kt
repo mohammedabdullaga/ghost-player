@@ -1,11 +1,8 @@
 package com.eliteprime.app.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.eliteprime.app.player.GlobalPlayerState
 import com.eliteprime.app.player.PlayerEngine
@@ -20,28 +17,23 @@ fun MainShell(
     startDestination: String = "login"
 ) {
     val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
 
     AppBackground {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Global Player Host UNDER the NavHost
+            // Global Player Host drawn behind navigation
             GlobalPlayerHost(
                 globalPlayerState = globalPlayerState,
                 modifier = Modifier.fillMaxSize()
             )
 
             // Uniform structure for both Mobile and TV
-            Scaffold(
-                containerColor = Color.Transparent,
-                contentWindowInsets = WindowInsets(0, 0, 0, 0)
-            ) { innerPadding ->
+            Box(modifier = Modifier.fillMaxSize()) {
                 AppNavigation(
                     navController = navController,
                     playerEngine = playerEngine,
                     globalPlayerState = globalPlayerState,
                     startDestination = startDestination, 
-                    modifier = Modifier.padding(innerPadding)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
