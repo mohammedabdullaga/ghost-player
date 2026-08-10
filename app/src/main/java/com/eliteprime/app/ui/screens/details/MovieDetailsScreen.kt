@@ -19,6 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -37,6 +39,7 @@ import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
+import kotlinx.coroutines.delay
 
 @Composable
 fun MovieDetailsScreen(
@@ -48,6 +51,16 @@ fun MovieDetailsScreen(
     val movie = movieState
     val relatedMovies by viewModel.relatedMovies.collectAsState()
     val isTv = LocalContext.current.isTelevisionDevice()
+
+    val playButtonFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(movie) {
+        if (isTv && movie != null) {
+            // Speed up focus request to 100ms to avoid seeing it land on the "Back" button first
+            delay(100)
+            playButtonFocusRequester.requestFocus()
+        }
+    }
 
     if (movie == null) {
         Box(modifier = Modifier.fillMaxSize().background(DetailSurface.backdrop), contentAlignment = Alignment.Center) {
@@ -137,7 +150,8 @@ fun MovieDetailsScreen(
                             PrimaryActionRow(
                                 onPlay = { onPlay(movie) },
                                 onDownload = { /* TODO: Download Manager */ },
-                                isTv = isTv
+                                isTv = isTv,
+                                playFocusRequester = playButtonFocusRequester
                             )
 
                             // 6. Metadata Grid (Technical Details)
@@ -327,12 +341,12 @@ private fun TagRow(genre: String?, rating: Double) {
 }
 
 @Composable
-private fun PrimaryActionRow(onPlay: () -> Unit, onDownload: () -> Unit, isTv: Boolean) {
+private fun PrimaryActionRow(onPlay: () -> Unit, onDownload: () -> Unit, isTv: Boolean, playFocusRequester: FocusRequester) {
     Row(horizontalArrangement = Arrangement.spacedBy(DetailSpacing.md), modifier = Modifier.fillMaxWidth()) {
         if (isTv) {
             TvSurface(
                 onClick = onPlay,
-                modifier = Modifier.weight(1f).height(52.dp),
+                modifier = Modifier.weight(1f).height(52.dp).focusRequester(playFocusRequester),
                 scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
                 colors = ClickableSurfaceDefaults.colors(
                     containerColor = AppColors.ArenaOrange,

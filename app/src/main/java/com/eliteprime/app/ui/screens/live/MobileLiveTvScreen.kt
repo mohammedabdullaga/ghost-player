@@ -15,10 +15,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -79,18 +81,26 @@ fun MobileLiveTvScreen(
     val isTv = context.isTelevisionDevice()
     val channelFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
     val globalMode by viewModel.globalPlayerState.mode.collectAsState()
+    var lastFocusedChannelId by rememberSaveable { mutableStateOf<Long?>(null) }
 
-    // Restore focus to the active channel when returning from Full Screen or when switching categories
+    // Restore focus to the active channel or last focused instantly
     LaunchedEffect(previewChannel, uiState.selectedCategory, globalMode) {
-        if (isTv && previewChannel != null && globalMode == PlayerViewMode.HIDDEN) {
-            val index = uiState.filteredChannels.indexOfFirst { it.id == previewChannel!!.id }
-            if (index >= 0) {
-                // LIGHTWEIGHT: only scroll if needed to avoid heavy layout passes
-                if (!channelListState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
-                    channelListState.animateScrollToItem(index)
+        if (isTv && globalMode == PlayerViewMode.HIDDEN) {
+            val targetId = previewChannel?.id ?: lastFocusedChannelId
+            if (targetId != null) {
+                val index = uiState.filteredChannels.indexOfFirst { it.id == targetId }
+                if (index >= 0) {
+                    if (!channelListState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
+                        channelListState.scrollToItem(index)
+                    }
+                    // Minimal delay (50ms) to ensure LazyColumn has attached the item
+                    delay(50) 
+                    channelFocusRequesters[targetId]?.requestFocus()
                 }
-                delay(300) 
-                channelFocusRequesters[previewChannel!!.id]?.requestFocus()
+            } else if (uiState.filteredChannels.isNotEmpty()) {
+                // Default focus on first channel if none selected
+                delay(50)
+                channelFocusRequesters[uiState.filteredChannels.first().id]?.requestFocus()
             }
         }
     }
@@ -184,6 +194,7 @@ fun MobileLiveTvScreen(
                                     channel = channel,
                                     isSelected = previewChannel?.id == channel.id,
                                     focusRequester = focusRequester,
+                                    onFocusChanged = { if (it.isFocused) lastFocusedChannelId = channel.id },
                                     onClick = { 
                                         if (previewChannel?.id == channel.id) {
                                             onPlayChannel(channel)
@@ -520,6 +531,7 @@ private fun ChannelRowWithLongClick(
     channel: LiveStream,
     isSelected: Boolean,
     focusRequester: FocusRequester,
+    onFocusChanged: (FocusState) -> Unit = {},
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
@@ -533,7 +545,10 @@ private fun ChannelRowWithLongClick(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 3.dp)
-                .onFocusChanged { isFocused = it.isFocused }
+                .onFocusChanged { 
+                    isFocused = it.isFocused
+                    onFocusChanged(it)
+                }
                 .focusRequester(focusRequester),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
             colors = ClickableSurfaceDefaults.colors(

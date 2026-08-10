@@ -21,6 +21,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -41,6 +43,7 @@ import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
+import kotlinx.coroutines.delay
 
 private enum class SeriesDetailTab { EPISODES, RELATED }
 
@@ -59,6 +62,15 @@ fun SeriesDetailsScreen(
     val isTv = LocalContext.current.isTelevisionDevice()
     
     var currentTab by remember { mutableStateOf(SeriesDetailTab.EPISODES) }
+    val episodesTabFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(series) {
+        if (isTv && series != null) {
+            // High-speed focus restoration (100ms) prevents the marker from jumping to the Back button
+            delay(100)
+            episodesTabFocusRequester.requestFocus()
+        }
+    }
 
     if (series == null) {
         Box(modifier = Modifier.fillMaxSize().background(DetailSurface.backdrop), contentAlignment = Alignment.Center) {
@@ -157,7 +169,8 @@ fun SeriesDetailsScreen(
                             onSeasonSelected = { viewModel.selectSeason(it) },
                             currentTab = currentTab,
                             onTabChange = { currentTab = it },
-                            isTv = isTv
+                            isTv = isTv,
+                            episodesTabFocusRequester = episodesTabFocusRequester
                         )
                     }
 
@@ -213,7 +226,8 @@ private fun DetailTabSection(
     onSeasonSelected: (Season) -> Unit,
     currentTab: SeriesDetailTab,
     onTabChange: (SeriesDetailTab) -> Unit,
-    isTv: Boolean
+    isTv: Boolean,
+    episodesTabFocusRequester: FocusRequester
 ) {
     Row(
         modifier = Modifier
@@ -249,7 +263,7 @@ private fun DetailTabSection(
                         if (isActive) expanded = true
                         else onTabChange(SeriesDetailTab.EPISODES)
                     },
-                    modifier = Modifier.height(42.dp),
+                    modifier = Modifier.height(42.dp).focusRequester(episodesTabFocusRequester),
                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
                     colors = ClickableSurfaceDefaults.colors(
                         containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.08f),

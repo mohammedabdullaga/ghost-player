@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -67,18 +68,32 @@ fun MovieScreen(
     val context = LocalContext.current
     val isTv = context.isTelevisionDevice()
     val movieFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
+    var lastFocusedMovieId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val topBarHomeFocusRequester = remember { FocusRequester() }
 
-    // Auto-focus first movie or maintain focus on last selected
+    // Initial focus logic: Instantly target the correct item to prevent "jumping"
     LaunchedEffect(uiState.filteredMovies) {
         if (isTv && uiState.filteredMovies.isNotEmpty()) {
-            delay(500)
-            movieFocusRequesters[uiState.filteredMovies.first().id]?.requestFocus()
+            val targetId = lastFocusedMovieId ?: uiState.filteredMovies.first().id
+            val index = uiState.filteredMovies.indexOfFirst { it.id == targetId }
+            
+            if (index >= 0) {
+                // Ensure the item is scrolled into view before requesting focus
+                if (!movieGridState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
+                    movieGridState.scrollToItem(index)
+                }
+                // Use a minimal delay to allow the grid to attach the newly scrolled item
+                delay(50)
+                movieFocusRequesters[targetId]?.requestFocus()
+            }
         }
     }
 
     // Reset scroll when category changes
     LaunchedEffect(uiState.selectedCategory) {
         movieGridState.scrollToItem(0)
+        // Reset last focused when category changes to ensure we focus the first item of new category
+        lastFocusedMovieId = null 
     }
 
     LaunchedEffect(Unit) {
@@ -141,7 +156,13 @@ fun MovieScreen(
                                 val focusRequester = movieFocusRequesters.getOrPut(movie.id) { FocusRequester() }
                                 VodPosterCard(
                                     movie = movie,
-                                    modifier = Modifier.focusRequester(focusRequester),
+                                    modifier = Modifier
+                                        .focusRequester(focusRequester)
+                                        .onFocusChanged { 
+                                            if (it.isFocused) {
+                                                lastFocusedMovieId = movie.id 
+                                            }
+                                        },
                                     onClick = { onMovieClick(movie) },
                                     onLongClick = { viewModel.toggleFavorite(movie) }
                                 )

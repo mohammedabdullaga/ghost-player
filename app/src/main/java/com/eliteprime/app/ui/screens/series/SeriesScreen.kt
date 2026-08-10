@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -67,18 +68,28 @@ fun SeriesScreen(
     val context = LocalContext.current
     val isTv = context.isTelevisionDevice()
     val seriesFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
+    var lastFocusedSeriesId by rememberSaveable { mutableStateOf<Long?>(null) }
 
-    // Auto-focus first series or maintain focus
+    // Initial focus logic: Instantly target the content grid to prevent top-bar jumping
     LaunchedEffect(uiState.filteredSeries) {
         if (isTv && uiState.filteredSeries.isNotEmpty()) {
-            delay(500)
-            seriesFocusRequesters[uiState.filteredSeries.first().id]?.requestFocus()
+            val targetId = lastFocusedSeriesId ?: uiState.filteredSeries.first().id
+            val index = uiState.filteredSeries.indexOfFirst { it.id == targetId }
+            
+            if (index >= 0) {
+                if (!seriesGridState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
+                    seriesGridState.scrollToItem(index)
+                }
+                delay(50)
+                seriesFocusRequesters[targetId]?.requestFocus()
+            }
         }
     }
 
     // Reset scroll when category changes
     LaunchedEffect(uiState.selectedCategory) {
         seriesGridState.scrollToItem(0)
+        lastFocusedSeriesId = null
     }
 
     LaunchedEffect(Unit) {
@@ -140,7 +151,13 @@ fun SeriesScreen(
                                 val focusRequester = seriesFocusRequesters.getOrPut(series.id) { FocusRequester() }
                                 SeriesPosterCard(
                                     series = series,
-                                    modifier = Modifier.focusRequester(focusRequester),
+                                    modifier = Modifier
+                                        .focusRequester(focusRequester)
+                                        .onFocusChanged {
+                                            if (it.isFocused) {
+                                                lastFocusedSeriesId = series.id
+                                            }
+                                        },
                                     onClick = { onSeriesClick(series) },
                                     onLongClick = { viewModel.toggleFavorite(series) }
                                 )

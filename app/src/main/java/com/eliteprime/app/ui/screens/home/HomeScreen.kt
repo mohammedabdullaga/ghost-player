@@ -15,6 +15,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,6 +60,8 @@ private object HomeRadius {
     val md = 14.dp
 }
 
+private enum class HomeFocusIndex { LIVE, MOVIES, SERIES }
+
 @Composable
 fun HomeScreen(
     onNavigateToSearch: () -> Unit,
@@ -74,6 +77,27 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val currentTime = remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
     var showExitDialog by remember { mutableStateOf(false) }
+
+    val isTv = context.isTelevisionDevice()
+    val liveTvFocusRequester = remember { FocusRequester() }
+    val moviesFocusRequester = remember { FocusRequester() }
+    val seriesFocusRequester = remember { FocusRequester() }
+    
+    var lastFocusedIndex by rememberSaveable { mutableStateOf(HomeFocusIndex.LIVE) }
+
+    // Restore focus to the card we were on instantly
+    LaunchedEffect(Unit) {
+        if (isTv) {
+            // Delay 100ms is usually the sweet spot for the UI tree to be ready
+            // but short enough that the user doesn't see a "jump" from the top bar.
+            delay(100)
+            when (lastFocusedIndex) {
+                HomeFocusIndex.LIVE -> liveTvFocusRequester.requestFocus()
+                HomeFocusIndex.MOVIES -> moviesFocusRequester.requestFocus()
+                HomeFocusIndex.SERIES -> seriesFocusRequester.requestFocus()
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -120,7 +144,11 @@ fun HomeScreen(
                     icon = Icons.Default.LiveTv,
                     accentColor = Color(0xFFFF4500),
                     onClick = onNavigateToLiveTv,
-                    modifier = Modifier.weight(1f).aspectRatio(1.5f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1.5f)
+                        .focusRequester(liveTvFocusRequester)
+                        .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.LIVE }
                 )
                 HomeHeroCard(
                     title = stringResource(R.string.nav_movies).uppercase(),
@@ -128,7 +156,11 @@ fun HomeScreen(
                     icon = Icons.Default.Movie,
                     accentColor = Color(0xFFFFB300),
                     onClick = onNavigateToMovies,
-                    modifier = Modifier.weight(1f).aspectRatio(1.5f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1.5f)
+                        .focusRequester(moviesFocusRequester)
+                        .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.MOVIES }
                 )
                 HomeHeroCard(
                     title = stringResource(R.string.nav_series).uppercase(),
@@ -136,7 +168,11 @@ fun HomeScreen(
                     icon = Icons.Default.Tv,
                     accentColor = Color(0xFF00BFFF),
                     onClick = onNavigateToSeries,
-                    modifier = Modifier.weight(1f).aspectRatio(1.5f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1.5f)
+                        .focusRequester(seriesFocusRequester)
+                        .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.SERIES }
                 )
             }
         }
