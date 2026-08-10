@@ -5,9 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.repository.XtreamRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.objectbox.Box
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -23,7 +25,7 @@ data class SettingsUiState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    boxStore: BoxStore,
+    private val boxStore: BoxStore,
     private val xtreamRepository: XtreamRepository
 ) : ViewModel() {
 
@@ -35,13 +37,22 @@ class SettingsViewModel @Inject constructor(
 
     private val _isSyncing = MutableStateFlow(false)
 
+    // Optimization: Use count() instead of loading full lists into memory
+    private fun <T> reactiveCount(box: Box<T>): Flow<Long> = callbackFlow {
+        val subscription = boxStore.subscribe(box.entityClass)
+            .observer { trySend(box.count()) }
+        // Initial emit
+        trySend(box.count())
+        awaitClose { subscription.cancel() }
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<SettingsUiState> = combine(
         accountBox.query().equal(XtreamAccount_.isActive, true).build().flow().map { it.firstOrNull() },
-        liveBox.query().build().flow().map { it.size.toLong() },
-        movieBox.query().build().flow().map { it.size.toLong() },
-        seriesBox.query().build().flow().map { it.size.toLong() },
-        epgBox.query().build().flow().map { it.size.toLong() },
+        reactiveCount(liveBox),
+        reactiveCount(movieBox),
+        reactiveCount(seriesBox),
+        reactiveCount(epgBox),
         _isSyncing
     ) { params ->
         SettingsUiState(
@@ -54,7 +65,7 @@ class SettingsViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
-    // Backward compatibility for existing code if any
+    // Backward compatibility for existing code
     val account = uiState.map { it.account }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun syncAll() {

@@ -316,12 +316,20 @@ private fun AccountSettingsCard(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = account.name.ifBlank { "ArenaLive Account" },
-                        color = Color.White,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Black
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = account.name.ifBlank { "ArenaLive" },
+                            color = Color.White,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                        Text(
+                            text = "(${account.username})",
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                     
                     val expirationDate = account.expiryDate?.let {
                         SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(it))
@@ -356,6 +364,7 @@ private fun AccountSettingsCard(
                     count = liveCount,
                     icon = Icons.Default.PlayArrow,
                     accentColor = Color(0xFF4CAF50),
+                    isTv = isTv,
                     modifier = Modifier.weight(1f)
                 )
                 SubscriptionMetricCard(
@@ -363,6 +372,7 @@ private fun AccountSettingsCard(
                     count = movieCount,
                     icon = Icons.Default.Movie,
                     accentColor = Color(0xFF2196F3),
+                    isTv = isTv,
                     modifier = Modifier.weight(1f)
                 )
                 SubscriptionMetricCard(
@@ -370,6 +380,7 @@ private fun AccountSettingsCard(
                     count = seriesCount,
                     icon = Icons.Default.Tv,
                     accentColor = Color(0xFFE91E63),
+                    isTv = isTv,
                     modifier = Modifier.weight(1f)
                 )
                 SubscriptionMetricCard(
@@ -377,6 +388,7 @@ private fun AccountSettingsCard(
                     count = epgCount,
                     icon = Icons.Default.Book,
                     accentColor = Color(0xFFFFC107),
+                    isTv = isTv,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -410,34 +422,61 @@ private fun SubscriptionMetricCard(
     count: Int,
     icon: ImageVector,
     accentColor: Color,
+    isTv: Boolean,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        color = Color.White.copy(alpha = 0.04f),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+    if (isTv) {
+        TvSurface(
+            onClick = {}, // Just for focusability in navigation
+            modifier = modifier,
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.White.copy(alpha = 0.04f),
+                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+            ),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+            border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
         ) {
-            Icon(imageVector = icon, contentDescription = null, tint = accentColor.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
-            Column {
-                Text(
-                    text = String.format(Locale.getDefault(), "%,d", count),
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = title.uppercase(),
-                    color = Color.White.copy(alpha = 0.4f),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 0.5.sp
-                )
-            }
+            SubscriptionMetricCardContent(title, count, icon, accentColor)
+        }
+    } else {
+        Surface(
+            modifier = modifier,
+            shape = RoundedCornerShape(14.dp),
+            color = Color.White.copy(alpha = 0.04f),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
+        ) {
+            SubscriptionMetricCardContent(title, count, icon, accentColor)
+        }
+    }
+}
+
+@Composable
+private fun SubscriptionMetricCardContent(
+    title: String,
+    count: Int,
+    icon: ImageVector,
+    accentColor: Color
+) {
+    Column(
+        modifier = Modifier.padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Icon(imageVector = icon, contentDescription = null, tint = accentColor.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
+        Column {
+            Text(
+                text = String.format(Locale.getDefault(), "%,d", count),
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = title.uppercase(),
+                color = Color.White.copy(alpha = 0.4f),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 0.5.sp
+            )
         }
     }
 }
@@ -451,9 +490,12 @@ private fun SettingsActionButton(
     isTv: Boolean
 ) {
     if (isTv) {
+        var isFocused by remember { mutableStateOf(false) }
         TvSurface(
             onClick = onClick,
-            modifier = modifier.height(42.dp),
+            modifier = modifier
+                .height(42.dp)
+                .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = if (isPrimary) AppColors.ArenaOrange else Color.White.copy(alpha = 0.08f),
@@ -463,7 +505,12 @@ private fun SettingsActionButton(
             border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = label.uppercase(), color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                Text(
+                    text = label.uppercase(), 
+                    color = if (isPrimary && isFocused) AppColors.ArenaOrange else Color.White, 
+                    fontWeight = FontWeight.Black, 
+                    fontSize = 12.sp
+                )
             }
         }
     } else {
@@ -484,18 +531,22 @@ private fun SettingsActionButton(
 private fun LogoutButton(isTv: Boolean, onLogout: () -> Unit) {
     val logoutColor = Color(0xFFEF5350)
     if (isTv) {
+        var isFocused by remember { mutableStateOf(false) }
         TvSurface(
             onClick = onLogout,
-            modifier = Modifier.fillMaxWidth().height(60.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp)
+                .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = logoutColor.copy(alpha = 0.08f),
-                focusedContainerColor = logoutColor.copy(alpha = 0.8f)
+                focusedContainerColor = logoutColor
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
             border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
         ) {
-            LogoutButtonContent(logoutColor)
+            LogoutButtonContent(if (isFocused) Color.White else logoutColor, isFocused)
         }
     } else {
         Surface(
@@ -505,13 +556,13 @@ private fun LogoutButton(isTv: Boolean, onLogout: () -> Unit) {
             shape = RoundedCornerShape(14.dp),
             border = BorderStroke(1.dp, logoutColor.copy(alpha = 0.25f))
         ) {
-            LogoutButtonContent(logoutColor)
+            LogoutButtonContent(logoutColor, false)
         }
     }
 }
 
 @Composable
-private fun LogoutButtonContent(color: Color) {
+private fun LogoutButtonContent(color: Color, isFocused: Boolean) {
     Row(
         modifier = Modifier.padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -519,8 +570,12 @@ private fun LogoutButtonContent(color: Color) {
     ) {
         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
         Column {
-            Text("Log Out", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-            Text("Sign out and clear all local data", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+            Text("Log Out", color = color, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(
+                text = "Sign out and clear all local data", 
+                color = if (isFocused) Color.White.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.6f), 
+                fontSize = 11.sp
+            )
         }
     }
 }
