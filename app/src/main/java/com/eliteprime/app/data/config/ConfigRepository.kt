@@ -48,4 +48,12 @@ class ConfigRepository @Inject constructor(
             ?.filter { it.status.equals("active", ignoreCase = true) }
             ?.sortedBy { it.priority } ?: emptyList()
     }
+
+    fun getProxyHosts(): List<String> {
+        val config = cachedConfig ?: return emptyList()
+        val hosts = mutableListOf<String>()
+        config.proxy_host?.takeIf { it.isNotBlank() }?.let { hosts.add(it) }
+        hosts.addAll(config.proxy_hosts.filter { it.isNotBlank() })
+        return hosts
+    }
 }

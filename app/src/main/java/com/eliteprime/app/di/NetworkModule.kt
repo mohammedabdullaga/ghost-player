@@ -3,6 +3,7 @@ package com.eliteprime.app.di
 import com.eliteprime.app.data.remote.TmdbApiService
 import com.eliteprime.app.data.remote.XtreamApi
 import com.eliteprime.app.data.remote.util.RateLimitInterceptor
+import com.eliteprime.app.domain.model.ProxyConfig
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.TypeAdapter
@@ -20,6 +21,12 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.net.InetSocketAddress
+import java.net.Proxy
+import java.net.ProxySelector
+import java.net.URI
+import java.net.SocketAddress
+import java.io.IOException
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
@@ -73,7 +80,37 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideProxySelector(): ProxySelector {
+        return object : ProxySelector() {
+            override fun select(uri: URI?): List<Proxy> {
+                if (!ProxyConfig.isEnabled) return listOf(Proxy.NO_PROXY)
+
+                val host = uri?.host ?: ""
+                // Bypass local engine and common metadata providers
+                if (host == "127.0.0.1" || 
+                    host == "localhost" || 
+                    host.contains("tmdb.org", ignoreCase = true) || 
+                    host.contains("themoviedb.org", ignoreCase = true) ||
+                    host.contains("api.arenaliveapp.top", ignoreCase = true)) {
+                    return listOf(Proxy.NO_PROXY)
+                }
+
+                if (ProxyConfig.USE_SHADOWSOCKS) {
+                    // Routing through local Shadowsocks SOCKS5 daemon
+                    return listOf(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", 1080)))
+                } else {
+                    // Routing through Secure Tunnel Engine HTTP proxy
+                    return listOf(Proxy(Proxy.Type.HTTP, InetSocketAddress("127.0.0.1", 8080)))
+                }
+            }
+
+            override fun connectFailed(uri: URI?, sa: SocketAddress?, ioe: IOException?) {}
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(proxySelector: ProxySelector): OkHttpClient {
         val trustAllManager = object : X509TrustManager {
             override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
             override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
@@ -86,6 +123,7 @@ object NetworkModule {
         return OkHttpClient.Builder()
             .sslSocketFactory(sslContext.socketFactory, trustAllManager)
             .hostnameVerifier(HostnameVerifier { _, _ -> true })
+            .proxySelector(proxySelector)
             .connectTimeout(NetworkTimeoutConfig.CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(NetworkTimeoutConfig.READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(NetworkTimeoutConfig.WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)

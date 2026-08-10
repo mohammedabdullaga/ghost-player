@@ -8,6 +8,9 @@ import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.domain.model.DownloadStorageConfig
 import com.eliteprime.app.domain.repository.DownloadManager
+import com.eliteprime.app.util.speedtest.InternetSpeedTestResult
+import com.eliteprime.app.util.speedtest.InternetSpeedTestRunner
+import com.eliteprime.app.util.speedtest.InternetSpeedTestSnapshot
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.Box
 import io.objectbox.BoxStore
@@ -26,7 +29,11 @@ data class SettingsUiState(
     val epgCount: Long = 0,
     val isSyncing: Boolean = false,
     val language: String = "en",
-    val storageConfig: DownloadStorageConfig = DownloadStorageConfig()
+    val storageConfig: DownloadStorageConfig = DownloadStorageConfig(),
+    val isSecureConnectionEnabled: Boolean = false,
+    val isSpeedTesting: Boolean = false,
+    val speedTestResult: InternetSpeedTestSnapshot? = null,
+    val speedTestError: String? = null
 )
 
 @HiltViewModel
@@ -34,7 +41,8 @@ class SettingsViewModel @Inject constructor(
     private val boxStore: BoxStore,
     private val xtreamRepository: XtreamRepository,
     private val preferenceRepository: PreferenceRepository,
-    private val downloadManager: DownloadManager
+    private val downloadManager: DownloadManager,
+    private val speedTestRunner: InternetSpeedTestRunner
 ) : ViewModel() {
 
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
@@ -44,6 +52,9 @@ class SettingsViewModel @Inject constructor(
     private val epgBox = boxStore.boxFor(EPGProgram::class.java)
 
     private val _isSyncing = MutableStateFlow(false)
+    private val _isSpeedTesting = MutableStateFlow(false)
+    private val _speedTestSnapshot = MutableStateFlow<InternetSpeedTestSnapshot?>(null)
+    private val _speedTestError = MutableStateFlow<String?>(null)
 
     private fun <T> reactiveCount(box: Box<T>): Flow<Long> = callbackFlow {
         val subscription = boxStore.subscribe(box.entityClass)
@@ -61,7 +72,11 @@ class SettingsViewModel @Inject constructor(
         reactiveCount(epgBox),
         _isSyncing,
         preferenceRepository.language,
-        downloadManager.observeStorageState()
+        downloadManager.observeStorageState(),
+        preferenceRepository.isSecureConnectionEnabled,
+        _isSpeedTesting,
+        _speedTestSnapshot,
+        _speedTestError
     ) { params ->
         SettingsUiState(
             account = params[0] as? XtreamAccount,
@@ -71,11 +86,33 @@ class SettingsViewModel @Inject constructor(
             epgCount = params[4] as Long,
             isSyncing = params[5] as Boolean,
             language = params[6] as String,
-            storageConfig = params[7] as DownloadStorageConfig
+            storageConfig = params[7] as DownloadStorageConfig,
+            isSecureConnectionEnabled = params[8] as Boolean,
+            isSpeedTesting = params[9] as Boolean,
+            speedTestResult = params[10] as? InternetSpeedTestSnapshot,
+            speedTestError = params[11] as? String
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
     val account = uiState.map { it.account }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun runSpeedTest() {
+        viewModelScope.launch {
+            _isSpeedTesting.value = true
+            _speedTestSnapshot.value = null
+            _speedTestError.value = null
+            
+            when (val result = speedTestRunner.run()) {
+                is InternetSpeedTestResult.Success -> {
+                    _speedTestSnapshot.value = result.snapshot
+                }
+                is InternetSpeedTestResult.Error -> {
+                    _speedTestError.value = result.message
+                }
+            }
+            _isSpeedTesting.value = false
+        }
+    }
 
     fun syncAll() {
         viewModelScope.launch {
@@ -95,6 +132,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setLanguage(lang: String) {
         preferenceRepository.setLanguage(lang)
+    }
+
+    fun setSecureConnectionEnabled(enabled: Boolean) {
+        preferenceRepository.setSecureConnectionEnabled(enabled)
     }
 
     fun updateStorageConfig(uri: Uri) {

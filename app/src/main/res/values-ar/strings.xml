@@ -13,9 +13,12 @@
 
     <string name="settings_account">الحساب</string>
     <string name="settings_general">عام</string>
+    <string name="settings_network">الشبكة</string>
     <string name="settings_playback">التشغيل</string>
     <string name="settings_about">حول</string>
     <string name="settings_language">اللغة</string>
+    <string name="settings_secure_connection">اتصال HTTPS آمن (VPN)</string>
+    <string name="settings_secure_connection_desc">قم بتمكين هذا إذا كنت في بلد تفرض قيودًا صارمة على مزودي خدمة الإنترنت. يستخدم نفق Shadowsocks.</string>
     <string name="settings_refresh_data">تحديث البيانات</string>
     <string name="settings_edit_account">تعديل الحساب</string>
     <string name="settings_logout_confirm_title">تسجيل الخروج</string>

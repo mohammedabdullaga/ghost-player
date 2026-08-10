@@ -23,6 +23,9 @@ class PreferenceRepository @Inject constructor(
     private val _downloadTreeUri = MutableStateFlow(prefs.getString("download_tree_uri", null))
     val downloadTreeUri: StateFlow<String?> = _downloadTreeUri
 
+    private val _isSecureConnectionEnabled = MutableStateFlow(prefs.getBoolean("secure_connection_enabled", false))
+    val isSecureConnectionEnabled: StateFlow<Boolean> = _isSecureConnectionEnabled
+
     private fun getCurrentLanguage(): String {
         val locales = AppCompatDelegate.getApplicationLocales()
         if (!locales.isEmpty) {
@@ -40,6 +43,11 @@ class PreferenceRepository @Inject constructor(
     fun setDownloadTreeUri(uri: String?) {
         prefs.edit().putString("download_tree_uri", uri).apply()
         _downloadTreeUri.value = uri
+    }
+
+    fun setSecureConnectionEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("secure_connection_enabled", enabled).apply()
+        _isSecureConnectionEnabled.value = enabled
     }
 
     fun applySavedLocale() {

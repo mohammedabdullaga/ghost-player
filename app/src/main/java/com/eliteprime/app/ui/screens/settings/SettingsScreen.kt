@@ -42,6 +42,7 @@ import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.XtreamAccount
 import com.eliteprime.app.domain.model.DownloadStorageConfig
+import com.eliteprime.app.util.speedtest.InternetSpeedTestSnapshot
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
@@ -51,6 +52,7 @@ import java.util.*
 private enum class SettingCategory(val labelRes: Int, val icon: ImageVector) {
     ACCOUNT(R.string.settings_account, Icons.Default.Person),
     GENERAL(R.string.settings_general, Icons.Default.Settings),
+    NETWORK(R.string.settings_network, Icons.Default.NetworkCheck),
     PLAYBACK(R.string.settings_playback, Icons.Default.PlayCircle),
     ABOUT(R.string.settings_about, Icons.Default.Info),
 }
@@ -208,6 +210,17 @@ fun SettingsScreen(
                                     isTv = isTv
                                 )
                             }
+                            SettingCategory.NETWORK -> {
+                                NetworkSettingsContent(
+                                    isEnabled = uiState.isSecureConnectionEnabled,
+                                    onToggle = { viewModel.setSecureConnectionEnabled(it) },
+                                    isTestingSpeed = uiState.isSpeedTesting,
+                                    speedResult = uiState.speedTestResult,
+                                    speedError = uiState.speedTestError,
+                                    onRunSpeedTest = { viewModel.runSpeedTest() },
+                                    isTv = isTv
+                                )
+                            }
                             else -> {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Text("Coming Soon", color = Color.White.copy(alpha = 0.4f))
@@ -255,6 +268,179 @@ fun SettingsScreen(
                 showEditDialog = false
             }
         )
+    }
+}
+
+@Composable
+private fun NetworkSettingsContent(
+    isEnabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    isTestingSpeed: Boolean,
+    speedResult: InternetSpeedTestSnapshot?,
+    speedError: String?,
+    onRunSpeedTest: () -> Unit,
+    isTv: Boolean
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(24.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "SECURE CONNECTION",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+
+                Surface(
+                    onClick = { onToggle(!isEnabled) },
+                    color = Color.White.copy(alpha = 0.05f),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(if (isEnabled) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                if (isEnabled) Icons.Default.Shield else Icons.Default.ShieldMoon,
+                                null,
+                                tint = if (isEnabled) AppColors.ArenaOrange else Color.White.copy(alpha = 0.4f)
+                            )
+                        }
+                        
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.settings_secure_connection),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_secure_connection_desc),
+                                color = Color.White.copy(alpha = 0.4f),
+                                fontSize = 12.sp,
+                                lineHeight = 18.sp
+                            )
+                        }
+
+                        Switch(
+                            checked = isEnabled,
+                            onCheckedChange = null,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = AppColors.ArenaOrange,
+                                uncheckedThumbColor = Color.White.copy(alpha = 0.4f),
+                                uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = "INTERNET SPEED TEST",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 0.5.sp
+                )
+
+                Surface(
+                    color = Color.White.copy(alpha = 0.05f),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Check your current network speed", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                if (speedResult != null) {
+                                    Text(
+                                        text = "${"%.2f".format(speedResult.megabitsPerSecond)} Mbps",
+                                        color = AppColors.ArenaOrange,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 24.sp
+                                    )
+                                }
+                            }
+
+                            if (isTestingSpeed) {
+                                CircularProgressIndicator(color = AppColors.ArenaOrange, modifier = Modifier.size(24.dp))
+                            } else {
+                                Button(
+                                    onClick = onRunSpeedTest,
+                                    colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("RUN TEST", fontWeight = FontWeight.Black)
+                                }
+                            }
+                        }
+
+                        if (speedError != null) {
+                            Text(text = speedError, color = Color.Red, fontSize = 12.sp)
+                        }
+
+                        if (speedResult != null) {
+                            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.08f)))
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    val recommendation = when (speedResult.recommendedMaxVideoHeight) {
+                                        480 -> "Good for SD (480p)"
+                                        720 -> "Good for HD (720p)"
+                                        1080 -> "Excellent for Full HD (1080p)"
+                                        2160 -> "Perfect for 4K streaming"
+                                        else -> "Maximum Performance"
+                                    }
+                                    
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Icon(Icons.Default.Recommend, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(16.dp))
+                                        Text(text = recommendation, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                                
+                                Surface(
+                                    color = Color.White.copy(alpha = 0.08f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        text = speedResult.transport.name,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        color = Color.White.copy(alpha = 0.5f),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -613,6 +799,13 @@ private fun AccountSettingsCard(
                     isTv = isTv,
                     modifier = Modifier.weight(1f)
                 )
+                
+                SettingsActionButton(
+                    label = "CLEAR CACHE",
+                    onClick = { /* TODO: ViewModel clear cache */ },
+                    isTv = isTv,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -629,7 +822,7 @@ private fun SubscriptionMetricCard(
 ) {
     if (isTv) {
         TvSurface(
-            onClick = {}, // Just for focusability in navigation
+            onClick = {}, 
             modifier = modifier,
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(

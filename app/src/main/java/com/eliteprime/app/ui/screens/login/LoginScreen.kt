@@ -49,6 +49,7 @@ fun LoginScreen(
     val state by viewModel.loginState.collectAsState()
     val syncProgress by viewModel.syncProgress.collectAsState()
     val pairingState by viewModel.pairingState.collectAsState()
+    val isSecureEnabled by viewModel.isSecureConnectionEnabled.collectAsState()
 
     val context = LocalContext.current
     val isTv = context.isTelevisionDevice()
@@ -96,6 +97,8 @@ fun LoginScreen(
                         onPassChange = { pass = it },
                         passwordVisible = passwordVisible,
                         onTogglePasswordVisible = { passwordVisible = !passwordVisible },
+                        isSecureEnabled = isSecureEnabled,
+                        onSecureToggle = { viewModel.setSecureConnectionEnabled(it) },
                         onSubmit = { viewModel.login(user, pass) }
                     )
                 } else {
@@ -108,6 +111,8 @@ fun LoginScreen(
                         onPassChange = { pass = it },
                         passwordVisible = passwordVisible,
                         onTogglePasswordVisible = { passwordVisible = !passwordVisible },
+                        isSecureEnabled = isSecureEnabled,
+                        onSecureToggle = { viewModel.setSecureConnectionEnabled(it) },
                         onSubmit = { viewModel.login(user, pass) }
                     )
                 }
@@ -127,6 +132,8 @@ private fun TvLoginLayout(
     onPassChange: (String) -> Unit,
     passwordVisible: Boolean,
     onTogglePasswordVisible: () -> Unit,
+    isSecureEnabled: Boolean,
+    onSecureToggle: (Boolean) -> Unit,
     onSubmit: () -> Unit
 ) {
     Surface(
@@ -153,6 +160,8 @@ private fun TvLoginLayout(
                             onPasswordChange = onPassChange,
                             passwordVisible = passwordVisible,
                             onTogglePasswordVisible = onTogglePasswordVisible,
+                            isSecureEnabled = isSecureEnabled,
+                            onSecureToggle = onSecureToggle,
                             onSubmit = onSubmit
                         )
                         if (state is LoginState.Error) {
@@ -234,6 +243,8 @@ private fun MobileLoginLayout(
     onPassChange: (String) -> Unit,
     passwordVisible: Boolean,
     onTogglePasswordVisible: () -> Unit,
+    isSecureEnabled: Boolean,
+    onSecureToggle: (Boolean) -> Unit,
     onSubmit: () -> Unit
 ) {
     Column(
@@ -264,6 +275,8 @@ private fun MobileLoginLayout(
                         onPasswordChange = onPassChange,
                         passwordVisible = passwordVisible,
                         onTogglePasswordVisible = onTogglePasswordVisible,
+                        isSecureEnabled = isSecureEnabled,
+                        onSecureToggle = onSecureToggle,
                         onSubmit = onSubmit
                     )
                 }
@@ -285,6 +298,8 @@ private fun LoginForm(
     onPasswordChange: (String) -> Unit,
     passwordVisible: Boolean,
     onTogglePasswordVisible: () -> Unit,
+    isSecureEnabled: Boolean,
+    onSecureToggle: (Boolean) -> Unit,
     onSubmit: () -> Unit
 ) {
     Column(
@@ -346,8 +361,48 @@ private fun LoginForm(
                 colors = loginFieldColors()
             )
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Secure Connection Toggle
+        Surface(
+            onClick = { onSecureToggle(!isSecureEnabled) },
+            color = Color.White.copy(alpha = 0.05f),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, if (isSecureEnabled) ArenaOrange else Color.White.copy(alpha = 0.1f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    if (isSecureEnabled) Icons.Default.Shield else Icons.Default.ShieldMoon,
+                    null,
+                    tint = if (isSecureEnabled) ArenaOrange else Color.White.copy(alpha = 0.4f),
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = "Secure Connection (VPN)",
+                    color = Color.White,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                Switch(
+                    checked = isSecureEnabled,
+                    onCheckedChange = null,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = ArenaOrange,
+                        uncheckedThumbColor = Color.White.copy(alpha = 0.4f),
+                        uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
+                    )
+                )
+            }
+        }
         
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Button(
             onClick = onSubmit,

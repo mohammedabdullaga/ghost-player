@@ -1,6 +1,7 @@
 package com.eliteprime.app.data.remote.proxy
 
 import android.util.Log
+import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.remote.util.NetworkUtils
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +17,9 @@ import javax.inject.Singleton
 import javax.net.ssl.SSLSocket
 
 @Singleton
-class SecureTunnelEngine @Inject constructor() {
+class SecureTunnelEngine @Inject constructor(
+    private val configRepository: ConfigRepository
+) {
     private val TAG = "SecureTunnelEngine"
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var serverSocket: ServerSocket? = null
@@ -25,7 +28,6 @@ class SecureTunnelEngine @Inject constructor() {
     private val _isRunning = MutableStateFlow(false)
     val isRunning = _isRunning.asStateFlow()
 
-    private val UPSTREAM_HOST = "cdn.sharkbh.online"
     private val UPSTREAM_PORT = 443
     private val AUTH_HEADER = "Proxy-Authorization: Basic ZWxpdHByaW1lOkVlYmgxMjM0" // elitprime:Eebh1234
 
@@ -72,12 +74,15 @@ class SecureTunnelEngine @Inject constructor() {
             val firstLine = rawRequest.lineSequence().firstOrNull() ?: ""
             Log.d(TAG, "Relaying request: $firstLine")
             
+            val proxyHosts = configRepository.getProxyHosts()
+            val upstreamHost = proxyHosts.firstOrNull() ?: "cdn.sharkbh.online"
+
             val sslContext = NetworkUtils.getUnsafeSslContext()
             val rawUpstream = Socket()
-            rawUpstream.connect(InetSocketAddress(UPSTREAM_HOST, UPSTREAM_PORT), 15000)
+            rawUpstream.connect(InetSocketAddress(upstreamHost, UPSTREAM_PORT), 15000)
             rawUpstream.soTimeout = 30000
             
-            val tlsUpstream = sslContext.socketFactory.createSocket(rawUpstream, UPSTREAM_HOST, UPSTREAM_PORT, true) as SSLSocket
+            val tlsUpstream = sslContext.socketFactory.createSocket(rawUpstream, upstreamHost, UPSTREAM_PORT, true) as SSLSocket
             tlsUpstream.startHandshake()
             upstreamSocket = tlsUpstream
             

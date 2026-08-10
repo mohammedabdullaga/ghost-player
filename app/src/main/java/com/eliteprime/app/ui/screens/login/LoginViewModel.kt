@@ -3,6 +3,7 @@ package com.eliteprime.app.ui.screens.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.config.ConfigRepository
+import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.pairing.ProviderQrPairingManager
 import com.eliteprime.app.pairing.ProviderQrPairingState
@@ -17,6 +18,7 @@ import javax.inject.Inject
 class LoginViewModel @Inject constructor(
     private val xtreamRepository: XtreamRepository,
     private val configRepository: ConfigRepository,
+    private val preferenceRepository: PreferenceRepository,
     private val pairingManager: ProviderQrPairingManager
 ) : ViewModel() {
 
@@ -25,6 +27,9 @@ class LoginViewModel @Inject constructor(
 
     private val _syncProgress = MutableStateFlow(SyncProgress())
     val syncProgress: StateFlow<SyncProgress> = _syncProgress.asStateFlow()
+
+    val isSecureConnectionEnabled = preferenceRepository.isSecureConnectionEnabled
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     val pairingState: StateFlow<ProviderQrPairingState> = pairingManager.state
 
@@ -40,6 +45,10 @@ class LoginViewModel @Inject constructor(
                 startSync()
             }
         }.launchIn(viewModelScope)
+    }
+
+    fun setSecureConnectionEnabled(enabled: Boolean) {
+        preferenceRepository.setSecureConnectionEnabled(enabled)
     }
 
     fun startQrPairing() {
