@@ -41,6 +41,7 @@ fun ContinueWatchingGridScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val isTv = LocalContext.current.isTelevisionDevice()
     var selectedFilter by remember { mutableStateOf(HistoryFilter.ALL) }
+    var historyToDelete by remember { mutableStateOf<PlaybackHistory?>(null) }
 
     val filteredHistory = remember(uiState.continueWatching, selectedFilter) {
         when (selectedFilter) {
@@ -126,13 +127,38 @@ fun ContinueWatchingGridScreen(
                                             "movie" -> onNavigateToMovieDetails(history.streamId)
                                             "series", "series_episode" -> onNavigateToSeriesDetails(history.seriesId ?: history.streamId)
                                         }
-                                    }
+                                    },
+                                    onLongClick = { historyToDelete = history }
                                 )
                             }
                         }
                     }
                 }
             }
+        }
+
+        if (historyToDelete != null) {
+            AlertDialog(
+                onDismissRequest = { historyToDelete = null },
+                title = { Text("Remove from History") },
+                text = { Text("Are you sure you want to remove '${historyToDelete!!.name}' from your Continue Watching list?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.removeFromHistory(historyToDelete!!)
+                        historyToDelete = null
+                    }) {
+                        Text("REMOVE", color = Color.Red, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { historyToDelete = null }) {
+                        Text("CANCEL", color = Color.White.copy(alpha = 0.6f))
+                    }
+                },
+                containerColor = Color(0xFF1A1C1E),
+                titleContentColor = Color.White,
+                textContentColor = Color.White.copy(alpha = 0.7f)
+            )
         }
     }
 }

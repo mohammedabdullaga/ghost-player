@@ -1,5 +1,6 @@
 package com.eliteprime.app.ui.screens.details
 
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -9,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -40,6 +43,8 @@ import coil3.compose.AsyncImage
 import com.eliteprime.app.data.local.entity.Episode
 import com.eliteprime.app.data.local.entity.Season
 import com.eliteprime.app.data.local.entity.Series
+import com.eliteprime.app.domain.model.DownloadItem
+import com.eliteprime.app.domain.model.DownloadStatus
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.formatPositionMs
@@ -51,7 +56,8 @@ private enum class SeriesDetailTab { EPISODES, RELATED }
 @Composable
 fun SeriesDetailsScreen(
     onBack: () -> Unit,
-    onPlayEpisode: (Episode) -> Unit,
+    onPlayEpisode: (Episode, String) -> Unit,
+    onPlayLocal: (Long, String, String) -> Unit = { _, _, _ -> },
     onSeriesClick: (Series) -> Unit = {},
     viewModel: SeriesDetailsViewModel = hiltViewModel()
 ) {
@@ -60,17 +66,37 @@ fun SeriesDetailsScreen(
     val seasons by viewModel.seasons.collectAsState()
     val selectedSeason by viewModel.selectedSeason.collectAsState()
     val resumeEpisode by viewModel.resumeEpisode.collectAsState()
+    val episodeDownloads by viewModel.episodeDownloads.collectAsState()
     val relatedSeries by viewModel.relatedSeries.collectAsState()
     val isTv = LocalContext.current.isTelevisionDevice()
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.userMessage.collect { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
     
+    val listState = rememberLazyListState()
     var currentTab by remember { mutableStateOf(SeriesDetailTab.EPISODES) }
     val episodesTabFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(series) {
         if (isTv && series != null) {
-            // High-speed focus restoration (100ms) prevents the marker from jumping to the Back button
             delay(100)
             episodesTabFocusRequester.requestFocus()
+        }
+    }
+
+    // Scroll to resume episode
+    LaunchedEffect(selectedSeason, resumeEpisode) {
+        val season = selectedSeason
+        val resume = resumeEpisode
+        if (season != null && resume != null && currentTab == SeriesDetailTab.EPISODES) {
+            val index = season.episodes.indexOfFirst { it.id == resume.id }
+            if (index >= 0) {
+                listState.animateScrollToItem(index + 2)
+            }
         }
     }
 
@@ -83,7 +109,6 @@ fun SeriesDetailsScreen(
 
     AppBackground {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Cinematic Backdrop
             AsyncImage(
                 model = series.backdropUrl ?: series.cover,
                 contentDescription = null,
@@ -100,7 +125,6 @@ fun SeriesDetailsScreen(
             )
 
             Row(modifier = Modifier.fillMaxSize()) {
-                // Left Panel: Poster & Back
                 PosterPanel(
                     posterUrl = series.cover ?: series.backdropUrl, 
                     onBack = onBack, 
@@ -108,8 +132,8 @@ fun SeriesDetailsScreen(
                     isTv = isTv
                 )
 
-                // Right Panel: Info & Episodes
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .weight(0.62f)
                         .fillMaxHeight()
@@ -142,21 +166,26 @@ fun SeriesDetailsScreen(
                             }
 
                             if (resumeEpisode != null) {
+                                val dl = episodeDownloads[resumeEpisode!!.id]
+                                val isDl = dl?.status == DownloadStatus.COMPLETED
                                 val hasProgress = resumeEpisode!!.watchProgress > 10000L
-                                val buttonText = if (hasProgress) {
-                                    "RESUME S${resumeEpisode!!.seasonNumber} E${resumeEpisode!!.episodeNumber} FROM ${formatPositionMs(resumeEpisode!!.watchProgress)}"
-                                } else {
-                                    "PLAY S${resumeEpisode!!.seasonNumber} E${resumeEpisode!!.episodeNumber}"
+                                val buttonText = when {
+                                    isDl -> "PLAY DOWNLOADED S${resumeEpisode!!.seasonNumber} E${resumeEpisode!!.episodeNumber}"
+                                    hasProgress -> "RESUME S${resumeEpisode!!.seasonNumber} E${resumeEpisode!!.episodeNumber} FROM ${formatPositionMs(resumeEpisode!!.watchProgress)}"
+                                    else -> "PLAY S${resumeEpisode!!.seasonNumber} E${resumeEpisode!!.episodeNumber}"
                                 }
 
                                 Row(modifier = Modifier.padding(vertical = 4.dp)) {
                                     if (isTv) {
                                         TvSurface(
-                                            onClick = { onPlayEpisode(resumeEpisode!!) },
+                                            onClick = { 
+                                                if (isDl) onPlayLocal(resumeEpisode!!.id, dl.outputUri ?: dl.outputDisplayPath!!, "${series.name} - ${resumeEpisode!!.title}") 
+                                                else onPlayEpisode(resumeEpisode!!, "${series.name} - ${resumeEpisode!!.title}") 
+                                            },
                                             modifier = Modifier.fillMaxWidth().height(48.dp),
                                             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
                                             colors = ClickableSurfaceDefaults.colors(
-                                                containerColor = AppColors.ArenaOrange,
+                                                containerColor = if (isDl) Color(0xFF4CAF50) else AppColors.ArenaOrange,
                                                 focusedContainerColor = Color.White
                                             ),
                                             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp))
@@ -169,9 +198,12 @@ fun SeriesDetailsScreen(
                                         }
                                     } else {
                                         Button(
-                                            onClick = { onPlayEpisode(resumeEpisode!!) },
+                                            onClick = { 
+                                                if (isDl) onPlayLocal(resumeEpisode!!.id, dl.outputUri ?: dl.outputDisplayPath!!, "${series.name} - ${resumeEpisode!!.title}") 
+                                                else onPlayEpisode(resumeEpisode!!, "${series.name} - ${resumeEpisode!!.title}") 
+                                            },
                                             modifier = Modifier.fillMaxWidth().height(48.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
+                                            colors = ButtonDefaults.buttonColors(containerColor = if (isDl) Color(0xFF4CAF50) else AppColors.ArenaOrange),
                                             shape = RoundedCornerShape(12.dp)
                                         ) {
                                             Icon(Icons.Default.PlayArrow, null)
@@ -220,18 +252,24 @@ fun SeriesDetailsScreen(
                     if (currentTab == SeriesDetailTab.EPISODES) {
                         selectedSeason?.let { season ->
                             itemsIndexed(season.episodes) { index, episode ->
+                                val isHighlighted = resumeEpisode?.id == episode.id
+                                val dl = episodeDownloads[episode.id]
                                 EpisodeRow(
                                     episode = episode,
                                     index = index + 1,
+                                    isHighlighted = isHighlighted,
+                                    downloadItem = dl,
                                     fallbackImageUrl = series.cover ?: series.backdropUrl,
-                                    onClick = { onPlayEpisode(episode) },
+                                    onClick = { 
+                                        if (dl?.status == DownloadStatus.COMPLETED) onPlayLocal(episode.id, dl.outputUri ?: dl.outputDisplayPath!!, "${series.name} - ${episode.title}")
+                                        else onPlayEpisode(episode, "${series.name} - ${episode.title}") 
+                                    },
                                     onDownloadClick = { viewModel.downloadEpisode(episode) },
                                     isTv = isTv
                                 )
                             }
                         }
                     } else {
-                        // More Like This Grid
                         if (relatedSeries.isEmpty()) {
                             item {
                                 Box(modifier = Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
@@ -279,7 +317,6 @@ private fun DetailTabSection(
             .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // --- 1. Episodes Tab ---
         Box(modifier = Modifier.wrapContentSize()) {
             var expanded by remember { mutableStateOf(false) }
             val isActive = currentTab == SeriesDetailTab.EPISODES
@@ -352,7 +389,6 @@ private fun DetailTabSection(
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        // --- 2. More Like This Tab ---
         val isRelatedActive = currentTab == SeriesDetailTab.RELATED
         if (isTv) {
             TvSurface(
@@ -384,7 +420,6 @@ private fun DetailTabSection(
             }
         }
 
-        // --- 3. Episode Count (Fixed Horizontal Alignment) ---
         if (currentTab == SeriesDetailTab.EPISODES && selectedSeason != null) {
             Box(
                 modifier = Modifier.weight(1f).fillMaxHeight(), 
@@ -469,11 +504,6 @@ private fun InfoCard(content: @Composable ColumnScope.() -> Unit) {
             content = content
         )
     }
-}
-
-@Composable
-private fun DetailHeader(kicker: String, title: String, isFavorite: Boolean, onToggleFavorite: () -> Unit) {
-    // Shared handled locally
 }
 
 @Composable
@@ -566,6 +596,8 @@ private fun MetadataGrid(items: List<Pair<String, String>>) {
 private fun EpisodeRow(
     episode: Episode,
     index: Int,
+    isHighlighted: Boolean,
+    downloadItem: DownloadItem?,
     fallbackImageUrl: String?,
     onClick: () -> Unit,
     onDownloadClick: () -> Unit,
@@ -577,47 +609,51 @@ private fun EpisodeRow(
             modifier = Modifier.fillMaxWidth().height(72.dp),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = DetailSurface.cardFill,
+                containerColor = if (isHighlighted) AppColors.ArenaOrange.copy(alpha = 0.1f) else DetailSurface.cardFill,
                 focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(DetailRadius.md)),
             border = ClickableSurfaceDefaults.border(
+                border = if (isHighlighted) Border(BorderStroke(1.dp, AppColors.ArenaOrange)) else Border.None,
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
-            EpisodeRowContent(episode, index, fallbackImageUrl, onDownloadClick, onClick)
+            EpisodeRowContent(episode, index, isHighlighted, downloadItem, fallbackImageUrl, onDownloadClick, onClick)
         }
     } else {
         Surface(
             onClick = onClick,
             modifier = Modifier.fillMaxWidth().height(72.dp),
             shape = RoundedCornerShape(DetailRadius.md),
-            color = DetailSurface.cardFill,
-            border = BorderStroke(1.dp, DetailSurface.hairline)
+            color = if (isHighlighted) AppColors.ArenaOrange.copy(alpha = 0.1f) else DetailSurface.cardFill,
+            border = BorderStroke(1.dp, if (isHighlighted) AppColors.ArenaOrange else DetailSurface.hairline)
         ) {
-            EpisodeRowContent(episode, index, fallbackImageUrl, onDownloadClick, onClick)
+            EpisodeRowContent(episode, index, isHighlighted, downloadItem, fallbackImageUrl, onDownloadClick, onClick)
         }
     }
 }
 
 @Composable
-private fun EpisodeRowContent(episode: Episode, index: Int, fallbackImageUrl: String?, onDownloadClick: () -> Unit, onPlayClick: () -> Unit) {
+private fun EpisodeRowContent(episode: Episode, index: Int, isHighlighted: Boolean, downloadItem: DownloadItem?, fallbackImageUrl: String?, onDownloadClick: () -> Unit, onPlayClick: () -> Unit) {
+    val isDownloaded = downloadItem?.status == DownloadStatus.COMPLETED
+    val isDownloading = downloadItem?.status == DownloadStatus.DOWNLOADING || downloadItem?.status == DownloadStatus.PENDING
+
     Row(modifier = Modifier.fillMaxSize().padding(DetailSpacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(DetailSpacing.sm)) {
         Box(modifier = Modifier.fillMaxHeight().aspectRatio(1.6f).clip(RoundedCornerShape(DetailRadius.sm)).background(Color.Black)) {
             AsyncImage(
                 model = episode.coverUrl ?: fallbackImageUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize().alpha(if (isHighlighted) 1f else 0.8f)
             )
             Surface(
-                color = Color.Black.copy(alpha = 0.55f),
+                color = if (isHighlighted) AppColors.ArenaOrange else Color.Black.copy(alpha = 0.55f),
                 shape = RoundedCornerShape(bottomEnd = DetailRadius.sm),
                 modifier = Modifier.align(Alignment.TopStart)
             ) {
                 Text(
                     text = index.toString(),
-                    color = DetailSurface.textPrimary,
+                    color = Color.White,
                     fontWeight = FontWeight.Black,
                     fontSize = 10.sp,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -627,14 +663,22 @@ private fun EpisodeRowContent(episode: Episode, index: Int, fallbackImageUrl: St
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "E${episode.episodeNumber} · ${episode.title}",
-                color = DetailSurface.textPrimary,
-                fontWeight = FontWeight.Bold,
+                color = if (isHighlighted) AppColors.ArenaOrange else DetailSurface.textPrimary,
+                fontWeight = if (isHighlighted) FontWeight.Black else FontWeight.Bold,
                 fontSize = 13.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             
-            if (episode.watchProgress > 0 && episode.totalDuration > 0) {
+            if (isDownloading) {
+                val dlProgress = downloadItem!!.totalBytes?.let { if (it > 0) downloadItem.bytesWritten.toFloat() / it else 0f } ?: 0f
+                LinearProgressIndicator(
+                    progress = { dlProgress },
+                    modifier = Modifier.fillMaxWidth(0.8f).height(2.dp).padding(top = 4.dp),
+                    color = AppColors.ArenaOrange,
+                    trackColor = Color.White.copy(alpha = 0.1f)
+                )
+            } else if (episode.watchProgress > 0 && episode.totalDuration > 0) {
                 val epProgress = (episode.watchProgress.toFloat() / episode.totalDuration).coerceIn(0f, 1f)
                 Spacer(Modifier.height(4.dp))
                 LinearProgressIndicator(
@@ -649,13 +693,25 @@ private fun EpisodeRowContent(episode: Episode, index: Int, fallbackImageUrl: St
             }
         }
 
-        IconButton(onClick = onDownloadClick, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Default.Download, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
+        if (isHighlighted) {
+            StatusPill(label = "WATCHING", containerColor = AppColors.ArenaOrange.copy(alpha = 0.2f), contentColor = AppColors.ArenaOrange)
         }
 
-        Surface(onClick = onPlayClick, modifier = Modifier.size(32.dp), shape = CircleShape, color = AppColors.ArenaOrange) {
+        if (isDownloaded) {
+            Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
+            }
+        } else if (!isDownloading) {
+            IconButton(onClick = {
+                onDownloadClick()
+            }, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Default.Download, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
+            }
+        }
+
+        Surface(onClick = onPlayClick, modifier = Modifier.size(32.dp), shape = CircleShape, color = if (isDownloaded) Color(0xFF4CAF50) else AppColors.ArenaOrange) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Icon(imageVector = if (isDownloaded) Icons.Default.FileDownloadDone else Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(16.dp))
             }
         }
     }

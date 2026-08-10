@@ -7,6 +7,7 @@ import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.domain.model.DownloadContentType
 import com.eliteprime.app.domain.model.DownloadRequest
+import com.eliteprime.app.domain.model.Result
 import com.eliteprime.app.domain.repository.DownloadManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
@@ -50,6 +51,11 @@ class MovieDetailViewModel @Inject constructor(
         loadDetails()
     }
 
+    val downloadItem = downloadManager.observeAllDownloads()
+        .map { downloads ->
+            downloads.find { it.contentId == movieId && it.contentType == DownloadContentType.MOVIE }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
     private fun loadDetails() {
         viewModelScope.launch {
             val m = movieBox.get(movieId)
@@ -67,6 +73,9 @@ class MovieDetailViewModel @Inject constructor(
         }
     }
 
+    private val _userMessage = MutableSharedFlow<String>()
+    val userMessage = _userMessage.asSharedFlow()
+
     fun downloadMovie() {
         viewModelScope.launch {
             val m = movie.value ?: return@launch
@@ -81,7 +90,12 @@ class MovieDetailViewModel @Inject constructor(
                 containerExtension = m.containerExtension,
                 posterUrl = m.streamIcon
             )
-            downloadManager.enqueueDownload(request)
+            val result = downloadManager.enqueueDownload(request)
+            if (result is Result.Success) {
+                _userMessage.emit("Movie added to download queue")
+            } else if (result is Result.Error) {
+                _userMessage.emit(result.message)
+            }
         }
     }
 }

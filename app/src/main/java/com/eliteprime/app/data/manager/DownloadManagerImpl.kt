@@ -1,11 +1,13 @@
 package com.eliteprime.app.data.manager
 
 import android.content.Context
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import androidx.documentfile.provider.DocumentFile
 import com.eliteprime.app.data.local.entity.*
@@ -30,7 +32,7 @@ import javax.inject.Singleton
 
 @Singleton
 class DownloadManagerImpl @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val boxStore: BoxStore,
     private val preferenceRepository: PreferenceRepository,
     private val okHttpClient: OkHttpClient,
@@ -46,6 +48,9 @@ class DownloadManagerImpl @Inject constructor(
     private val schedulerMutex = Mutex()
     private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     @Volatile private var playbackActive = false
+
+    private val _downloadSpeeds = MutableStateFlow<Map<String, Long>>(emptyMap())
+    private val _estimatedTimes = MutableStateFlow<Map<String, Long>>(emptyMap())
 
     private val MAX_RETRIES = 5
     private val DEFAULT_BUFFER_SIZE = 64 * 1024
@@ -66,13 +71,31 @@ class DownloadManagerImpl @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observeAllDownloads(): Flow<List<DownloadItem>> {
-        return downloadBox.query().build().flow().map { downloads -> downloads.map { it.toDomain() } }
+        return combine(
+            downloadBox.query().build().flow(),
+            _downloadSpeeds,
+            _estimatedTimes
+        ) { downloads, speeds, etas ->
+            downloads.map { entity ->
+                entity.toDomain().copy(
+                    downloadSpeedBps = speeds[entity.downloadId] ?: 0L,
+                    estimatedTimeRemainingMs = etas[entity.downloadId]
+                )
+            }
+        }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     override fun observeDownload(id: String): Flow<DownloadItem?> {
-        return downloadBox.query().build().flow().map { list ->
-            list.firstOrNull { it.downloadId == id }?.toDomain()
+        return combine(
+            downloadBox.query().build().flow(),
+            _downloadSpeeds,
+            _estimatedTimes
+        ) { list, speeds, etas ->
+            list.firstOrNull { it.downloadId == id }?.toDomain()?.copy(
+                downloadSpeedBps = speeds[id] ?: 0L,
+                estimatedTimeRemainingMs = etas[id]
+            )
         }
     }
 
@@ -90,6 +113,17 @@ class DownloadManagerImpl @Inject constructor(
 
     override suspend fun enqueueDownload(request: DownloadRequest): Result<DownloadItem> = withContext(Dispatchers.IO) {
         try {
+            // Check if already exists
+            val existing = downloadBox.all.find { it.contentId == request.contentId && it.contentType == request.contentType.name }
+            if (existing != null) {
+                if (existing.status == DownloadStatus.COMPLETED.name) {
+                    return@withContext Result.error("Content already downloaded")
+                }
+                if (existing.status == DownloadStatus.DOWNLOADING.name || existing.status == DownloadStatus.PENDING.name) {
+                    return@withContext Result.error("Download already in progress or queued")
+                }
+            }
+
             val id = "${request.contentType.name}_${request.contentId}_${System.currentTimeMillis()}"
             val item = DownloadItem(
                 id = id,
@@ -193,6 +227,11 @@ class DownloadManagerImpl @Inject constructor(
 
     override suspend fun updateStorageConfig(treeUri: String?, displayName: String?): Result<DownloadStorageConfig> = withContext(Dispatchers.IO) {
         try {
+            treeUri?.let { uriString ->
+                val uri = Uri.parse(uriString)
+                val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                context.contentResolver.takePersistableUriPermission(uri, flags)
+            }
             preferenceRepository.setDownloadTreeUri(treeUri)
             Result.success(DownloadStorageConfig(
                 treeUri = treeUri,
@@ -221,6 +260,16 @@ class DownloadManagerImpl @Inject constructor(
     private fun startDownloadJob(entity: DownloadEntity) {
         activeJobs[entity.downloadId] = applicationScope.launch(Dispatchers.IO) {
             captureDownload(entity)
+        }
+        startService()
+    }
+
+    private fun startService() {
+        val intent = Intent(context, DownloadService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
         }
     }
 
@@ -264,6 +313,8 @@ class DownloadManagerImpl @Inject constructor(
                         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                         var bytesWrittenTotal = 0L
                         var lastUpdate = 0L
+                        var lastSpeedUpdate = System.currentTimeMillis()
+                        var lastBytesForSpeed = 0L
                         
                         while (true) {
                             yield()
@@ -272,6 +323,22 @@ class DownloadManagerImpl @Inject constructor(
                             output.write(buffer, 0, read)
                             bytesWrittenTotal += read
                             
+                            val now = System.currentTimeMillis()
+                            if (now - lastSpeedUpdate >= 1000) {
+                                val elapsed = now - lastSpeedUpdate
+                                val speedBps = ((bytesWrittenTotal - lastBytesForSpeed) * 1000) / elapsed
+                                _downloadSpeeds.update { it + (current.downloadId to speedBps) }
+                                
+                                if (contentLength > 0) {
+                                    val remaining = contentLength - bytesWrittenTotal
+                                    val eta = if (speedBps > 0) (remaining * 1000) / speedBps else 0L
+                                    _estimatedTimes.update { it + (current.downloadId to eta) }
+                                }
+                                
+                                lastSpeedUpdate = now
+                                lastBytesForSpeed = bytesWrittenTotal
+                            }
+
                             if (bytesWrittenTotal - lastUpdate >= PROGRESS_UPDATE_BYTES) {
                                 current.bytesWritten = bytesWrittenTotal
                                 downloadBox.put(current)
@@ -295,6 +362,8 @@ class DownloadManagerImpl @Inject constructor(
                 downloadBox.put(current)
             }
         } finally {
+            _downloadSpeeds.update { it - current.downloadId }
+            _estimatedTimes.update { it - current.downloadId }
             activeCalls.remove(current.downloadId)
             activeJobs.remove(current.downloadId)
             applicationScope.launch { startNextQueued() }

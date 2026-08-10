@@ -37,7 +37,11 @@ data class DownloadItem(
     val failureReason: String? = null,
     val seriesId: Long? = null,
     val seasonNumber: Int? = null,
-    val episodeNumber: Int? = null
+    val episodeNumber: Int? = null,
+    
+    // Speed and ETA
+    val downloadSpeedBps: Long = 0L,
+    val estimatedTimeRemainingMs: Long? = null
 )
 
 data class DownloadRequest(

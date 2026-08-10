@@ -7,6 +7,8 @@ import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.domain.model.DownloadContentType
 import com.eliteprime.app.domain.model.DownloadRequest
+import com.eliteprime.app.domain.model.DownloadStatus
+import com.eliteprime.app.domain.model.Result
 import com.eliteprime.app.domain.repository.DownloadManager
 import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -60,9 +62,12 @@ class SeriesDetailsViewModel @Inject constructor(
                 }
             }
         }
-        if (lastWatched == null && seasonList.isNotEmpty()) {
-            lastWatched = seasonList.first().episodes.firstOrNull()
+        
+        // Auto-select season based on resume episode if no season is selected yet
+        if (lastWatched != null && _selectedSeasonNumber.value == null) {
+            _selectedSeasonNumber.value = lastWatched.seasonNumber
         }
+        
         lastWatched
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
@@ -96,6 +101,12 @@ class SeriesDetailsViewModel @Inject constructor(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val episodeDownloads = downloadManager.observeAllDownloads()
+        .map { downloads ->
+            downloads.filter { it.seriesId == seriesId }
+                .associateBy { it.contentId }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     init {
         loadDetails()
     }
@@ -121,6 +132,9 @@ class SeriesDetailsViewModel @Inject constructor(
         }
     }
 
+    private val _userMessage = MutableSharedFlow<String>()
+    val userMessage = _userMessage.asSharedFlow()
+
     fun downloadEpisode(episode: Episode) {
         viewModelScope.launch {
             val s = series.value ?: return@launch
@@ -138,7 +152,12 @@ class SeriesDetailsViewModel @Inject constructor(
                 seasonNumber = episode.seasonNumber,
                 episodeNumber = episode.episodeNumber
             )
-            downloadManager.enqueueDownload(request)
+            val result = downloadManager.enqueueDownload(request)
+            if (result is Result.Success) {
+                _userMessage.emit("Episode added to download queue")
+            } else if (result is Result.Error) {
+                _userMessage.emit(result.message)
+            }
         }
     }
 }

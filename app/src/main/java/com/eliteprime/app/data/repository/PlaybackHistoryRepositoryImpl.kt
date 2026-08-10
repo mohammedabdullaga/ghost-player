@@ -29,6 +29,9 @@ class PlaybackHistoryRepositoryImpl @Inject constructor(
 
     init {
         repositoryScope.launch {
+            // Cleanup legacy/invalid records from previous bugs
+            historyBox.query().equal(PlaybackHistory_.providerId, 0L).build().remove()
+            
             while (true) {
                 delay(30000)
                 flushPendingUpdates()
@@ -45,14 +48,39 @@ class PlaybackHistoryRepositoryImpl @Inject constructor(
         val dbFlow = historyBox.query().orderDesc(PlaybackHistory_.lastPlayedAt).build().flow()
 
         return combine(dbFlow, _pendingUpdatesFlow) { dbList, pending ->
-            val mergedByKey = mutableMapOf<String, PlaybackHistory>()
-            dbList.forEach { 
-                mergedByKey[generateKey(it.streamId, it.type, it.providerId)] = it 
-            }
+            val allItems = mutableListOf<PlaybackHistory>()
+            allItems.addAll(dbList)
+            
             pending.values.forEach { pendingItem ->
-                mergedByKey[generateKey(pendingItem.streamId, pendingItem.type, pendingItem.providerId)] = pendingItem
+                val existingIndex = allItems.indexOfFirst { it.streamId == pendingItem.streamId && it.type == pendingItem.type }
+                if (existingIndex >= 0) {
+                    allItems[existingIndex] = pendingItem
+                } else {
+                    allItems.add(pendingItem)
+                }
             }
-            mergedByKey.values.sortedByDescending { it.lastPlayedAt }.take(limit)
+
+            // Deduplicate: If multiple items belong to the same series, only keep the latest one
+            val groupedBySeriesOrMovie = mutableMapOf<String, PlaybackHistory>()
+            allItems.sortedByDescending { it.lastPlayedAt }.forEach { item ->
+                // Filter out invalid/incomplete records from previous bugs
+                if (item.providerId == 0L) return@forEach
+                if (item.type == "series" && (item.seriesId == null || item.seriesId == 0L)) return@forEach
+
+                val groupKey = if (item.seriesId != null && item.seriesId != 0L) {
+                    "series_${item.seriesId}"
+                } else {
+                    "${item.type}_${item.streamId}"
+                }
+                
+                if (!groupedBySeriesOrMovie.containsKey(groupKey)) {
+                    groupedBySeriesOrMovie[groupKey] = item
+                }
+            }
+
+            groupedBySeriesOrMovie.values
+                .sortedByDescending { it.lastPlayedAt }
+                .take(limit)
         }
     }
 
@@ -71,6 +99,11 @@ class PlaybackHistoryRepositoryImpl @Inject constructor(
         
         if (existing != null) {
             history.id = existing.id
+            // Preserve metadata if missing in new record
+            if (history.posterUrl == null) history.posterUrl = existing.posterUrl
+            if (history.backdropUrl == null) history.backdropUrl = existing.backdropUrl
+            if (history.lastPositionMs == 0L) history.lastPositionMs = existing.lastPositionMs
+            if (history.durationMs == 0L) history.durationMs = existing.durationMs
         }
         
         historyBox.put(history)

@@ -10,12 +10,14 @@ import androidx.annotation.OptIn
 import androidx.media3.common.*
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.eliteprime.app.domain.model.StreamInfo
@@ -101,7 +103,8 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     private fun initializePlayer(bufferPolicy: PlaybackBufferPolicy) {
-        val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+        val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+        val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
         mediaSourceFactory = PlayerMediaSourceFactory(context, dataSourceFactory)
 
         val loadControl = DefaultLoadControl.Builder()
@@ -126,6 +129,9 @@ class Media3PlayerEngine @Inject constructor(
             .apply {
                 addListener(PlayerListener())
                 playWhenReady = true
+                
+                // Bind to view immediately if one is waiting
+                boundPlayerView?.player = this
             }
         
         currentBufferPolicy = bufferPolicy
@@ -148,10 +154,20 @@ class Media3PlayerEngine @Inject constructor(
         retryAttempt = 0
         _retryStatus.value = null
         
+        val isLocal = streamInfo.url.startsWith("file://") || 
+                     streamInfo.url.startsWith("content://") || 
+                     !streamInfo.url.contains("://")
+
         val timeoutProfile = PlayerTimeoutProfile.resolve(streamInfo, resolvedType, false)
-        val retryPolicy = PlayerRetryPolicy(PlaybackRetryContext(resolvedType, timeoutProfile)) { 
-            _playbackState.value == PlaybackState.READY || _playbackState.value == PlaybackState.BUFFERING 
+        val retryPolicy = if (isLocal) {
+            DefaultLoadErrorHandlingPolicy()
+        } else {
+            PlayerRetryPolicy(PlaybackRetryContext(resolvedType, timeoutProfile)) { 
+                _playbackState.value == PlaybackState.READY || _playbackState.value == PlaybackState.BUFFERING 
+            }
         }
+
+        Log.d(TAG, "prepare: url=${streamInfo.url} resolvedType=$resolvedType isLocal=$isLocal")
 
         val mediaSource = mediaSourceFactory?.create(streamInfo, resolvedType, retryPolicy) ?: return
         exoPlayer?.setMediaSource(mediaSource)
@@ -242,24 +258,22 @@ class Media3PlayerEngine @Inject constructor(
 
     override fun bindRenderView(renderView: View, resizeMode: PlayerSurfaceResizeMode) {
         val playerView = renderView as? PlayerView ?: return
-        val player = exoPlayer ?: return
+        
         if (boundPlayerView !== playerView) {
-            try {
-                PlayerView.switchTargetView(player, boundPlayerView, playerView)
-            } catch (e: Exception) {
-                Log.w(TAG, "bindRenderView: switchTargetView failed, falling back", e)
-                boundPlayerView?.player = null
-                playerView.player = player
-            }
+            Log.d(TAG, "bindRenderView: Switching to new view")
+            boundPlayerView?.player = null
             boundPlayerView = playerView
-        } else {
-            playerView.player = player
         }
+
+        playerView.player = exoPlayer
+
         playerView.resizeMode = when (resizeMode) {
             PlayerSurfaceResizeMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
             PlayerSurfaceResizeMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
             PlayerSurfaceResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
         }
+        
+        playerView.requestLayout()
     }
 
     override fun clearRenderBinding() {

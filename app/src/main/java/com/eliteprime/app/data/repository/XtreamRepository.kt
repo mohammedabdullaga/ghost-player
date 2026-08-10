@@ -150,12 +150,14 @@ class XtreamRepository @Inject constructor(
             }
             
             boxStore.runInTx {
-                // Clear old seasons/episodes for this series
+                // 1. Snapshot existing progress for all episodes of this series
+                val existingEpisodes = episodeBox.query().equal(Episode_.seriesId, series.id).build().find()
+                val progressMap = existingEpisodes.associate { it.id to Triple(it.watchProgress, it.totalDuration, it.lastWatchedAt) }
+
+                // 2. Clear old seasons/episodes for this series
                 val oldSeasons = seasonBox.query().equal(Season_.seriesId, series.id).build().find()
-                oldSeasons.forEach { s ->
-                    episodeBox.query().equal(Episode_.seriesId, series.id).build().remove()
-                }
                 seasonBox.remove(oldSeasons)
+                episodeBox.remove(existingEpisodes)
 
                 // Fallback for seasons if list is empty but episodes map is not
                 val seasonsToProcess = if (response.seasons.isNullOrEmpty()) {
@@ -166,7 +168,7 @@ class XtreamRepository @Inject constructor(
                     response.seasons!!
                 }
 
-                // Add new seasons and episodes
+                // 3. Add new seasons and episodes, restoring progress
                 seasonsToProcess.forEach { s ->
                     val season = Season(
                         name = s.name ?: "Season ${s.seasonNumber}",
@@ -176,8 +178,11 @@ class XtreamRepository @Inject constructor(
                     val seasonId = seasonBox.put(season)
                     
                     response.episodes?.get(s.seasonNumber.toString())?.forEach { eDto ->
+                        val epId = eDto.id?.toLongOrNull() ?: 0L
+                        val progress = progressMap[epId]
+
                         val episode = Episode(
-                            id = eDto.id?.toLongOrNull() ?: 0L,
+                            id = epId,
                             title = eDto.title ?: eDto.info?.name ?: "Episode ${eDto.episodeNum}",
                             containerExtension = eDto.containerExtension,
                             seasonNumber = eDto.season,
@@ -185,7 +190,10 @@ class XtreamRepository @Inject constructor(
                             duration = eDto.info?.duration,
                             plot = eDto.info?.plot,
                             coverUrl = eDto.info?.movieImage,
-                            seriesId = series.id
+                            seriesId = series.id,
+                            watchProgress = progress?.first ?: 0L,
+                            totalDuration = progress?.second ?: 0L,
+                            lastWatchedAt = progress?.third ?: 0L
                         )
                         episode.season.targetId = seasonId
                         episodeBox.put(episode)

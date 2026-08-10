@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.smoothstreaming.SsMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
 import com.eliteprime.app.domain.model.StreamInfo
 import com.eliteprime.app.domain.model.StreamType
 
@@ -38,7 +39,7 @@ class PlayerMediaSourceFactory(
     fun create(
         streamInfo: StreamInfo,
         resolvedStreamType: ResolvedStreamType,
-        retryPolicy: PlayerRetryPolicy
+        retryPolicy: LoadErrorHandlingPolicy
     ): MediaSource {
         val mediaItem = MediaItem.Builder()
             .setUri(Uri.parse(streamInfo.url))

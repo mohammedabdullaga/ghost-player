@@ -39,7 +39,9 @@ class DashboardViewModel @Inject constructor(
                 liveBox.query().build().flow(),
                 movieBox.query().build().flow(),
                 seriesBox.query().build().flow(),
-                playbackHistoryRepository.getRecentlyWatched(50)
+                playbackHistoryRepository.getRecentlyWatched(50).map { history ->
+                    history.filter { it.type != "live" }
+                }
             ) { accounts, liveQuery, moviesQuery, seriesQuery, history ->
                 val activeAccount = accounts.firstOrNull()
                 
@@ -60,6 +62,16 @@ class DashboardViewModel @Inject constructor(
             .collect {
                 _uiState.value = it
             }
+        }
+    }
+
+    fun removeFromHistory(history: PlaybackHistory) {
+        viewModelScope.launch {
+            playbackHistoryRepository.deleteHistory(
+                streamId = history.streamId,
+                type = history.type,
+                providerId = history.providerId
+            )
         }
     }
 }

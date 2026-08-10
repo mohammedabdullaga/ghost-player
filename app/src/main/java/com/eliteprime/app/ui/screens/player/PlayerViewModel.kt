@@ -11,6 +11,7 @@ import com.eliteprime.app.data.remote.XtreamUrlFactory
 import com.eliteprime.app.data.repository.TvContinuationRepository
 import com.eliteprime.app.domain.model.StreamInfo
 import com.eliteprime.app.domain.model.StreamType
+import com.eliteprime.app.domain.repository.DownloadManager
 import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
 import com.eliteprime.app.player.*
 import com.eliteprime.app.player.playback.PlayerErrorClassifier
@@ -19,6 +20,7 @@ import io.objectbox.BoxStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.net.URLDecoder
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,12 +30,14 @@ class PlayerViewModel @Inject constructor(
     private val boxStore: BoxStore,
     private val tvContinuationRepository: TvContinuationRepository,
     private val playbackHistoryRepository: PlaybackHistoryRepository,
+    private val downloadManager: DownloadManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     private val streamId: Long = savedStateHandle.get<Long>("id") ?: 0
     val type: String = savedStateHandle.get<String>("type") ?: "live"
     val title: String = savedStateHandle.get<String>("title") ?: ""
+    private val overrideUrl: String? = savedStateHandle.get<String>("url")
 
     val playbackState = playerEngine.playbackState
     val isPlaying = playerEngine.isPlaying
@@ -70,8 +74,10 @@ class PlayerViewModel @Inject constructor(
     val hasPreviousEpisode = _hasPreviousEpisode.asStateFlow()
 
     private var currentEpisodes: List<Episode> = emptyList()
+    private var activeProviderId: Long = 0
 
     init {
+        loadActiveProvider()
         checkResumeProgress()
         resolveAndPlay()
         observePlayback()
@@ -80,6 +86,14 @@ class PlayerViewModel @Inject constructor(
             loadSeriesContext()
         }
         observeVideoFormat()
+    }
+
+    private fun loadActiveProvider() {
+        viewModelScope.launch {
+            boxStore.boxFor(XtreamAccount::class.java).query().equal(XtreamAccount_.isActive, true).build().findFirst()?.let {
+                activeProviderId = it.id
+            }
+        }
     }
 
     private fun observeVideoFormat() {
@@ -144,6 +158,21 @@ class PlayerViewModel @Inject constructor(
                     streamId = episode.id,
                     extension = episode.containerExtension
                 )
+                
+                // Record history for the new episode
+                playbackHistoryRepository.recordPlayback(
+                    PlaybackHistory(
+                        streamId = episode.id,
+                        providerId = account.id,
+                        name = episode.title,
+                        type = "series",
+                        posterUrl = episode.coverUrl,
+                        seriesId = episode.seriesId,
+                        seasonNumber = episode.seasonNumber,
+                        episodeNumber = episode.episodeNumber
+                    )
+                )
+
                 playerEngine.prepare(StreamInfo(episode.id, episode.title, url, StreamType.PROGRESSIVE))
                 playerEngine.play()
                 
@@ -155,7 +184,10 @@ class PlayerViewModel @Inject constructor(
     private fun checkResumeProgress() {
         if (type == "live") return
         viewModelScope.launch {
-            val history = playbackHistoryRepository.getPlaybackHistory(streamId, type, 0) // TODO: Handle actual providerId
+            // Wait for activeProviderId to be loaded
+            while(activeProviderId == 0L) delay(50)
+            
+            val history = playbackHistoryRepository.getPlaybackHistory(streamId, type, activeProviderId)
             if (history != null && history.lastPositionMs > 10000) {
                 _resumePrompt.value = ResumePromptState(
                     show = true,
@@ -178,6 +210,7 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val account = boxStore.boxFor(XtreamAccount::class.java).query().equal(XtreamAccount_.isActive, true).build().findFirst()
             if (account != null) {
+                activeProviderId = account.id
                 var extension: String? = null
                 var directUrl: String? = null
                 var poster: String? = null
@@ -186,41 +219,57 @@ class PlayerViewModel @Inject constructor(
                 var seasonNum: Int? = null
                 var epNum: Int? = null
 
-                when (type) {
-                    "movie" -> {
-                        val movie = boxStore.boxFor(Movie::class.java).get(streamId)
-                        extension = movie?.containerExtension
-                        directUrl = movie?.directSource
-                        poster = movie?.streamIcon
-                        backdrop = movie?.backdropUrl
-                    }
-                    "series" -> {
-                        val episode = boxStore.boxFor(Episode::class.java).get(streamId)
-                        extension = episode?.containerExtension
-                        poster = episode?.coverUrl
-                        sId = episode?.seriesId
-                        seasonNum = episode?.seasonNumber
-                        epNum = episode?.episodeNumber
+                if (type == "movie" || type == "series") {
+                    var attempts = 0
+                    while (attempts < 5) {
+                        when (type) {
+                            "movie" -> {
+                                val movie = boxStore.boxFor(Movie::class.java).get(streamId)
+                                if (movie != null) {
+                                    extension = movie.containerExtension
+                                    directUrl = movie.directSource
+                                    poster = movie.streamIcon
+                                    backdrop = movie.backdropUrl
+                                    attempts = 99
+                                }
+                            }
+                            "series" -> {
+                                val episode = boxStore.boxFor(Episode::class.java).get(streamId)
+                                if (episode != null && (episode.seriesId != 0L)) {
+                                    extension = episode.containerExtension
+                                    poster = episode.coverUrl
+                                    sId = episode.seriesId
+                                    seasonNum = episode.seasonNumber
+                                    epNum = episode.episodeNumber
+                                    attempts = 99
+                                }
+                            }
+                        }
+                        
+                        // Fallback to DownloadItem if it was a direct download play
+                        if (attempts < 99) {
+                            val dl = downloadManager.observeAllDownloads().first().find { 
+                                it.contentId == streamId && it.contentType.name.lowercase().contains(type) 
+                            }
+                            if (dl != null) {
+                                extension = dl.containerExtension
+                                poster = dl.posterUrl
+                                sId = dl.seriesId
+                                seasonNum = dl.seasonNumber
+                                epNum = dl.episodeNumber
+                                attempts = 99
+                            }
+                        }
+
+                        if (attempts < 99) {
+                            attempts++
+                            delay(200) // Wait for re-sync if needed
+                        }
                     }
                 }
 
-                // Initial history record
-                playbackHistoryRepository.recordPlayback(
-                    PlaybackHistory(
-                        streamId = streamId,
-                        providerId = account.id,
-                        name = title,
-                        type = type,
-                        posterUrl = poster,
-                        backdropUrl = backdrop,
-                        seriesId = sId,
-                        seasonNumber = seasonNum,
-                        episodeNumber = epNum
-                    )
-                )
-
-                val url = if (type == "download") {
-                    title
+                val url = if (!overrideUrl.isNullOrBlank()) {
+                    if (overrideUrl.startsWith("/") && !overrideUrl.startsWith("file://")) "file://$overrideUrl" else overrideUrl
                 } else if (!directUrl.isNullOrBlank()) {
                     directUrl
                 } else {
@@ -251,6 +300,23 @@ class PlayerViewModel @Inject constructor(
                         ))
                         playerEngine.play()
                     }
+                }
+
+                // Initial history record (After starting playback to reduce latency)
+                launch {
+                    playbackHistoryRepository.recordPlayback(
+                        PlaybackHistory(
+                            streamId = streamId,
+                            providerId = account.id,
+                            name = title,
+                            type = type,
+                            posterUrl = poster,
+                            backdropUrl = backdrop,
+                            seriesId = sId,
+                            seasonNumber = seasonNum,
+                            episodeNumber = epNum
+                        )
+                    )
                 }
             }
         }
@@ -286,10 +352,11 @@ class PlayerViewModel @Inject constructor(
 
     private fun savePlaybackProgress(pos: Long) {
         viewModelScope.launch {
+            if (activeProviderId == 0L) return@launch
             playbackHistoryRepository.updateResumePosition(
                 streamId = streamId,
                 type = type,
-                providerId = 0, // TODO
+                providerId = activeProviderId,
                 positionMs = pos,
                 durationMs = duration.value
             )

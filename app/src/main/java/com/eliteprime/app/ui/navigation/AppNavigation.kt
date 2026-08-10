@@ -1,5 +1,6 @@
 package com.eliteprime.app.ui.navigation
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
@@ -39,6 +40,7 @@ import com.eliteprime.app.ui.screens.details.SeriesDetailsScreen
 import com.eliteprime.app.ui.screens.details.SeriesDetailsViewModel
 import com.eliteprime.app.ui.screens.downloads.DownloadsScreen
 import com.eliteprime.app.ui.screens.downloads.DownloadViewModel
+import com.eliteprime.app.domain.model.DownloadContentType
 import com.eliteprime.app.ui.screens.dashboard.ContinueWatchingGridScreen
 
 @Composable
@@ -128,18 +130,26 @@ fun AppNavigation(
             MovieDetailsScreen(
                 onBack = { navController.popBackStack() },
                 onPlay = { m ->
-                    navController.navigate("player/${m.id}/movie/${m.name}")
+                    navController.navigate("player/${m.id}/movie/${Uri.encode(m.name)}")
+                },
+                onPlayLocal = { id, path, name ->
+                    val uri = if (path.contains("://")) path else "file://$path"
+                    navController.navigate("player/$id/movie/${Uri.encode(name)}?url=${Uri.encode(uri)}")
                 }
             )
         }
         composable(
             "series_details/{id}",
             arguments = listOf(navArgument("id") { type = NavType.LongType })
-        ) {
+        ) { backStackEntry ->
             SeriesDetailsScreen(
                 onBack = { navController.popBackStack() },
-                onPlayEpisode = { episode ->
-                    navController.navigate("player/${episode.id}/series/${episode.title}")
+                onPlayEpisode = { episode, title ->
+                    navController.navigate("player/${episode.id}/series/${Uri.encode(title)}")
+                },
+                onPlayLocal = { id, path, name ->
+                    val uri = if (path.contains("://")) path else "file://$path"
+                    navController.navigate("player/$id/series/${Uri.encode(name)}?url=${Uri.encode(uri)}")
                 },
                 onSeriesClick = { series ->
                     navController.navigate("series_details/${series.id}")
@@ -155,7 +165,17 @@ fun AppNavigation(
             )
         }
         composable("downloads") {
-            DownloadsScreen(onBack = { navController.popBackStack() })
+            DownloadsScreen(
+                onBack = { navController.popBackStack() },
+                onPlayDownload = { download ->
+                    val path = download.outputUri ?: download.outputDisplayPath ?: ""
+                    if (path.isNotEmpty()) {
+                        val uri = if (path.contains("://")) path else "file://$path"
+                        val pType = if (download.contentType == DownloadContentType.MOVIE) "movie" else "series"
+                        navController.navigate("player/${download.contentId}/$pType/${Uri.encode(download.contentName)}?url=${Uri.encode(uri)}")
+                    }
+                }
+            )
         }
         composable("continue_watching") {
             ContinueWatchingGridScreen(
@@ -175,11 +195,16 @@ fun AppNavigation(
             )
         }
         composable(
-            "player/{id}/{type}/{title}",
+            "player/{id}/{type}/{title}?url={url}",
             arguments = listOf(
                 navArgument("id") { type = NavType.LongType },
                 navArgument("type") { type = NavType.StringType },
-                navArgument("title") { type = NavType.StringType }
+                navArgument("title") { type = NavType.StringType },
+                navArgument("url") { 
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
             )
         ) { backStackEntry ->
             val playerViewModel: PlayerViewModel = hiltViewModel()

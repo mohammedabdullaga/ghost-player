@@ -1,5 +1,6 @@
 package com.eliteprime.app.ui.screens.details
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,6 +37,8 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
 import com.eliteprime.app.data.local.entity.Movie
+import com.eliteprime.app.domain.model.DownloadItem
+import com.eliteprime.app.domain.model.DownloadStatus
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.formatPositionMs
@@ -46,18 +49,26 @@ import kotlinx.coroutines.delay
 fun MovieDetailsScreen(
     onBack: () -> Unit,
     onPlay: (Movie) -> Unit,
+    onPlayLocal: (Long, String, String) -> Unit = { _, _, _ -> },
     viewModel: MovieDetailViewModel = hiltViewModel()
 ) {
     val movieState by viewModel.movie.collectAsState()
     val movie = movieState
     val relatedMovies by viewModel.relatedMovies.collectAsState()
+    val downloadItem by viewModel.downloadItem.collectAsState()
     val isTv = LocalContext.current.isTelevisionDevice()
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.userMessage.collect { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     val playButtonFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(movie) {
         if (isTv && movie != null) {
-            // Speed up focus request to 100ms to avoid seeing it land on the "Back" button first
             delay(100)
             playButtonFocusRequester.requestFocus()
         }
@@ -150,7 +161,11 @@ fun MovieDetailsScreen(
                             // 5. Action Row (Play + Download)
                             PrimaryActionRow(
                                 onPlay = { onPlay(movie) },
+                                onPlayLocal = onPlayLocal,
                                 onDownload = { viewModel.downloadMovie() },
+                                downloadItem = downloadItem,
+                                movieId = movie.id,
+                                movieName = movie.name,
                                 watchProgress = movie.watchProgress,
                                 isTv = isTv,
                                 playFocusRequester = playButtonFocusRequester
@@ -345,19 +360,26 @@ private fun TagRow(genre: String?, rating: Double) {
 @Composable
 private fun PrimaryActionRow(
     onPlay: () -> Unit,
+    onPlayLocal: (Long, String, String) -> Unit,
     onDownload: () -> Unit,
+    downloadItem: DownloadItem?,
+    movieId: Long,
+    movieName: String,
     watchProgress: Long,
     isTv: Boolean,
     playFocusRequester: FocusRequester
 ) {
+    val isDownloaded = downloadItem?.status == DownloadStatus.COMPLETED
+    val localPath = downloadItem?.outputUri ?: downloadItem?.outputDisplayPath
+
     Row(horizontalArrangement = Arrangement.spacedBy(DetailSpacing.md), modifier = Modifier.fillMaxWidth()) {
         if (isTv) {
             TvSurface(
-                onClick = onPlay,
+                onClick = { if (isDownloaded && localPath != null) onPlayLocal(movieId, localPath, movieName) else onPlay() },
                 modifier = Modifier.weight(1f).height(52.dp).focusRequester(playFocusRequester),
                 scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
                 colors = ClickableSurfaceDefaults.colors(
-                    containerColor = AppColors.ArenaOrange,
+                    containerColor = if (isDownloaded) Color(0xFF4CAF50) else AppColors.ArenaOrange,
                     focusedContainerColor = Color.White
                 ),
                 shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(DetailRadius.md))
@@ -366,7 +388,11 @@ private fun PrimaryActionRow(
                     Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(24.dp), tint = Color.Unspecified)
                     Spacer(Modifier.width(DetailSpacing.xs))
                     Text(
-                        text = if (watchProgress > 10000) "RESUME FROM ${formatPositionMs(watchProgress)}" else "PLAY NOW",
+                        text = when {
+                            isDownloaded -> "PLAY DOWNLOADED"
+                            watchProgress > 10000 -> "RESUME FROM ${formatPositionMs(watchProgress)}"
+                            else -> "PLAY NOW"
+                        },
                         fontWeight = FontWeight.Black, 
                         fontSize = 14.sp, 
                         color = Color.Unspecified
@@ -374,45 +400,80 @@ private fun PrimaryActionRow(
                 }
             }
 
-            TvSurface(
-                onClick = onDownload,
-                modifier = Modifier.size(52.dp),
-                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
-                colors = ClickableSurfaceDefaults.colors(
-                    containerColor = Color.White.copy(alpha = 0.1f),
-                    focusedContainerColor = Color.White
-                ),
-                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(DetailRadius.md)),
-                border = ClickableSurfaceDefaults.border(
-                    focusedBorder = Border(BorderStroke(2.dp, Color.White))
-                )
-            ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Download, null, tint = Color.Unspecified, modifier = Modifier.size(22.dp))
+            if (!isDownloaded) {
+                TvSurface(
+                    onClick = onDownload,
+                    modifier = Modifier.size(52.dp),
+                    scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color.White.copy(alpha = 0.1f),
+                        focusedContainerColor = Color.White
+                    ),
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(DetailRadius.md)),
+                    border = ClickableSurfaceDefaults.border(
+                        focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                    )
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = when(downloadItem?.status) {
+                                DownloadStatus.DOWNLOADING -> Icons.Default.HourglassEmpty
+                                DownloadStatus.PENDING -> Icons.Default.Schedule
+                                else -> Icons.Default.Download
+                            }, 
+                            null, tint = Color.Unspecified, modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            } else {
+                // Show green tick
+                Surface(
+                    color = Color(0xFF4CAF50).copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(DetailRadius.md),
+                    modifier = Modifier.size(52.dp),
+                    border = BorderStroke(1.dp, Color(0xFF4CAF50))
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(24.dp))
+                    }
                 }
             }
         } else {
             Button(
-                onClick = onPlay,
+                onClick = { if (isDownloaded && localPath != null) onPlayLocal(movieId, localPath, movieName) else onPlay() },
                 modifier = Modifier.weight(1f).height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
+                colors = ButtonDefaults.buttonColors(containerColor = if (isDownloaded) Color(0xFF4CAF50) else AppColors.ArenaOrange),
                 shape = RoundedCornerShape(DetailRadius.md)
             ) {
                 Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(DetailSpacing.xs))
                 Text(
-                    text = if (watchProgress > 10000) "RESUME FROM ${formatPositionMs(watchProgress)}" else "PLAY NOW",
+                    text = when {
+                        isDownloaded -> "PLAY DOWNLOADED"
+                        watchProgress > 10000 -> "RESUME FROM ${formatPositionMs(watchProgress)}"
+                        else -> "PLAY NOW"
+                    },
                     fontWeight = FontWeight.Black, 
                     fontSize = 13.sp
                 )
             }
-            OutlinedIconButton(
-                onClick = onDownload,
-                modifier = Modifier.size(48.dp),
-                border = BorderStroke(1.dp, DetailSurface.hairline),
-                colors = IconButtonDefaults.outlinedIconButtonColors(containerColor = DetailSurface.cardFillElevated)
-            ) {
-                Icon(Icons.Default.Download, null, tint = DetailSurface.textPrimary, modifier = Modifier.size(18.dp))
+            
+            if (!isDownloaded) {
+                OutlinedIconButton(
+                    onClick = onDownload,
+                    modifier = Modifier.size(48.dp),
+                    border = BorderStroke(1.dp, DetailSurface.hairline),
+                    colors = IconButtonDefaults.outlinedIconButtonColors(containerColor = DetailSurface.cardFillElevated)
+                ) {
+                    Icon(
+                        imageVector = when(downloadItem?.status) {
+                            DownloadStatus.DOWNLOADING -> Icons.Default.HourglassEmpty
+                            DownloadStatus.PENDING -> Icons.Default.Schedule
+                            else -> Icons.Default.Download
+                        }, 
+                        null, tint = DetailSurface.textPrimary, modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }

@@ -2,7 +2,6 @@ package com.eliteprime.app.ui.screens.downloads
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -33,11 +32,13 @@ import com.eliteprime.app.domain.model.DownloadStatus
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadsScreen(
     onBack: () -> Unit,
+    onPlayDownload: (DownloadItem) -> Unit,
     viewModel: DownloadViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -68,7 +69,7 @@ fun DownloadsScreen(
                     }
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(200.dp),
+                        columns = GridCells.Adaptive(if (isTv) 240.dp else 200.dp),
                         contentPadding = PaddingValues(24.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -78,7 +79,8 @@ fun DownloadsScreen(
                                 item = download,
                                 onResume = { viewModel.resumeDownload(download.id) },
                                 onCancel = { viewModel.cancelDownload(download.id) },
-                                onDelete = { viewModel.deleteDownload(download.id) }
+                                onDelete = { viewModel.deleteDownload(download.id) },
+                                onPlay = { onPlayDownload(download) }
                             )
                         }
                     }
@@ -93,7 +95,8 @@ private fun DownloadItemCard(
     item: DownloadItem,
     onResume: () -> Unit,
     onCancel: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onPlay: () -> Unit
 ) {
     Surface(
         color = Color.Black.copy(alpha = 0.45f),
@@ -127,10 +130,20 @@ private fun DownloadItemCard(
                     color = AppColors.ArenaOrange,
                     trackColor = Color.White.copy(alpha = 0.1f)
                 )
-                Text("${(progress * 100).toInt()}%", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp, modifier = Modifier.align(Alignment.End))
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        text = "${formatSpeed(item.downloadSpeedBps)} • ${formatEta(item.estimatedTimeRemainingMs)}",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 10.sp
+                    )
+                    Text("${(progress * 100).toInt()}%", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                }
             }
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                if (item.status == DownloadStatus.COMPLETED) {
+                    IconButton(onClick = onPlay) { Icon(Icons.Default.PlayArrow, null, tint = AppColors.ArenaOrange) }
+                }
                 if (item.status == DownloadStatus.FAILED || item.status == DownloadStatus.PAUSED) {
                     IconButton(onClick = onResume) { Icon(Icons.Default.Refresh, null, tint = Color.White) }
                 }
@@ -141,6 +154,24 @@ private fun DownloadItemCard(
             }
         }
     }
+}
+
+private fun formatSpeed(bps: Long): String {
+    return when {
+        bps >= 1024 * 1024 -> String.format(Locale.getDefault(), "%.1f MB/s", bps / (1024f * 1024f))
+        bps >= 1024 -> String.format(Locale.getDefault(), "%.1f KB/s", bps / 1024f)
+        else -> "$bps B/s"
+    }
+}
+
+private fun formatEta(ms: Long?): String {
+    if (ms == null || ms <= 0) return "--:--"
+    val totalSeconds = ms / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
+    else String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
 }
 
 private fun statusColor(status: DownloadStatus): Color = when (status) {

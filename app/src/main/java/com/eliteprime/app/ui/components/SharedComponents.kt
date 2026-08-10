@@ -554,7 +554,7 @@ fun ContinueWatchingRow(
             color = Color.White.copy(alpha = 0.6f),
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
         )
-
+        
         LazyRow(
             contentPadding = PaddingValues(horizontal = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -572,7 +572,8 @@ fun ContinueWatchingRow(
 @Composable
 fun ContinueWatchingCard(
     history: PlaybackHistory,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {}
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
     var isFocused by remember { mutableStateOf(false) }
@@ -639,6 +640,7 @@ fun ContinueWatchingCard(
     if (isTv) {
         TvSurface(
             onClick = onClick,
+            onLongClick = onLongClick,
             modifier = Modifier
                 .width(220.dp)
                 .aspectRatio(16f / 9f)
@@ -651,10 +653,15 @@ fun ContinueWatchingCard(
         }
     } else {
         Surface(
-            onClick = onClick,
             modifier = Modifier
                 .width(200.dp)
-                .aspectRatio(16f / 9f),
+                .aspectRatio(16f / 9f)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { onClick() },
+                        onLongPress = { onLongClick() }
+                    )
+                },
             shape = RoundedCornerShape(14.dp),
             color = Color.Black.copy(alpha = 0.45f),
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
