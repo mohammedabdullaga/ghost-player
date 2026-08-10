@@ -219,9 +219,9 @@ private fun HomeTopNavBar(
 
             Spacer(modifier = Modifier.width(HomeSpacing.xs))
 
-            NavTabButton(label = stringResource(R.string.nav_live_tv), icon = Icons.Default.LiveTv, isActive = false, onClick = onNavigateToLiveTv)
-            NavTabButton(label = stringResource(R.string.nav_movies), icon = Icons.Default.Movie, isActive = false, onClick = onNavigateToMovies)
-            NavTabButton(label = stringResource(R.string.nav_series), icon = Icons.Default.VideoLibrary, isActive = false, onClick = onNavigateToSeries)
+            NavTabButton(label = stringResource(R.string.nav_live_tv), isActive = false, onClick = onNavigateToLiveTv)
+            NavTabButton(label = stringResource(R.string.nav_movies), isActive = false, onClick = onNavigateToMovies)
+            NavTabButton(label = stringResource(R.string.nav_series), isActive = false, onClick = onNavigateToSeries)
 
             HomeRoundIconButton(icon = Icons.Default.Search, contentDescription = stringResource(R.string.nav_search), onClick = onNavigateToSearch)
             HomeRoundIconButton(icon = Icons.Default.FileDownload, contentDescription = "Downloads", onClick = onNavigateToDownloads)

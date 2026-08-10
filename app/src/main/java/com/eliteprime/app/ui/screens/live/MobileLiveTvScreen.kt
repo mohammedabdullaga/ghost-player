@@ -148,8 +148,28 @@ fun MobileLiveTvScreen(
                                     Text("DONE", color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 11.sp)
                                 }
                             } else {
-                                IconButton(onClick = { showAddGroupDialog = true }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Add, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.size(16.dp))
+                                if (isTv) {
+                                    TvSurface(
+                                        onClick = { showAddGroupDialog = true },
+                                        modifier = Modifier.size(28.dp),
+                                        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.2f),
+                                        colors = ClickableSurfaceDefaults.colors(
+                                            containerColor = Color.White.copy(alpha = 0.05f),
+                                            focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.9f)
+                                        ),
+                                        shape = ClickableSurfaceDefaults.shape(CircleShape),
+                                        border = ClickableSurfaceDefaults.border(
+                                            focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                                        )
+                                    ) {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Default.Add, contentDescription = "Add Group", tint = AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
+                                        }
+                                    }
+                                } else {
+                                    IconButton(onClick = { showAddGroupDialog = true }, modifier = Modifier.size(28.dp)) {
+                                        Icon(Icons.Default.Add, contentDescription = "Add Group", tint = AppColors.ArenaOrange, modifier = Modifier.size(20.dp))
+                                    }
                                 }
                             }
                         }
@@ -398,16 +418,30 @@ fun MobileLiveTvScreen(
         }
 
         selectedCategoryForOptions?.let { category ->
+            var canInteract by remember { mutableStateOf(false) }
+            LaunchedEffect(category) {
+                delay(400) // Small delay to prevent "click-through" or double-activation
+                canInteract = true
+            }
+
             AlertDialog(
                 onDismissRequest = { selectedCategoryForOptions = null },
-                title = { Text(category.categoryName) },
+                title = { Text(category.categoryName, fontWeight = FontWeight.Bold) },
                 text = {
                     Column {
+                        ListItem(
+                            headlineContent = { Text("Add New Group") },
+                            leadingContent = { Icon(Icons.Default.Add, null, tint = AppColors.ArenaOrange) },
+                            modifier = Modifier.clickable(enabled = canInteract) { 
+                                showAddGroupDialog = true
+                                selectedCategoryForOptions = null
+                            }
+                        )
                         if (category.id >= 1000000) {
                             ListItem(
                                 headlineContent = { Text("Delete Group", color = Color.Red) },
                                 leadingContent = { Icon(Icons.Default.Delete, null, tint = Color.Red) },
-                                modifier = Modifier.clickable { 
+                                modifier = Modifier.clickable(enabled = canInteract) { 
                                     viewModel.deleteCustomGroup(category)
                                     selectedCategoryForOptions = null
                                 }
@@ -416,7 +450,7 @@ fun MobileLiveTvScreen(
                         ListItem(
                             headlineContent = { Text("Reorder Groups") },
                             leadingContent = { Icon(Icons.Default.Reorder, null) },
-                            modifier = Modifier.clickable { 
+                            modifier = Modifier.clickable(enabled = canInteract) { 
                                 viewModel.enterCategoryReorderMode()
                                 selectedCategoryForOptions = null
                             }
@@ -424,8 +458,11 @@ fun MobileLiveTvScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { selectedCategoryForOptions = null }) { Text("CLOSE") }
-                }
+                    TextButton(onClick = { if (canInteract) selectedCategoryForOptions = null }) { Text("CLOSE") }
+                },
+                containerColor = Color(0xFF1A1C1E),
+                titleContentColor = Color.White,
+                textContentColor = Color.White
             )
         }
     }
@@ -701,9 +738,9 @@ private fun LiveTopNavBar(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            NavTabButton(label = "Live TV", icon = Icons.Default.LiveTv, isActive = true, onClick = {})
-            NavTabButton(label = "Movies", icon = Icons.Default.Movie, isActive = false, onClick = onNavigateToMovies)
-            NavTabButton(label = "Series", icon = Icons.Default.VideoLibrary, isActive = false, onClick = onNavigateToSeries)
+            NavTabButton(label = "Live TV", isActive = true, onClick = {})
+            NavTabButton(label = "Movies", isActive = false, onClick = onNavigateToMovies)
+            NavTabButton(label = "Series", isActive = false, onClick = onNavigateToSeries)
 
             LiveRoundIconButton(
                 icon = Icons.Default.Search, 

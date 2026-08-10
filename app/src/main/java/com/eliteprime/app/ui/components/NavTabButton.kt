@@ -9,7 +9,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,63 +22,55 @@ import com.eliteprime.app.util.isTelevisionDevice
 @Composable
 fun NavTabButton(
     label: String,
-    icon: ImageVector,
     isActive: Boolean,
     onClick: () -> Unit
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
-    var isFocused by remember { mutableStateOf(false) }
-
     if (isTv) {
+        var isFocused by remember { mutableStateOf(false) }
         TvSurface(
             onClick = onClick,
             modifier = Modifier
-                .height(42.dp)
+                .height(40.dp)
                 .onFocusChanged { isFocused = it.isFocused },
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
-                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f),
-                pressedContainerColor = AppColors.FocusBrown
+                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f),
+                focusedContainerColor = AppColors.ArenaOrange,
+                pressedContainerColor = AppColors.ArenaOrange
             ),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(999.dp)),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             border = ClickableSurfaceDefaults.border(
+                border = Border(BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.1f))),
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
-            NavTabButtonContent(label, icon, isActive || isFocused)
+            Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    text = label.uppercase(),
+                    color = Color.White,
+                    fontWeight = if (isActive || isFocused) FontWeight.Black else FontWeight.Bold,
+                    fontSize = 12.sp,
+                    letterSpacing = 0.5.sp
+                )
+            }
         }
     } else {
         Surface(
             onClick = onClick,
-            modifier = Modifier.height(40.dp),
-            color = if (isActive) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.35f),
-            shape = RoundedCornerShape(12.dp)
+            modifier = Modifier.height(38.dp),
+            shape = RoundedCornerShape(10.dp),
+            color = if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.08f),
+            border = BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.12f))
         ) {
-            NavTabButtonContent(label, icon, isActive)
+            Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    text = label,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
         }
-    }
-}
-
-@Composable
-private fun NavTabButtonContent(label: String, icon: ImageVector, active: Boolean) {
-    Row(
-        modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (active) Color.White else Color.White.copy(alpha = 0.6f),
-            modifier = Modifier.size(18.dp)
-        )
-        Text(
-            text = label,
-            color = if (active) Color.White else Color.White.copy(alpha = 0.6f),
-            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-            fontSize = 13.sp
-        )
     }
 }

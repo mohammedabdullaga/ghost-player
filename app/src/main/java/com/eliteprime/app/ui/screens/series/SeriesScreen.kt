@@ -195,9 +195,9 @@ private fun VodTopNavBar(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            NavTabButton(label = "Live TV", icon = Icons.Default.LiveTv, isActive = false, onClick = onNavigateToLiveTv)
-            NavTabButton(label = "Movies", icon = Icons.Default.Movie, isActive = false, onClick = onNavigateToMovies)
-            NavTabButton(label = "Series", icon = Icons.Default.VideoLibrary, isActive = true, onClick = {})
+            NavTabButton(label = "Live TV", isActive = false, onClick = onNavigateToLiveTv)
+            NavTabButton(label = "Movies", isActive = false, onClick = onNavigateToMovies)
+            NavTabButton(label = "Series", isActive = true, onClick = {})
 
             VodRoundIconButton(
                 icon = Icons.Default.Search, 
