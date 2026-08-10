@@ -3,6 +3,7 @@ package com.eliteprime.app.data.repository
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.remote.XtreamApi
+import com.eliteprime.app.data.remote.XtreamSeasonResponse
 import com.eliteprime.app.data.remote.XtreamStreamParser
 import io.objectbox.BoxStore
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,8 @@ class XtreamRepository @Inject constructor(
 ) {
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
     private val categoryBox = boxStore.boxFor(Category::class.java)
+    private val movieBox = boxStore.boxFor(Movie::class.java)
+    private val seriesBox = boxStore.boxFor(Series::class.java)
 
     suspend fun login(user: String, pass: String): Boolean = withContext(Dispatchers.IO) {
         val hosts = configRepository.getActiveHosts()
@@ -135,6 +138,16 @@ class XtreamRepository @Inject constructor(
             
             val seasonBox = boxStore.boxFor(Season::class.java)
             val episodeBox = boxStore.boxFor(Episode::class.java)
+
+            // Update Series Metadata
+            response.info?.let { info ->
+                series.plot = info.plot ?: info.description
+                series.cast = info.cast
+                series.director = info.director
+                series.genre = info.genre
+                series.backdropUrl = info.backdropPath?.firstOrNull() ?: info.movieImage ?: info.cover
+                seriesBox.put(series)
+            }
             
             boxStore.runInTx {
                 // Clear old seasons/episodes for this series
@@ -144,8 +157,17 @@ class XtreamRepository @Inject constructor(
                 }
                 seasonBox.remove(oldSeasons)
 
+                // Fallback for seasons if list is empty but episodes map is not
+                val seasonsToProcess = if (response.seasons.isNullOrEmpty()) {
+                    response.episodes?.keys?.mapNotNull { it.toIntOrNull() }?.sorted()?.map { 
+                        XtreamSeasonResponse(it, "Season $it") 
+                    } ?: emptyList()
+                } else {
+                    response.seasons!!
+                }
+
                 // Add new seasons and episodes
-                response.seasons?.forEach { s ->
+                seasonsToProcess.forEach { s ->
                     val season = Season(
                         name = s.name ?: "Season ${s.seasonNumber}",
                         seasonNumber = s.seasonNumber,
@@ -153,12 +175,42 @@ class XtreamRepository @Inject constructor(
                     )
                     val seasonId = seasonBox.put(season)
                     
-                    response.episodes?.get(s.seasonNumber.toString())?.forEach { e ->
-                        e.seriesId = series.id
-                        e.season.targetId = seasonId
-                        episodeBox.put(e)
+                    response.episodes?.get(s.seasonNumber.toString())?.forEach { eDto ->
+                        val episode = Episode(
+                            id = eDto.id?.toLongOrNull() ?: 0L,
+                            title = eDto.title ?: eDto.info?.name ?: "Episode ${eDto.episodeNum}",
+                            containerExtension = eDto.containerExtension,
+                            seasonNumber = eDto.season,
+                            episodeNumber = eDto.episodeNum,
+                            duration = eDto.info?.duration,
+                            plot = eDto.info?.plot,
+                            coverUrl = eDto.info?.movieImage,
+                            seriesId = series.id
+                        )
+                        episode.season.targetId = seasonId
+                        episodeBox.put(episode)
                     }
                 }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun fetchMovieDetails(movie: Movie) = withContext(Dispatchers.IO) {
+        val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
+        val fullUrl = "${account.serverUrl}player_api.php"
+        try {
+            val response = xtreamApi.getMovieInfo(fullUrl, account.username, account.password, streamId = movie.id)
+            response.info?.let { info ->
+                movie.plot = info.plot ?: info.description
+                movie.cast = info.cast
+                movie.director = info.director
+                movie.genre = info.genre
+                movie.duration = info.duration
+                movie.backdropUrl = info.backdropUrl?.firstOrNull() ?: info.movieImage
+                info.rating?.toDoubleOrNull()?.let { if (it > 0) movie.rating = it }
+                movieBox.put(movie)
             }
         } catch (e: Exception) {
             e.printStackTrace()

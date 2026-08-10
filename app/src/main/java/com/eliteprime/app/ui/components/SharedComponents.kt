@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -42,6 +43,39 @@ import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
+
+// --- Detail UI Tokens ---
+object DetailSpacing {
+    val xxs = 4.dp
+    val xs = 8.dp
+    val sm = 12.dp
+    val md = 16.dp
+    val lg = 20.dp
+    val xl = 24.dp
+}
+
+object DetailRadius {
+    val sm = 10.dp
+    val md = 14.dp
+    val lg = 20.dp
+    val xl = 28.dp
+}
+
+object DetailSurface {
+    val backdrop = Color(0xFF070B14)
+    val hairline = Color.White.copy(alpha = 0.12f)
+    val cardFill = Color.Black.copy(alpha = 0.65f)
+    val cardFillElevated = Color.White.copy(alpha = 0.1f)
+    val textPrimary = Color.White
+    val textSecondary = Color.White.copy(alpha = 0.7f)
+    val textTertiary = Color.White.copy(alpha = 0.45f)
+}
+
+val EyebrowStyle = TextStyle(
+    fontSize = 11.sp,
+    fontWeight = FontWeight.Black,
+    letterSpacing = 1.4.sp
+)
 
 @Composable
 fun SubFilterChip(

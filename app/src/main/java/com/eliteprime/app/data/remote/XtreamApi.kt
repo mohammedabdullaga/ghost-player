@@ -1,6 +1,5 @@
 package com.eliteprime.app.data.remote
 
-import com.eliteprime.app.data.local.entity.Episode
 import com.google.gson.annotations.SerializedName
 import retrofit2.http.GET
 import retrofit2.http.Query
@@ -48,12 +47,73 @@ interface XtreamApi {
         @Query("action") action: String = "get_series_info",
         @Query("series_id") seriesId: Long
     ): XtreamSeriesInfoResponse
+
+    @GET
+    suspend fun getMovieInfo(
+        @Url url: String,
+        @Query("username") username: String,
+        @Query("password") password: String,
+        @Query("action") action: String = "get_vod_info",
+        @Query("vod_id") streamId: Long
+    ): XtreamMovieInfoResponse
 }
 
+data class XtreamMovieInfoResponse(
+    val info: XtreamMovieInfo?,
+    @SerializedName("movie_data") val movieData: Map<String, Any>?
+)
+
+data class XtreamMovieInfo(
+    val name: String?,
+    val plot: String?,
+    val description: String?,
+    val cast: String?,
+    val director: String?,
+    val genre: String?,
+    @SerializedName("releasedate") val releaseDate: String?,
+    val duration: String?,
+    @SerializedName("duration_secs") val durationSecs: Int?,
+    val rating: String?,
+    @SerializedName("backdrop_path") val backdropUrl: List<String>?,
+    @SerializedName("movie_image") val movieImage: String?,
+    @SerializedName("youtube_trailer") val youtubeTrailer: String?
+)
+
 data class XtreamSeriesInfoResponse(
-    val info: Map<String, Any>?,
-    val episodes: Map<String, List<Episode>>?,
+    val info: XtreamSeriesMetadata?,
+    val episodes: Map<String, List<XtreamEpisodeDto>>?,
     val seasons: List<XtreamSeasonResponse>?
+)
+
+data class XtreamSeriesMetadata(
+    val name: String?,
+    val plot: String?,
+    val description: String?,
+    val cast: String?,
+    val director: String?,
+    val genre: String?,
+    @SerializedName("releasedate") val releaseDate: String?,
+    val rating: String?,
+    @SerializedName("backdrop_path") val backdropPath: List<String>?,
+    val cover: String?,
+    @SerializedName("movie_image") val movieImage: String?
+)
+
+data class XtreamEpisodeDto(
+    val id: String?,
+    @SerializedName("episode_num") val episodeNum: Int,
+    val title: String?,
+    @SerializedName("container_extension") val containerExtension: String?,
+    val season: Int,
+    val info: XtreamEpisodeMetadata?
+)
+
+data class XtreamEpisodeMetadata(
+    val name: String?,
+    val plot: String?,
+    val duration: String?,
+    @SerializedName("movie_image") val movieImage: String?,
+    val rating: String?
 )
 
 data class XtreamSeasonResponse(

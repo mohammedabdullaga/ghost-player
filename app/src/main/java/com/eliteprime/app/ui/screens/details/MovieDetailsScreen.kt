@@ -4,37 +4,58 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.tv.material3.Border
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
 import com.eliteprime.app.data.local.entity.Movie
-import com.eliteprime.app.ui.components.AppBackground
-import com.eliteprime.app.ui.components.MobileBackButton
+import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.util.isTelevisionDevice
 
 @Composable
 fun MovieDetailsScreen(
-    movie: Movie,
     onBack: () -> Unit,
     onPlay: (Movie) -> Unit,
     viewModel: MovieDetailViewModel = hiltViewModel()
 ) {
+    val movieState by viewModel.movie.collectAsState()
+    val movie = movieState
+    val relatedMovies by viewModel.relatedMovies.collectAsState()
+    val isTv = LocalContext.current.isTelevisionDevice()
+
+    if (movie == null) {
+        Box(modifier = Modifier.fillMaxSize().background(DetailSurface.backdrop), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = AppColors.ArenaOrange, strokeWidth = 2.5.dp)
+        }
+        return
+    }
+
     AppBackground {
         Box(modifier = Modifier.fillMaxSize()) {
             // Cinematic Backdrop
@@ -43,87 +64,117 @@ fun MovieDetailsScreen(
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
-                alpha = 0.5f
+                alpha = 0.45f
             )
             Box(
                 modifier = Modifier.fillMaxSize().background(
                     Brush.horizontalGradient(
-                        listOf(Color(0xFF070B14), Color(0xFF070B14).copy(alpha = 0.8f), Color.Transparent)
+                        listOf(DetailSurface.backdrop, DetailSurface.backdrop.copy(alpha = 0.75f), DetailSurface.backdrop.copy(alpha = 0.95f))
                     )
                 )
             )
 
             Row(modifier = Modifier.fillMaxSize()) {
                 // Left Panel: Poster & Back
-                Box(
-                    modifier = Modifier
-                        .weight(0.38f)
-                        .fillMaxHeight()
-                        .padding(16.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)), RoundedCornerShape(24.dp))
-                ) {
-                    AsyncImage(
-                        model = movie.streamIcon,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    MobileBackButton(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(16.dp))
-                }
+                PosterPanel(
+                    posterUrl = movie.streamIcon ?: movie.backdropUrl, 
+                    onBack = onBack, 
+                    modifier = Modifier.weight(0.38f),
+                    isTv = isTv
+                )
 
                 // Right Panel: Info
-                Column(
+                LazyColumn(
                     modifier = Modifier
                         .weight(0.62f)
                         .fillMaxHeight()
-                        .verticalScroll(rememberScrollState())
-                        .padding(start = 16.dp, end = 24.dp, top = 32.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(start = DetailSpacing.md, end = DetailSpacing.xl, top = DetailSpacing.xl, bottom = DetailSpacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(DetailSpacing.md)
                 ) {
-                    Text(text = "MOVIE", color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.5.sp)
-                    Text(text = movie.name, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Black)
+                    item {
+                        InfoCard {
+                            // 1. Genre (Eyebrow)
+                            Text(
+                                text = movie.genre?.uppercase() ?: "MOVIE", 
+                                style = EyebrowStyle, 
+                                color = AppColors.ArenaOrange
+                            )
+                            
+                            // 2. Title + Favorite
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = movie.name,
+                                    color = DetailSurface.textPrimary,
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.Black,
+                                    lineHeight = 30.sp,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                
+                                DetailFavButton(
+                                    isFavorite = movie.isFavorite,
+                                    onClick = { viewModel.toggleFavorite() },
+                                    isTv = isTv
+                                )
+                            }
 
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (movie.rating > 0) {
-                            Surface(color = Color.White.copy(alpha = 0.1f), shape = RoundedCornerShape(8.dp)) {
-                                Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Star, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(12.dp))
-                                    Spacer(Modifier.width(4.dp))
-                                    Text("%.1f".format(movie.rating), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            // 3. Rating Row
+                            TagRow(genre = null, rating = movie.rating)
+                            
+                            // 4. Description (Plot)
+                            if (!movie.plot.isNullOrBlank()) {
+                                Text(
+                                    text = movie.plot!!,
+                                    color = DetailSurface.textSecondary,
+                                    fontSize = 14.sp,
+                                    lineHeight = 22.sp,
+                                    maxLines = 4,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            // 5. Action Row (Play + Download)
+                            PrimaryActionRow(
+                                onPlay = { onPlay(movie) },
+                                onDownload = { /* TODO: Download Manager */ },
+                                isTv = isTv
+                            )
+
+                            // 6. Metadata Grid (Technical Details)
+                            MetadataGrid(
+                                listOfNotNull(
+                                    movie.duration?.takeIf { it.isNotBlank() }?.let { "DURATION" to it },
+                                    movie.director?.takeIf { it.isNotBlank() }?.let { "DIRECTOR" to it },
+                                    movie.genre?.takeIf { it.isNotBlank() }?.let { "GENRE" to it },
+                                    movie.cast?.takeIf { it.isNotBlank() }?.let { "CAST" to it }
+                                )
+                            )
+                        }
+                    }
+
+                    if (relatedMovies.isNotEmpty()) {
+                        item {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = "MORE LIKE THIS",
+                                color = DetailSurface.textPrimary,
+                                style = EyebrowStyle
+                            )
+                        }
+                        item {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(DetailSpacing.sm),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                items(relatedMovies) { related ->
+                                    RelatedPosterCard(
+                                        imageUrl = related.streamIcon ?: related.backdropUrl,
+                                        title = related.name,
+                                        onClick = { onPlay(related) }
+                                    )
                                 }
                             }
                         }
-                        movie.genre?.let {
-                            Text(it, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
-                        }
-                    }
-
-                    if (!movie.plot.isNullOrBlank()) {
-                        Text(
-                            text = movie.plot!!,
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 14.sp,
-                            lineHeight = 22.sp
-                        )
-                    }
-
-                    Button(
-                        onClick = { onPlay(movie) },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Icon(Icons.Default.PlayArrow, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("PLAY NOW", fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-                    }
-                    
-                    if (!movie.cast.isNullOrBlank()) {
-                        MetadataItem(label = "CAST", value = movie.cast!!)
-                    }
-                    if (!movie.director.isNullOrBlank()) {
-                        MetadataItem(label = "DIRECTOR", value = movie.director!!)
                     }
                 }
             }
@@ -132,9 +183,284 @@ fun MovieDetailsScreen(
 }
 
 @Composable
-private fun MetadataItem(label: String, value: String) {
-    Column {
-        Text(text = label, color = Color.White.copy(alpha = 0.4f), fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 0.6.sp)
-        Text(text = value, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+private fun PosterPanel(posterUrl: String?, onBack: () -> Unit, modifier: Modifier = Modifier, isTv: Boolean) {
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .padding(DetailSpacing.md)
+            .clip(RoundedCornerShape(DetailRadius.xl))
+            .border(BorderStroke(1.dp, DetailSurface.hairline), RoundedCornerShape(DetailRadius.xl))
+    ) {
+        AsyncImage(
+            model = posterUrl,
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        Box(
+            modifier = Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    0f to Color.Transparent,
+                    0.55f to Color.Transparent,
+                    1f to Color.Black.copy(alpha = 0.85f)
+                )
+            )
+        )
+        
+        if (isTv) {
+            TvSurface(
+                onClick = onBack,
+                modifier = Modifier.align(Alignment.TopStart).padding(DetailSpacing.md).size(40.dp),
+                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+                colors = ClickableSurfaceDefaults.colors(
+                    containerColor = Color.Black.copy(alpha = 0.45f),
+                    focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                ),
+                shape = ClickableSurfaceDefaults.shape(CircleShape),
+                border = ClickableSurfaceDefaults.border(
+                    focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                )
+            ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                }
+            }
+        } else {
+            MobileBackButton(onClick = onBack, modifier = Modifier.align(Alignment.TopStart).padding(DetailSpacing.md))
+        }
+    }
+}
+
+@Composable
+private fun InfoCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        color = DetailSurface.cardFill,
+        shape = RoundedCornerShape(DetailRadius.lg),
+        border = BorderStroke(1.dp, DetailSurface.hairline)
+    ) {
+        Column(
+            modifier = Modifier.padding(DetailSpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(DetailSpacing.md),
+            content = content
+        )
+    }
+}
+
+@Composable
+private fun DetailFavButton(isFavorite: Boolean, onClick: () -> Unit, isTv: Boolean) {
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            modifier = Modifier.size(44.dp),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.White.copy(alpha = 0.1f),
+                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+            ),
+            shape = ClickableSurfaceDefaults.shape(CircleShape),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+            )
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = null,
+                    tint = if (isFavorite) AppColors.ArenaOrange else Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    } else {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .size(40.dp)
+                .background(DetailSurface.cardFillElevated, CircleShape)
+                .border(BorderStroke(1.dp, DetailSurface.hairline), CircleShape)
+        ) {
+            Icon(
+                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                contentDescription = null,
+                tint = if (isFavorite) AppColors.ArenaOrange else Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun TagRow(genre: String?, rating: Double) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(DetailSpacing.xs)) {
+        genre?.takeIf { it.isNotBlank() }?.let {
+            Surface(
+                color = DetailSurface.cardFillElevated,
+                shape = RoundedCornerShape(DetailRadius.sm),
+                border = BorderStroke(1.dp, DetailSurface.hairline)
+            ) {
+                Text(
+                    text = it,
+                    color = DetailSurface.textSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = DetailSpacing.sm, vertical = DetailSpacing.xxs)
+                )
+            }
+        }
+        if (rating > 0) {
+            Surface(
+                color = DetailSurface.cardFillElevated,
+                shape = RoundedCornerShape(DetailRadius.sm),
+                border = BorderStroke(1.dp, DetailSurface.hairline)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = DetailSpacing.sm, vertical = DetailSpacing.xxs),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700), modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(text = "%.1f".format(rating), color = DetailSurface.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PrimaryActionRow(onPlay: () -> Unit, onDownload: () -> Unit, isTv: Boolean) {
+    Row(horizontalArrangement = Arrangement.spacedBy(DetailSpacing.md), modifier = Modifier.fillMaxWidth()) {
+        if (isTv) {
+            TvSurface(
+                onClick = onPlay,
+                modifier = Modifier.weight(1f).height(52.dp),
+                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+                colors = ClickableSurfaceDefaults.colors(
+                    containerColor = AppColors.ArenaOrange,
+                    focusedContainerColor = Color.White
+                ),
+                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(DetailRadius.md))
+            ) {
+                Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                    Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(24.dp), tint = Color.Unspecified)
+                    Spacer(Modifier.width(DetailSpacing.xs))
+                    Text("PLAY NOW", fontWeight = FontWeight.Black, fontSize = 14.sp, color = Color.Unspecified)
+                }
+            }
+
+            TvSurface(
+                onClick = onDownload,
+                modifier = Modifier.size(52.dp),
+                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+                colors = ClickableSurfaceDefaults.colors(
+                    containerColor = Color.White.copy(alpha = 0.1f),
+                    focusedContainerColor = Color.White
+                ),
+                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(DetailRadius.md)),
+                border = ClickableSurfaceDefaults.border(
+                    focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                )
+            ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Download, null, tint = Color.Unspecified, modifier = Modifier.size(22.dp))
+                }
+            }
+        } else {
+            Button(
+                onClick = onPlay,
+                modifier = Modifier.weight(1f).height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
+                shape = RoundedCornerShape(DetailRadius.md)
+            ) {
+                Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(DetailSpacing.xs))
+                Text("PLAY NOW", fontWeight = FontWeight.Black, fontSize = 13.sp)
+            }
+            OutlinedIconButton(
+                onClick = onDownload,
+                modifier = Modifier.size(48.dp),
+                border = BorderStroke(1.dp, DetailSurface.hairline),
+                colors = IconButtonDefaults.outlinedIconButtonColors(containerColor = DetailSurface.cardFillElevated)
+            ) {
+                Icon(Icons.Default.Download, null, tint = DetailSurface.textPrimary, modifier = Modifier.size(18.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetadataGrid(items: List<Pair<String, String>>) {
+    if (items.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(DetailSpacing.xs)) {
+        items.chunked(2).forEachIndexed { rowIndex, rowItems ->
+            if (rowIndex > 0) {
+                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(DetailSurface.hairline))
+            }
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                rowItems.forEach { (label, value) ->
+                    Column(modifier = Modifier.weight(1f).padding(vertical = 4.dp)) {
+                        Text(text = label, color = DetailSurface.textTertiary, fontWeight = FontWeight.Black, fontSize = 10.sp, letterSpacing = 0.6.sp)
+                        Text(text = value, color = DetailSurface.textPrimary, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RelatedPosterCard(imageUrl: String?, title: String, onClick: () -> Unit) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    
+    Column(
+        modifier = Modifier.width(110.dp),
+        verticalArrangement = Arrangement.spacedBy(DetailSpacing.xxs)
+    ) {
+        if (isTv) {
+            TvSurface(
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth().aspectRatio(2f / 3f),
+                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(DetailRadius.md)),
+                colors = ClickableSurfaceDefaults.colors(
+                    containerColor = Color.Black.copy(alpha = 0.2f),
+                    focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                ),
+                border = ClickableSurfaceDefaults.border(
+                    focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                )
+            ) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        } else {
+            Surface(
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth().aspectRatio(2f / 3f),
+                shape = RoundedCornerShape(DetailRadius.md),
+                color = DetailSurface.cardFill,
+                border = BorderStroke(1.dp, DetailSurface.hairline)
+            ) {
+                AsyncImage(
+                    model = imageUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+        Text(
+            text = title,
+            color = DetailSurface.textSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 2.dp)
+        )
     }
 }

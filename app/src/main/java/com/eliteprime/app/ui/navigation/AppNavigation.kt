@@ -121,33 +121,26 @@ fun AppNavigation(
             "movie_details/{id}",
             arguments = listOf(navArgument("id") { type = NavType.LongType })
         ) {
-            val viewModel: MovieDetailViewModel = hiltViewModel()
-            val movie by viewModel.movie.collectAsState()
-            movie?.let { m ->
-                MovieDetailsScreen(
-                    movie = m,
-                    onBack = { navController.popBackStack() },
-                    onPlay = {
-                        navController.navigate("player/${m.id}/movie/${m.name}")
-                    }
-                )
-            }
+            MovieDetailsScreen(
+                onBack = { navController.popBackStack() },
+                onPlay = { m ->
+                    navController.navigate("player/${m.id}/movie/${m.name}")
+                }
+            )
         }
         composable(
             "series_details/{id}",
             arguments = listOf(navArgument("id") { type = NavType.LongType })
         ) {
-            val viewModel: SeriesDetailsViewModel = hiltViewModel()
-            val series by viewModel.series.collectAsState()
-            series?.let { s ->
-                SeriesDetailsScreen(
-                    series = s,
-                    onBack = { navController.popBackStack() },
-                    onPlayEpisode = { episode ->
-                        navController.navigate("player/${episode.id}/series/${episode.title}")
-                    }
-                )
-            }
+            SeriesDetailsScreen(
+                onBack = { navController.popBackStack() },
+                onPlayEpisode = { episode ->
+                    navController.navigate("player/${episode.id}/series/${episode.title}")
+                },
+                onSeriesClick = { series ->
+                    navController.navigate("series_details/${series.id}")
+                }
+            )
         }
         composable("search") {
             SearchScreen(
