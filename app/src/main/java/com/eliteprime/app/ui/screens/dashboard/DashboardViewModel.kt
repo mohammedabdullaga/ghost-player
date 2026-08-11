@@ -10,7 +10,10 @@ import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.domain.model.DownloadStatus
 import com.eliteprime.app.domain.repository.DownloadManager
 import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.objectbox.Box
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
 import io.objectbox.query.QueryBuilder.StringOrder
@@ -19,6 +22,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.Date
 import javax.inject.Inject
 
 @HiltViewModel
@@ -35,6 +39,9 @@ class DashboardViewModel @Inject constructor(
     private val liveBox = boxStore.boxFor(LiveStream::class.java)
     private val movieBox = boxStore.boxFor(Movie::class.java)
     private val seriesBox = boxStore.boxFor(Series::class.java)
+    private val trendingBox = boxStore.boxFor(TrendingCache::class.java)
+    
+    private val gson = Gson()
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
@@ -42,9 +49,18 @@ class DashboardViewModel @Inject constructor(
     init {
         observeData()
         
-        // Fetch trending data initially and whenever language changes
+        // Initial load from cache to show instantly
+        loadTrendingFromCache()
+        
+        // Refresh from TMDB only once every 24 hours
+        viewModelScope.launch {
+            fetchTrending(forceRefresh = false)
+        }
+        
+        // Re-fetch on language change
         preferenceRepository.language
-            .onEach { fetchTrending() }
+            .drop(1)
+            .onEach { fetchTrending(forceRefresh = true) }
             .launchIn(viewModelScope)
     }
 
@@ -85,43 +101,62 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    private fun fetchTrending() {
+    private fun loadTrendingFromCache() {
+        val allCached = trendingBox.all
+        val cachedMovies = allCached.filter { it.type == "movie" }
+        val cachedSeries = allCached.filter { it.type == "tv" }
+        
+        if (cachedMovies.isNotEmpty() || cachedSeries.isNotEmpty()) {
+            Log.d("DashboardVM", "Instant load: Using Trending Cache (${cachedMovies.size} M, ${cachedSeries.size} S)")
+            
+            val tMovies: List<TrendingItem<Movie>> = cachedMovies.map { it.toTrendingMovieItem(movieBox) }
+            val tSeries: List<TrendingItem<Series>> = cachedSeries.map { it.toTrendingSeriesItem(seriesBox) }
+            
+            _uiState.update { it.copy(
+                trendingMovies = tMovies,
+                trendingSeries = tSeries,
+                isTrendingLoading = false
+            ) }
+        }
+    }
+
+    private fun fetchTrending(forceRefresh: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
+            val allCached = trendingBox.all
+            val lastUpdate = allCached.firstOrNull()?.lastUpdated ?: 0L
+            val now = System.currentTimeMillis()
+            val twentyFourHours = 24 * 60 * 60 * 1000L
+            
+            if (!forceRefresh && (now - lastUpdate < twentyFourHours) && lastUpdate > 0) {
+                Log.d("DashboardVM", "Trending cache is fresh. Skipping TMDB call.")
+                _uiState.update { it.copy(isTrendingLoading = false) }
+                return@launch
+            }
+
             _uiState.update { it.copy(isTrendingLoading = true) }
             
-            // Wait for config if not loaded yet
             var apiKey = configRepository.getTmdbApiKey()
             if (apiKey == null) {
-                Log.d("DashboardVM", "TMDB Key missing, triggering fetch...")
                 configRepository.fetchConfig()
                 apiKey = configRepository.getTmdbApiKey()
             }
             
             if (apiKey == null) {
-                Log.e("DashboardVM", "TMDB API Key is still null after fetch. Cannot load trending.")
                 _uiState.update { it.copy(isTrendingLoading = false) }
                 return@launch
             }
             
-            Log.d("DashboardVM", "Fetching trending with API Key: ${apiKey.take(4)}...")
-
-            // Default to Arabic for content descriptions as requested, 
-            // regardless of app language setting.
             val lang = "ar"
 
             try {
-                // 0. Fetch Genre Mappings
                 val movieGenres = runCatching { tmdbApiService.getMovieGenres(apiKey, lang).genres }.getOrDefault(emptyList()).associate { it.id to it.name }
                 val tvGenres = runCatching { tmdbApiService.getTvGenres(apiKey, lang).genres }.getOrDefault(emptyList()).associate { it.id to it.name }
 
-                // 1. Fetch Trending Movies
                 val movieResp = tmdbApiService.getTrendingMovies(apiKey, lang)
                 val trendingMovies = movieResp.results.map { result ->
                     val displayTitle = result.title ?: ""
                     val originalTitle = result.original_title ?: ""
                     
-                    // Match strategy:
-                    // Try to match against the Arabic title OR the Original (Universal) title
                     var matched = movieBox.query()
                         .equal(Movie_.name, displayTitle, StringOrder.CASE_INSENSITIVE)
                         .build()
@@ -144,14 +179,10 @@ class DashboardViewModel @Inject constructor(
                         }
                     }
 
-                    val overview = result.overview?.takeIf { it.isNotBlank() } 
-                        ?: matched?.plot?.takeIf { it.isNotBlank() } 
-                        ?: ""
-
                     TrendingItem(
                         tmdbId = result.id,
                         title = displayTitle,
-                        overview = overview,
+                        overview = result.overview?.takeIf { it.isNotBlank() } ?: matched?.plot ?: "",
                         posterUrl = result.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" },
                         backdropUrl = result.backdrop_path?.let { "https://image.tmdb.org/t/p/w1280$it" },
                         releaseDate = result.release_date,
@@ -162,7 +193,6 @@ class DashboardViewModel @Inject constructor(
                     )
                 }.distinctBy { it.tmdbId }.take(20)
 
-                // 2. Fetch Trending Series
                 val seriesResp = tmdbApiService.getTrendingTv(apiKey, lang)
                 val trendingSeries = seriesResp.results.map { result ->
                     val displayName = result.name ?: ""
@@ -190,14 +220,10 @@ class DashboardViewModel @Inject constructor(
                         }
                     }
 
-                    val overview = result.overview?.takeIf { it.isNotBlank() }
-                        ?: matched?.plot?.takeIf { it.isNotBlank() }
-                        ?: ""
-
                     TrendingItem(
                         tmdbId = result.id,
                         title = displayName,
-                        overview = overview,
+                        overview = result.overview?.takeIf { it.isNotBlank() } ?: matched?.plot ?: "",
                         posterUrl = result.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" },
                         backdropUrl = result.backdrop_path?.let { "https://image.tmdb.org/t/p/w1280$it" },
                         releaseDate = result.first_air_date,
@@ -208,7 +234,13 @@ class DashboardViewModel @Inject constructor(
                     )
                 }.distinctBy { it.tmdbId }.take(20)
 
-                Log.d("DashboardVM", "Trending results ready: Movies=${trendingMovies.size}, Series=${trendingSeries.size}")
+                boxStore.runInTx {
+                    trendingBox.removeAll()
+                    val toCache = mutableListOf<TrendingCache>()
+                    trendingMovies.forEach { toCache.add(it.toCacheEntity("movie", now)) }
+                    trendingSeries.forEach { toCache.add(it.toCacheEntity("tv", now)) }
+                    trendingBox.put(toCache)
+                }
 
                 _uiState.update { it.copy(
                     trendingMovies = trendingMovies,
@@ -220,6 +252,42 @@ class DashboardViewModel @Inject constructor(
                 _uiState.update { it.copy(isTrendingLoading = false) }
             }
         }
+    }
+
+    private fun TrendingCache.toTrendingMovieItem(box: Box<Movie>): TrendingItem<Movie> {
+        val typeInt = object : TypeToken<List<Int>>() {}.type
+        val typeStr = object : TypeToken<List<String>>() {}.type
+        val gIds: List<Int> = gson.fromJson(genreIdsJson, typeInt) ?: emptyList()
+        val gNames: List<String> = gson.fromJson(genreNamesJson, typeStr) ?: emptyList()
+        val matched = box.query().equal(Movie_.name, title, StringOrder.CASE_INSENSITIVE).build().findFirst()
+
+        return TrendingItem(tmdbId, title, overview, posterUrl, backdropUrl, releaseDate, voteAverage, gIds, gNames, matched)
+    }
+
+    private fun TrendingCache.toTrendingSeriesItem(box: Box<Series>): TrendingItem<Series> {
+        val typeInt = object : TypeToken<List<Int>>() {}.type
+        val typeStr = object : TypeToken<List<String>>() {}.type
+        val gIds: List<Int> = gson.fromJson(genreIdsJson, typeInt) ?: emptyList()
+        val gNames: List<String> = gson.fromJson(genreNamesJson, typeStr) ?: emptyList()
+        val matched = box.query().equal(Series_.name, title, StringOrder.CASE_INSENSITIVE).build().findFirst()
+
+        return TrendingItem(tmdbId, title, overview, posterUrl, backdropUrl, releaseDate, voteAverage, gIds, gNames, matched)
+    }
+
+    private fun TrendingItem<*>.toCacheEntity(type: String, timestamp: Long): TrendingCache {
+        return TrendingCache(
+            type = type,
+            tmdbId = tmdbId,
+            title = title,
+            overview = overview,
+            posterUrl = posterUrl,
+            backdropUrl = backdropUrl,
+            releaseDate = releaseDate,
+            voteAverage = voteAverage,
+            genreIdsJson = gson.toJson(genreIds),
+            genreNamesJson = gson.toJson(genres),
+            lastUpdated = timestamp
+        )
     }
 
     fun removeFromHistory(history: PlaybackHistory) {

@@ -946,9 +946,78 @@
         }
       ],
       "relations": []
+    },
+    {
+      "id": "13:3274072605128296060",
+      "lastPropertyId": "12:5911196394273752066",
+      "name": "TrendingCache",
+      "properties": [
+        {
+          "id": "1:7942086868297370742",
+          "name": "id",
+          "type": 6,
+          "flags": 1
+        },
+        {
+          "id": "2:268895359017721050",
+          "name": "type",
+          "type": 9
+        },
+        {
+          "id": "3:9096113645645501511",
+          "name": "tmdbId",
+          "type": 5
+        },
+        {
+          "id": "4:3669712132500391147",
+          "name": "title",
+          "type": 9
+        },
+        {
+          "id": "5:480751329861775309",
+          "name": "overview",
+          "type": 9
+        },
+        {
+          "id": "6:7687272093639834573",
+          "name": "posterUrl",
+          "type": 9
+        },
+        {
+          "id": "7:7676018503162147781",
+          "name": "backdropUrl",
+          "type": 9
+        },
+        {
+          "id": "8:4398104203229263636",
+          "name": "releaseDate",
+          "type": 9
+        },
+        {
+          "id": "9:2465499028578810146",
+          "name": "voteAverage",
+          "type": 8
+        },
+        {
+          "id": "10:336054455196242986",
+          "name": "genreIdsJson",
+          "type": 9
+        },
+        {
+          "id": "11:7747064262785148714",
+          "name": "genreNamesJson",
+          "type": 9
+        },
+        {
+          "id": "12:5911196394273752066",
+          "name": "lastUpdated",
+          "type": 6
+        }
+      ],
+      "relations": []
     }
   ],
-  "lastEntityId": "12:570403733061803585",
+  "lastEntityId": "13:3274072605128296060",
   "lastIndexId": "25:8084169191951253757",
   "lastRelationId": "1:476970813737427691",
   "lastSequenceId": "0:0",

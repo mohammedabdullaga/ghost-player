@@ -33,23 +33,30 @@ class SeriesViewModel @Inject constructor(
     private val _selectedCategoryId = MutableStateFlow<Long?>(null)
     private val _searchQuery = MutableStateFlow("")
 
+    private val categoriesFlow = categoryBox.query()
+        .equal(Category_.type, "series", StringOrder.CASE_INSENSITIVE)
+        .build()
+        .flow()
+        .map { providerCats ->
+            val virtualCats = listOf(
+                Category(id = CAT_ID_FAVORITES, categoryName = "★ Favorites", isVirtual = true),
+                Category(id = CAT_ID_CONTINUE, categoryName = "🕒 Continue Watching", isVirtual = true),
+                Category(id = CAT_ID_ALL, categoryName = "All Series", isVirtual = true)
+            )
+            (virtualCats + providerCats.filter { !it.isHidden }).sortedBy { it.order }
+        }
+        .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
+
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     val uiState: StateFlow<SeriesUiState> = combine(
-        categoryBox.query().equal(Category_.type, "series", StringOrder.CASE_INSENSITIVE).build().flow(),
+        categoriesFlow,
         _selectedCategoryId,
         _searchQuery.debounce(300)
-    ) { providerCats: List<Category>, selectedId: Long?, query: String ->
-        
-        val virtualCats = listOf(
-            Category(id = CAT_ID_FAVORITES, categoryName = "★ Favorites", isVirtual = true),
-            Category(id = CAT_ID_CONTINUE, categoryName = "🕒 Continue Watching", isVirtual = true),
-            Category(id = CAT_ID_ALL, categoryName = "All Series", isVirtual = true)
-        )
-
-        val allCategories = virtualCats + providerCats.filter { !it.isHidden }.sortedBy { it.order }
+    ) { allCategories, selectedId, query ->
         
         val currentId = selectedId ?: CAT_ID_ALL
-        val currentSelected = allCategories.find { it.id == currentId } ?: virtualCats.last()
+        val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.find { it.id == CAT_ID_ALL } ?: allCategories.first()
 
         val seriesList = if (query.isNotEmpty()) {
             val qb = seriesBox.query().contains(Series_.name, query, StringOrder.CASE_INSENSITIVE)
@@ -90,7 +97,7 @@ class SeriesViewModel @Inject constructor(
         )
     }
     .flowOn(Dispatchers.Default)
-    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SeriesUiState())
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SeriesUiState(isLoading = true))
 
     fun selectCategory(category: Category) {
         _selectedCategoryId.value = category.id

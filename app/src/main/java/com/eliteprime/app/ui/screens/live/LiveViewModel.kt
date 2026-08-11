@@ -53,7 +53,7 @@ class LiveViewModel @Inject constructor(
 
     private val _reorderCategories = MutableStateFlow<List<Category>>(emptyList())
 
-    @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val categoriesFlow = combine(
         categoryBox.query().build().flow(),
         customGroupBox.query().build().flow()
@@ -69,7 +69,7 @@ class LiveViewModel @Inject constructor(
                 Category(id = cg.id + 1000000, categoryName = cg.name, isVirtual = true, order = cg.groupOrder)
             }
         (virtualCats + customGroupCats + providerCats.filter { it.type == "live" && !it.isHidden }).sortedBy { it.order }
-    }.distinctUntilChanged()
+    }.distinctUntilChanged().flowOn(Dispatchers.Default)
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     val uiState: StateFlow<LiveUiState> = combine(
@@ -82,37 +82,40 @@ class LiveViewModel @Inject constructor(
         
         val categories = if (reorderMode) reorderList else allCategories
         val currentId = selectedId ?: CAT_ID_ALL
-        val currentSelected = categories.find { it.id == currentId } ?: allCategories.first()
+        val currentSelected = categories.find { it.id == currentId } ?: allCategories.find { it.id == CAT_ID_ALL } ?: allCategories.first()
 
-        val baseChannels = when (currentId) {
-            CAT_ID_ALL -> liveBox.query().build().find()
-            CAT_ID_FAVORITES -> liveBox.query().equal(LiveStream_.isFavorite, true).build().find()
-            CAT_ID_RECENT -> liveBox.query().notEqual(LiveStream_.lastWatchedAt, 0L).orderDesc(LiveStream_.lastWatchedAt).build().find(0, 50)
-            else -> {
-                if (currentId >= 1000000) {
-                    val realGroupId = currentId - 1000000
-                    val streamIds = groupMembershipBox.query().equal(GroupMembership_.groupId, realGroupId).build().find().map { it.streamId }
-                    liveBox.get(streamIds).filterNotNull()
-                } else {
-                    liveBox.query().equal(LiveStream_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE).build().find()
+        // Separate flow logic: we emit the category list immediately, 
+        // and fetch channels on a background thread without blocking category display.
+        val channels = if (reorderMode) emptyList() else {
+            val baseChannels = when (currentId) {
+                CAT_ID_ALL -> liveBox.query().build().find()
+                CAT_ID_FAVORITES -> liveBox.query().equal(LiveStream_.isFavorite, true).build().find()
+                CAT_ID_RECENT -> liveBox.query().notEqual(LiveStream_.lastWatchedAt, 0L).orderDesc(LiveStream_.lastWatchedAt).build().find(0, 50)
+                else -> {
+                    if (currentId >= 1000000) {
+                        val realGroupId = currentId - 1000000
+                        val streamIds = groupMembershipBox.query().equal(GroupMembership_.groupId, realGroupId).build().find().map { it.streamId }
+                        liveBox.get(streamIds).filterNotNull()
+                    } else {
+                        liveBox.query().equal(LiveStream_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE).build().find()
+                    }
                 }
             }
-        }
-
-        val filteredChannels = baseChannels.filter { 
-            !it.isHidden && (query.isEmpty() || it.name.contains(query, ignoreCase = true)) 
+            baseChannels.filter { 
+                !it.isHidden && (query.isEmpty() || it.name.contains(query, ignoreCase = true)) 
+            }
         }
 
         LiveUiState(
             categories = categories,
             selectedCategory = currentSelected,
-            filteredChannels = filteredChannels,
+            filteredChannels = channels,
             isLoading = false,
             isCategoryReorderMode = reorderMode
         )
     }
     .flowOn(Dispatchers.Default)
-    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LiveUiState())
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LiveUiState(isLoading = true))
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val currentEpg: StateFlow<List<EPGProgram>> = _previewChannel.flatMapLatest { channel ->
@@ -252,8 +255,6 @@ class LiveViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        // DO NOT stop the engine if we are in Full Screen mode, 
-        // as this engine is likely being handed off to the PlayerScreen.
         if (globalPlayerState.mode.value != PlayerViewMode.FULLSCREEN) {
             playerEngine.stop()
         }

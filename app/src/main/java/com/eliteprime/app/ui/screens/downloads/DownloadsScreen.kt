@@ -266,7 +266,12 @@ private fun MobileDownloadCard(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(item.contentName, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    val displayName = if (item.seasonNumber != null && item.episodeNumber != null) {
+                        "S${item.seasonNumber} E${item.episodeNumber} - ${item.contentName}"
+                    } else {
+                        item.contentName
+                    }
+                    Text(displayName, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(item.status.name, color = statusColor(item.status), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
@@ -342,7 +347,12 @@ private fun TvDownloadCard(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(item.contentName, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
+                    val displayName = if (item.seasonNumber != null && item.episodeNumber != null) {
+                        "S${item.seasonNumber} E${item.episodeNumber} - ${item.contentName}"
+                    } else {
+                        item.contentName
+                    }
+                    Text(displayName, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
                     Text(item.status.name, color = statusColor(item.status), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }

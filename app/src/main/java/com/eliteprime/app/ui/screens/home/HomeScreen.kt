@@ -381,8 +381,8 @@ private fun HomeHeroCardContent(
             .clip(shape)
             .background(HomeCardBaseGradient)
             .border(
-                width = if (isActive) 2.dp else 1.dp,
-                color = if (isActive) accentColor else Color.White.copy(alpha = 0.12f),
+                width = 1.dp,
+                color = if (isActive) accentColor else Color.White.copy(alpha = 0.08f),
                 shape = shape
             )
     ) {
@@ -539,7 +539,7 @@ private fun TrendingHeroCardContent(
     isActive: Boolean,
     shape: RoundedCornerShape
 ) {
-    val accentColor = Color(0xFFE0812E)
+    val accentColor = Color(0xFFFF3D00)
 
     Box(
         modifier = Modifier
@@ -547,8 +547,8 @@ private fun TrendingHeroCardContent(
             .clip(shape)
             .background(HomeCardBaseGradient)
             .border(
-                width = if (isActive) 2.dp else 1.dp,
-                color = if (isActive) accentColor else Color.White.copy(alpha = 0.12f),
+                width = 1.dp,
+                color = if (isActive) accentColor else Color.White.copy(alpha = 0.08f),
                 shape = shape
             )
     ) {
@@ -579,9 +579,9 @@ private fun TrendingHeroCardContent(
                         .drawBehind {
                             drawRect(
                                 brush = Brush.radialGradient(
-                                    colors = listOf(accentColor.copy(alpha = if (isActive) 0.38f else 0.22f), Color.Transparent),
+                                    colors = listOf(accentColor.copy(alpha = 0.2f), Color.Transparent),
                                     center = Offset(size.width, size.height),
-                                    radius = size.width * 1.15f
+                                    radius = size.width * 0.75f 
                                 )
                             )
                         }
@@ -633,7 +633,7 @@ private fun TrendingHeroCardContent(
                     if (crossfadeItem != null) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700), modifier = Modifier.size(13.dp))
+                            Icon(Icons.Default.Star, null, tint = Color(0xFF9C27B0), modifier = Modifier.size(13.dp))
                             Text(
                                 text = "%.1f".format(crossfadeItem.voteAverage),
                                 color = Color.White.copy(alpha = 0.85f),

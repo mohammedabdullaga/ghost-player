@@ -254,7 +254,7 @@
     },
     {
       "id": "4:112902235009265691",
-      "lastPropertyId": "24:6079371726043336832",
+      "lastPropertyId": "26:7146286773634640492",
       "name": "Movie",
       "properties": [
         {
@@ -380,6 +380,16 @@
         {
           "id": "24:6079371726043336832",
           "name": "lastWatchedAt",
+          "type": 6
+        },
+        {
+          "id": "25:7704195648085435168",
+          "name": "watchProgress",
+          "type": 6
+        },
+        {
+          "id": "26:7146286773634640492",
+          "name": "totalDuration",
           "type": 6
         }
       ],
@@ -635,7 +645,7 @@
     },
     {
       "id": "8:8375585262319354259",
-      "lastPropertyId": "11:5237097074109509449",
+      "lastPropertyId": "14:4872003875709843394",
       "name": "Episode",
       "properties": [
         {
@@ -696,6 +706,21 @@
           "type": 11,
           "flags": 520,
           "relationTarget": "Season"
+        },
+        {
+          "id": "12:3859890403899931377",
+          "name": "watchProgress",
+          "type": 6
+        },
+        {
+          "id": "13:607428668748962802",
+          "name": "totalDuration",
+          "type": 6
+        },
+        {
+          "id": "14:4872003875709843394",
+          "name": "lastWatchedAt",
+          "type": 6
         }
       ],
       "relations": []
