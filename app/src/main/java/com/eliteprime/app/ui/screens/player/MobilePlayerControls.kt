@@ -20,6 +20,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -30,11 +32,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.tv.material3.Border
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -243,146 +250,183 @@ fun MobilePlayerControls(
                         }
                     }
 
-                    if (contentType != PlayerContentType.LIVE_TV) {
-                        Row(
-                            modifier = Modifier.align(Alignment.Center),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(32.dp)
-                        ) {
-                            if (contentType == PlayerContentType.SERIES) {
-                                IconButton(
-                                    onClick = onPreviousEpisode,
-                                    enabled = hasPreviousEpisode,
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(
-                                            if (hasPreviousEpisode) Color.White.copy(alpha = 0.15f)
-                                            else Color.White.copy(alpha = 0.05f),
-                                            CircleShape
-                                        )
-                                ) {
-                                    Icon(
-                                        Icons.Default.SkipPrevious,
-                                        contentDescription = "Previous episode",
-                                        tint = if (hasPreviousEpisode) Color.White else Color.White.copy(alpha = 0.3f),
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-
-                            Surface(
-                                onClick = onTogglePlayPause,
-                                modifier = Modifier.size(72.dp),
-                                shape = CircleShape,
-                                color = AppColors.ArenaOrange,
-                                tonalElevation = 10.dp
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = "Play/Pause",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(36.dp)
-                                    )
-                                }
-                            }
-
-                            if (contentType == PlayerContentType.SERIES) {
-                                IconButton(
-                                    onClick = onNextEpisode,
-                                    enabled = hasNextEpisode,
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .background(
-                                            if (hasNextEpisode) Color.White.copy(alpha = 0.15f)
-                                            else Color.White.copy(alpha = 0.05f),
-                                            CircleShape
-                                        )
-                                ) {
-                                    Icon(
-                                        Icons.Default.SkipNext,
-                                        contentDescription = "Next episode",
-                                        tint = if (hasNextEpisode) Color.White else Color.White.copy(alpha = 0.3f),
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Column(
+                    // Unified Bottom Control Container
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter)
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
-                                )
-                            )
-                            .padding(bottom = 24.dp, start = 24.dp, end = 24.dp, top = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .padding(horizontal = 20.dp, vertical = 20.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.Black.copy(alpha = 0.7f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
                     ) {
-                        when (contentType) {
-                            PlayerContentType.LIVE_TV -> {
-                                LiveIndicatorBar()
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // 1. Previous Episode / Channel
+                            if (contentType != PlayerContentType.MOVIE) {
+                                PlayerControlButton(
+                                    icon = Icons.Default.SkipPrevious,
+                                    contentDescription = "Previous",
+                                    onClick = onPreviousEpisode,
+                                    enabled = hasPreviousEpisode
+                                )
                             }
 
-                            PlayerContentType.MOVIE, PlayerContentType.SERIES -> {
-                                if (duration > 0) {
-                                    var sliderValue by remember(currentPosition, duration) {
-                                        mutableFloatStateOf(currentPosition.toFloat() / duration.toFloat())
-                                    }
-                                    var isDragging by remember { mutableStateOf(false) }
+                            // 2. Seek Backward (VOD/Series only)
+                            if (contentType != PlayerContentType.LIVE_TV) {
+                                PlayerControlButton(
+                                    icon = Icons.Default.Replay10,
+                                    contentDescription = "Rewind 10s",
+                                    onClick = onSeekBackward
+                                )
+                            }
 
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Text(
-                                            text = formatDuration(if (isDragging) (sliderValue * duration).toLong() else currentPosition),
-                                            color = Color.White,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Black,
-                                            modifier = Modifier.width(52.dp),
-                                            textAlign = TextAlign.Start
-                                        )
+                            // 3. Play/Pause (Center Anchor)
+                            PlayerControlButton(
+                                icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = "Play/Pause",
+                                onClick = onTogglePlayPause,
+                                containerColor = AppColors.ArenaOrange,
+                                size = 44.dp
+                            )
 
-                                        Slider(
-                                            value = if (isDragging) sliderValue else (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f),
-                                            onValueChange = {
-                                                isDragging = true
-                                                sliderValue = it
-                                            },
-                                            onValueChangeFinished = {
-                                                isDragging = false
-                                                onSeekToPosition((sliderValue * duration).toLong())
-                                            },
-                                            modifier = Modifier.weight(1f),
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = Color.White,
-                                                activeTrackColor = AppColors.ArenaOrange,
-                                                inactiveTrackColor = Color.White.copy(alpha = 0.15f),
-                                                activeTickColor = Color.Transparent,
-                                                inactiveTickColor = Color.Transparent
-                                            )
-                                        )
+                            // 4. Seek Forward (VOD/Series only)
+                            if (contentType != PlayerContentType.LIVE_TV) {
+                                PlayerControlButton(
+                                    icon = Icons.Default.Forward10,
+                                    contentDescription = "Forward 10s",
+                                    onClick = onSeekForward
+                                )
+                            }
 
-                                        Text(
-                                            text = formatDuration(duration),
-                                            color = Color.White.copy(alpha = 0.5f),
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            modifier = Modifier.width(52.dp),
-                                            textAlign = TextAlign.End
+                            // 5. Next Episode / Channel
+                            if (contentType != PlayerContentType.MOVIE) {
+                                PlayerControlButton(
+                                    icon = Icons.Default.SkipNext,
+                                    contentDescription = "Next",
+                                    onClick = onNextEpisode,
+                                    enabled = hasNextEpisode
+                                )
+                            }
+
+                            // 6. Progress Area / Live Indicator
+                            if (contentType != PlayerContentType.LIVE_TV && duration > 0) {
+                                var sliderValue by remember(currentPosition, duration) {
+                                    mutableFloatStateOf(currentPosition.toFloat() / duration.toFloat())
+                                }
+                                var isDragging by remember { mutableStateOf(false) }
+
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Text(
+                                        text = formatDuration(if (isDragging) (sliderValue * duration).toLong() else currentPosition),
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.width(42.dp),
+                                        textAlign = TextAlign.Center
+                                    )
+
+                                    Slider(
+                                        value = if (isDragging) sliderValue else (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f),
+                                        onValueChange = {
+                                            isDragging = true
+                                            sliderValue = it
+                                        },
+                                        onValueChangeFinished = {
+                                            isDragging = false
+                                            onSeekToPosition((sliderValue * duration).toLong())
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = Color.White,
+                                            activeTrackColor = AppColors.ArenaOrange,
+                                            inactiveTrackColor = Color.White.copy(alpha = 0.2f)
                                         )
-                                    }
+                                    )
+
+                                    Text(
+                                        text = formatDuration(duration),
+                                        color = Color.White.copy(alpha = 0.5f),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.width(42.dp),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            } else if (contentType == PlayerContentType.LIVE_TV) {
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Box(modifier = Modifier.weight(1f)) {
+                                    LiveIndicatorBar()
                                 }
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PlayerControlButton(
+    icon: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+    size: Dp = 40.dp,
+    containerColor: Color = Color.White.copy(alpha = 0.08f)
+) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    if (isTv) {
+        var isFocused by remember { mutableStateOf(false) }
+        TvSurface(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier
+                .size(size)
+                .onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = containerColor,
+                focusedContainerColor = Color.White
+            ),
+            shape = ClickableSurfaceDefaults.shape(CircleShape),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+            )
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = contentDescription,
+                    tint = if (isFocused) Color.Black else Color.White.copy(alpha = if (enabled) 0.9f else 0.2f),
+                    modifier = Modifier.size(size * 0.55f)
+                )
+            }
+        }
+    } else {
+        IconButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier
+                .size(size)
+                .background(containerColor, CircleShape)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = Color.White.copy(alpha = if (enabled) 1f else 0.3f),
+                modifier = Modifier.size(size * 0.55f)
+            )
         }
     }
 }

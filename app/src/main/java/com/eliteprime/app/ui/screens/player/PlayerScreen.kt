@@ -29,6 +29,7 @@ fun PlayerScreen(
     val context = LocalContext.current
     val activity = context as? Activity
     
+    val title by viewModel.title.collectAsStateWithLifecycle()
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
     val isPlaying by viewModel.isPlaying.collectAsStateWithLifecycle()
     val currentPosition by viewModel.currentPosition.collectAsStateWithLifecycle()
@@ -86,7 +87,7 @@ fun PlayerScreen(
             // Modern Controls
             MobilePlayerControls(
                 visible = showControls,
-                title = viewModel.title,
+                title = title,
                 isPlaying = isPlaying,
                 isMuted = isMuted,
                 aspectRatioLabel = aspectRatio,

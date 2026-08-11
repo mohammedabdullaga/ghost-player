@@ -17,6 +17,7 @@ import com.eliteprime.app.player.*
 import com.eliteprime.app.player.playback.PlayerErrorClassifier
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
+import io.objectbox.query.QueryBuilder.StringOrder
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -36,8 +37,11 @@ class PlayerViewModel @Inject constructor(
 
     private val streamId: Long = savedStateHandle.get<Long>("id") ?: 0
     val type: String = savedStateHandle.get<String>("type") ?: "live"
-    val title: String = savedStateHandle.get<String>("title") ?: ""
+    private var initialTitle: String = savedStateHandle.get<String>("title") ?: ""
     private val overrideUrl: String? = savedStateHandle.get<String>("url")
+
+    private val _displayTitle = MutableStateFlow(initialTitle)
+    val title: StateFlow<String> = _displayTitle.asStateFlow()
 
     val playbackState = playerEngine.playbackState
     val isPlaying = playerEngine.isPlaying
@@ -74,16 +78,20 @@ class PlayerViewModel @Inject constructor(
     val hasPreviousEpisode = _hasPreviousEpisode.asStateFlow()
 
     private var currentEpisodes: List<Episode> = emptyList()
+    private var currentChannels: List<LiveStream> = emptyList()
+    private var activeStreamId: Long = streamId
     private var activeProviderId: Long = 0
 
     init {
         loadActiveProvider()
         checkResumeProgress()
-        resolveAndPlay()
+        resolveAndPlay(activeStreamId, initialTitle)
         observePlayback()
         startAutoHideTimer()
         if (type == "series") {
             loadSeriesContext()
+        } else if (type == "live") {
+            loadLiveContext()
         }
         observeVideoFormat()
     }
@@ -109,7 +117,7 @@ class PlayerViewModel @Inject constructor(
 
     private fun loadSeriesContext() {
         viewModelScope.launch {
-            val currentEp = boxStore.boxFor(Episode::class.java).get(streamId)
+            val currentEp = boxStore.boxFor(Episode::class.java).get(activeStreamId)
             if (currentEp != null) {
                 val allEpisodes = boxStore.boxFor(Episode::class.java)
                     .query()
@@ -124,25 +132,71 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private fun loadLiveContext() {
+        viewModelScope.launch {
+            val currentChannel = boxStore.boxFor(LiveStream::class.java).get(activeStreamId)
+            if (currentChannel != null) {
+                val allChannels = boxStore.boxFor(LiveStream::class.java)
+                    .query()
+                    .equal(LiveStream_.remoteCategoryId, currentChannel.remoteCategoryId ?: "", StringOrder.CASE_INSENSITIVE)
+                    .build()
+                    .find()
+                
+                currentChannels = allChannels
+                updateLiveNavigation(currentChannel)
+            }
+        }
+    }
+
     private fun updateEpisodeNavigation(currentEp: Episode) {
         val index = currentEpisodes.indexOfFirst { it.id == currentEp.id }
         _hasNextEpisode.value = index >= 0 && index < currentEpisodes.size - 1
         _hasPreviousEpisode.value = index > 0
     }
 
+    private fun updateLiveNavigation(currentChannel: LiveStream) {
+        val index = currentChannels.indexOfFirst { it.id == currentChannel.id }
+        _hasNextEpisode.value = index >= 0 && index < currentChannels.size - 1
+        _hasPreviousEpisode.value = index > 0
+    }
+
     fun playNextEpisode() {
-        val index = currentEpisodes.indexOfFirst { it.id == streamId }
-        if (index >= 0 && index < currentEpisodes.size - 1) {
-            val nextEp = currentEpisodes[index + 1]
-            navigateToEpisode(nextEp)
+        if (type == "series") {
+            val index = currentEpisodes.indexOfFirst { it.id == activeStreamId }
+            if (index >= 0 && index < currentEpisodes.size - 1) {
+                val nextEp = currentEpisodes[index + 1]
+                activeStreamId = nextEp.id
+                _displayTitle.value = nextEp.title
+                navigateToEpisode(nextEp)
+            }
+        } else if (type == "live") {
+            val index = currentChannels.indexOfFirst { it.id == activeStreamId }
+            if (index >= 0 && index < currentChannels.size - 1) {
+                val nextChannel = currentChannels[index + 1]
+                activeStreamId = nextChannel.id
+                _displayTitle.value = nextChannel.name
+                navigateToLive(nextChannel)
+            }
         }
     }
 
     fun playPreviousEpisode() {
-        val index = currentEpisodes.indexOfFirst { it.id == streamId }
-        if (index > 0) {
-            val prevEp = currentEpisodes[index - 1]
-            navigateToEpisode(prevEp)
+        if (type == "series") {
+            val index = currentEpisodes.indexOfFirst { it.id == activeStreamId }
+            if (index > 0) {
+                val prevEp = currentEpisodes[index - 1]
+                activeStreamId = prevEp.id
+                _displayTitle.value = prevEp.title
+                navigateToEpisode(prevEp)
+            }
+        } else if (type == "live") {
+            val index = currentChannels.indexOfFirst { it.id == activeStreamId }
+            if (index > 0) {
+                val prevChannel = currentChannels[index - 1]
+                activeStreamId = prevChannel.id
+                _displayTitle.value = prevChannel.name
+                navigateToLive(prevChannel)
+            }
         }
     }
 
@@ -181,18 +235,38 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private fun navigateToLive(channel: LiveStream) {
+        viewModelScope.launch {
+            val account = boxStore.boxFor(XtreamAccount::class.java).query().equal(XtreamAccount_.isActive, true).build().findFirst()
+            if (account != null) {
+                val url = XtreamUrlFactory.buildPlaybackUrl(
+                    serverUrl = account.serverUrl,
+                    username = account.username,
+                    password = account.password,
+                    kind = "live",
+                    streamId = channel.id
+                )
+                
+                playerEngine.prepare(StreamInfo(channel.id, channel.name, url, StreamType.MPEG_TS))
+                playerEngine.play()
+                
+                updateLiveNavigation(channel)
+            }
+        }
+    }
+
     private fun checkResumeProgress() {
         if (type == "live") return
         viewModelScope.launch {
             // Wait for activeProviderId to be loaded
             while(activeProviderId == 0L) delay(50)
             
-            val history = playbackHistoryRepository.getPlaybackHistory(streamId, type, activeProviderId)
+            val history = playbackHistoryRepository.getPlaybackHistory(activeStreamId, type, activeProviderId)
             if (history != null && history.lastPositionMs > 10000) {
                 _resumePrompt.value = ResumePromptState(
                     show = true,
                     positionMs = history.lastPositionMs,
-                    title = title
+                    title = _displayTitle.value
                 )
             }
         }
@@ -206,7 +280,7 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun resolveAndPlay() {
+    private fun resolveAndPlay(targetStreamId: Long, targetTitle: String) {
         viewModelScope.launch {
             val account = boxStore.boxFor(XtreamAccount::class.java).query().equal(XtreamAccount_.isActive, true).build().findFirst()
             if (account != null) {
@@ -224,7 +298,7 @@ class PlayerViewModel @Inject constructor(
                     while (attempts < 5) {
                         when (type) {
                             "movie" -> {
-                                val movie = boxStore.boxFor(Movie::class.java).get(streamId)
+                                val movie = boxStore.boxFor(Movie::class.java).get(targetStreamId)
                                 if (movie != null) {
                                     extension = movie.containerExtension
                                     directUrl = movie.directSource
@@ -234,7 +308,7 @@ class PlayerViewModel @Inject constructor(
                                 }
                             }
                             "series" -> {
-                                val episode = boxStore.boxFor(Episode::class.java).get(streamId)
+                                val episode = boxStore.boxFor(Episode::class.java).get(targetStreamId)
                                 if (episode != null && (episode.seriesId != 0L)) {
                                     extension = episode.containerExtension
                                     poster = episode.coverUrl
@@ -249,7 +323,7 @@ class PlayerViewModel @Inject constructor(
                         // Fallback to DownloadItem if it was a direct download play
                         if (attempts < 99) {
                             val dl = downloadManager.observeAllDownloads().first().find { 
-                                it.contentId == streamId && it.contentType.name.lowercase().contains(type) 
+                                it.contentId == targetStreamId && it.contentType.name.lowercase().contains(type) 
                             }
                             if (dl != null) {
                                 extension = dl.containerExtension
@@ -278,7 +352,7 @@ class PlayerViewModel @Inject constructor(
                         username = account.username,
                         password = account.password,
                         kind = if (type == "series") "series" else type,
-                        streamId = streamId,
+                        streamId = targetStreamId,
                         extension = extension
                     )
                 }
@@ -293,8 +367,8 @@ class PlayerViewModel @Inject constructor(
                     } else {
                         Log.d("PlayerVM", "resolveAndPlay: Preparing new stream target=$url")
                         playerEngine.prepare(StreamInfo(
-                            streamId = streamId, 
-                            name = title, 
+                            streamId = targetStreamId, 
+                            name = targetTitle, 
                             url = url, 
                             streamType = if (type == "live") StreamType.MPEG_TS else StreamType.fromContainerExtension(extension)
                         ))
@@ -306,9 +380,9 @@ class PlayerViewModel @Inject constructor(
                 launch {
                     playbackHistoryRepository.recordPlayback(
                         PlaybackHistory(
-                            streamId = streamId,
+                            streamId = targetStreamId,
                             providerId = account.id,
-                            name = title,
+                            name = targetTitle,
                             type = type,
                             posterUrl = poster,
                             backdropUrl = backdrop,
@@ -335,7 +409,7 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             if (type == "live") {
                 val liveBox = boxStore.boxFor(LiveStream::class.java)
-                val channel = liveBox.get(streamId)
+                val channel = liveBox.get(activeStreamId)
                 if (channel != null) {
                     channel.lastWatchedAt = System.currentTimeMillis()
                     liveBox.put(channel)
@@ -354,7 +428,7 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             if (activeProviderId == 0L) return@launch
             playbackHistoryRepository.updateResumePosition(
-                streamId = streamId,
+                streamId = activeStreamId,
                 type = type,
                 providerId = activeProviderId,
                 positionMs = pos,
