@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
@@ -50,19 +51,10 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
-// "Cinematic depth" card shape — plain rounded rect, NOT the angled blade
-// shape used previously. Shared radius so all three cards match.
 private val HomeCardRadius = 20.dp
-
-// Shared dark base gradient every card sits on — the per-card identity
-// comes from the accent-colored corner glow layered on top, not from a
-// different gradient per card, so cards stay visually consistent as a set.
 private val HomeCardBaseGradient = Brush.linearGradient(
     listOf(Color(0xFF1E2E40), Color(0xFF101B28), Color(0xFF080D14))
 )
-
-// How long each trending item stays on screen before the card auto-flips
-// to the next one.
 private val TrendingRotationInterval = 6000L
 
 private object HomeSpacing {
@@ -146,12 +138,6 @@ fun HomeScreen(
 
             val trendingItems = uiState.trendingMovies.ifEmpty { uiState.trendingSeries }
 
-            // Only the Trending card grows on mobile — Continue Watching/
-            // Downloads and the TV layout are untouched. On TV the row's
-            // height is already comfortable for a d-pad-navigated grid; on
-            // a phone screen the extra height gives the backdrop art,
-            // title, and description room to breathe without the eyebrow/
-            // rating/description block feeling cramped against the bottom.
             val trendingCardHeightFraction = if (isTv) 0.85f else 0.97f
 
             Row(
@@ -181,7 +167,7 @@ fun HomeScreen(
                     HomeHeroCard(
                         title = "Continue watching",
                         description = continueDesc,
-                        icon = Icons.Default.History,
+                        backgroundUrl = lastWatched?.backdropUrl ?: lastWatched?.posterUrl,
                         accentColor = Color(0xFFFF4500),
                         onClick = onNavigateToContinueWatching,
                         modifier = Modifier
@@ -194,14 +180,16 @@ fun HomeScreen(
                     HomeHeroCard(
                         title = "Downloads",
                         description = "Watch your offline content",
-                        icon = Icons.Default.Download,
+                        backgroundUrl = uiState.latestDownloadPoster,
                         accentColor = Color(0xFF00BFFF),
                         onClick = onNavigateToDownloads,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxWidth()
+                            .alpha(if (uiState.downloadsCount == 0) 0.7f else 1f)
                             .focusRequester(downloadsFocusRequester)
-                            .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.DOWNLOADS }
+                            .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.DOWNLOADS },
+                        badgeLabel = if (uiState.completedDownloadsCount > 0) "${uiState.completedDownloadsCount} READY" else null
                     )
                 }
             }
@@ -326,12 +314,6 @@ private fun HomeRoundIconButton(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// Static hero card — Continue Watching / Downloads. "Cinematic depth":
-// shared dark gradient base, accent-colored corner glow, icon watermark,
-// optional status badge. Rounded corners, no angled cut, no diagonal line
-// texture — that was the old "blade" era and is gone now.
-// ─────────────────────────────────────────────────────────────────────────
 @Composable
 fun HomeHeroCard(
     title: String,
@@ -339,7 +321,7 @@ fun HomeHeroCard(
     accentColor: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    icon: ImageVector? = null,
+    backgroundUrl: String? = null,
     progress: Float? = null,
     badgeLabel: String? = null
 ) {
@@ -365,7 +347,7 @@ fun HomeHeroCard(
                 focusedBorder = Border.None
             )
         ) {
-            HomeHeroCardContent(title, description, icon, accentColor, isFocused, progress, badgeLabel, shape)
+            HomeHeroCardContent(title, description, backgroundUrl, accentColor, isFocused, progress, badgeLabel, shape)
         }
     } else {
         val interactionSource = remember { MutableInteractionSource() }
@@ -377,7 +359,7 @@ fun HomeHeroCard(
             color = Color.Transparent,
             shape = shape
         ) {
-            HomeHeroCardContent(title, description, icon, accentColor, isPressed, progress, badgeLabel, shape)
+            HomeHeroCardContent(title, description, backgroundUrl, accentColor, isPressed, progress, badgeLabel, shape)
         }
     }
 }
@@ -386,7 +368,7 @@ fun HomeHeroCard(
 private fun HomeHeroCardContent(
     title: String,
     description: String,
-    icon: ImageVector?,
+    backgroundUrl: String?,
     accentColor: Color,
     isActive: Boolean,
     progress: Float?,
@@ -404,8 +386,16 @@ private fun HomeHeroCardContent(
                 shape = shape
             )
     ) {
-        // Per-card identity: a soft corner glow in the card's own accent
-        // color, sitting on the shared base gradient every card uses.
+        if (backgroundUrl != null) {
+            AsyncImage(
+                model = backgroundUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+                alpha = if (isActive) 0.8f else 0.5f
+            )
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -437,10 +427,6 @@ private fun HomeHeroCardContent(
             }
         }
 
-        // Compact text block designed for the small card, not a shrunk-down
-        // version of the old large-card layout: tighter line spacing, both
-        // lines capped to one line each so long titles/descriptions never
-        // push the progress bar out of the card.
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -448,7 +434,7 @@ private fun HomeHeroCardContent(
             verticalArrangement = Arrangement.Bottom
         ) {
             Text(
-                text = title,
+                text = title.uppercase(),
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
@@ -490,12 +476,6 @@ private fun HomeHeroCardContent(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// Dynamic Trending card — owns its own rotation state (advances through
-// `items` every TrendingRotationInterval), crossfading backdrop art,
-// title, and rating between items. Same rounded "cinematic depth" shape
-// and corner-glow treatment as the static cards, so it reads as one set.
-// ─────────────────────────────────────────────────────────────────────────
 @Composable
 fun TrendingHeroCard(
     items: List<TrendingItem<*>>,
@@ -583,7 +563,6 @@ private fun TrendingHeroCardContent(
                     )
                 }
 
-                // Vertical scrim so text stays legible over any backdrop.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -673,7 +652,7 @@ private fun TrendingHeroCardContent(
                     }
 
                     if (!crossfadeItem?.overview.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(6.6.dp))
                         Text(
                             text = crossfadeItem!!.overview,
                             color = Color.White.copy(alpha = 0.75f),

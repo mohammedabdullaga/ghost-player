@@ -7,6 +7,8 @@ import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.remote.TmdbApiService
 import com.eliteprime.app.data.repository.PreferenceRepository
+import com.eliteprime.app.domain.model.DownloadStatus
+import com.eliteprime.app.domain.repository.DownloadManager
 import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
@@ -23,6 +25,7 @@ import javax.inject.Inject
 class DashboardViewModel @Inject constructor(
     private val boxStore: BoxStore,
     private val playbackHistoryRepository: PlaybackHistoryRepository,
+    private val downloadManager: DownloadManager,
     private val tmdbApiService: TmdbApiService,
     private val configRepository: ConfigRepository,
     private val preferenceRepository: PreferenceRepository
@@ -52,9 +55,12 @@ class DashboardViewModel @Inject constructor(
                 accountBox.query().equal(XtreamAccount_.isActive, true).build().flow(),
                 playbackHistoryRepository.getRecentlyWatched(50).map { history ->
                     history.filter { it.type != "live" }
-                }
-            ) { accounts, history ->
+                },
+                downloadManager.observeAllDownloads()
+            ) { accounts, history, downloads ->
                 val activeAccount = accounts.firstOrNull()
+                val latestDownload = downloads.filter { it.status == DownloadStatus.COMPLETED }
+                    .maxByOrNull { it.completedAt ?: 0L }
                 
                 _uiState.update { current ->
                     current.copy(
@@ -62,6 +68,9 @@ class DashboardViewModel @Inject constructor(
                         liveCount = liveBox.count().toInt(),
                         movieCount = movieBox.count().toInt(),
                         seriesCount = seriesBox.count().toInt(),
+                        downloadsCount = downloads.size,
+                        completedDownloadsCount = downloads.count { it.status == DownloadStatus.COMPLETED },
+                        latestDownloadPoster = latestDownload?.posterUrl,
                         providerHealth = DashboardProviderHealth(
                             expirationDate = activeAccount?.expiryDate,
                             status = activeAccount?.status ?: "",
