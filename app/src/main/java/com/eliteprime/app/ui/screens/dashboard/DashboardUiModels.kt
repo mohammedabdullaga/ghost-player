@@ -25,6 +25,7 @@ data class TrendingItem<T>(
     val releaseDate: String?,
     val voteAverage: Double,
     val genreIds: List<Int> = emptyList(),
+    val genres: List<String> = emptyList(),
     val localMatch: T? = null // Matched Movie or Series entity
 )
 

@@ -27,7 +27,28 @@ interface TmdbApiService {
         @Query("api_key") apiKey: String,
         @Query("language") language: String? = null
     ): TmdbTrendingResponse
+
+    @GET("genre/movie/list")
+    suspend fun getMovieGenres(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String? = null
+    ): TmdbGenreResponse
+
+    @GET("genre/tv/list")
+    suspend fun getTvGenres(
+        @Query("api_key") apiKey: String,
+        @Query("language") language: String? = null
+    ): TmdbGenreResponse
 }
+
+data class TmdbGenreResponse(
+    val genres: List<TmdbGenre>
+)
+
+data class TmdbGenre(
+    val id: Int,
+    val name: String
+)
 
 data class TmdbSearchResponse(
     val results: List<TmdbSearchResult>
@@ -41,6 +62,8 @@ data class TmdbTrendingResult(
     val id: Int,
     val title: String? = null,
     val name: String? = null,
+    val original_title: String? = null,
+    val original_name: String? = null,
     val overview: String? = null,
     val backdrop_path: String?,
     val poster_path: String?,

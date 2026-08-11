@@ -48,6 +48,9 @@ import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.EyebrowStyle
+import androidx.tv.material3.Surface as TvSurface
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Border
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
 import com.eliteprime.app.ui.screens.dashboard.TrendingItem
 import com.eliteprime.app.ui.theme.AppColors
@@ -162,22 +165,50 @@ fun TrendingScreen(
 
 @Composable
 private fun TrendingTabButton(label: String, isSelected: Boolean, onClick: () -> Unit) {
-    val alpha by animateFloatAsState(if (isSelected) 1f else 0.5f, label = "tabAlpha")
-
-    Surface(
-        onClick = onClick,
-        color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.Transparent,
-        shape = RoundedCornerShape(12.dp),
-        border = if (isSelected) BorderStroke(1.dp, AppColors.ArenaOrange) else null
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
-            color = Color.White.copy(alpha = alpha),
-            fontWeight = FontWeight.Black,
-            fontSize = 13.sp,
-            letterSpacing = 1.sp
-        )
+    val isTv = LocalContext.current.isTelevisionDevice()
+    var isFocused by remember { mutableStateOf(false) }
+    
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.Transparent,
+                focusedContainerColor = Color.White
+            ),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+            border = ClickableSurfaceDefaults.border(
+                border = if (isSelected && !isFocused) Border(BorderStroke(1.dp, AppColors.ArenaOrange)) else Border.None,
+                focusedBorder = Border(BorderStroke(3.dp, Color.White))
+            )
+        ) {
+            Text(
+                text = label,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                color = if (isFocused) Color.Black else if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
+                fontWeight = FontWeight.Black,
+                fontSize = 14.sp,
+                letterSpacing = 1.2.sp
+            )
+        }
+    } else {
+        val alpha by animateFloatAsState(if (isSelected) 1f else 0.5f, label = "tabAlpha")
+        Surface(
+            onClick = onClick,
+            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.Transparent,
+            shape = RoundedCornerShape(12.dp),
+            border = if (isSelected) BorderStroke(1.dp, AppColors.ArenaOrange) else null
+        ) {
+            Text(
+                text = label,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                color = Color.White.copy(alpha = alpha),
+                fontWeight = FontWeight.Black,
+                fontSize = 13.sp,
+                letterSpacing = 1.sp
+            )
+        }
     }
 }
 
@@ -353,11 +384,14 @@ private fun TrendingCard(
                         fontSize = 13.sp
                     )
 
-                    val genreText = when (val match = item.localMatch) {
-                        is Movie -> match.genre ?: ""
-                        is Series -> match.genre ?: ""
-                        else -> ""
-                    }.takeIf { it.isNotBlank() } ?: "Recommended"
+                    // Genre (from TMDB list, fallback to local if matched, else placeholder)
+                    val genreText = item.genres.firstOrNull() 
+                        ?: when (val match = item.localMatch) {
+                            is Movie -> match.genre ?: ""
+                            is Series -> match.genre ?: ""
+                            else -> ""
+                        }.takeIf { it.isNotBlank() } 
+                        ?: "Recommended"
 
                     Surface(
                         color = AppColors.ArenaOrange.copy(alpha = 0.16f),

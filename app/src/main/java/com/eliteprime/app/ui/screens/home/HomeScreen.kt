@@ -60,7 +60,7 @@ private object HomeRadius {
     val md = 14.dp
 }
 
-private enum class HomeFocusIndex { CONTINUE, TRENDING, SERIES }
+private enum class HomeFocusIndex { CONTINUE, TRENDING, DOWNLOADS }
 
 @Composable
 fun HomeScreen(
@@ -83,7 +83,7 @@ fun HomeScreen(
     val isTv = context.isTelevisionDevice()
     val continueFocusRequester = remember { FocusRequester() }
     val trendingFocusRequester = remember { FocusRequester() }
-    val seriesFocusRequester = remember { FocusRequester() }
+    val downloadsFocusRequester = remember { FocusRequester() }
     
     var lastFocusedIndex by rememberSaveable { mutableStateOf(HomeFocusIndex.CONTINUE) }
 
@@ -94,7 +94,7 @@ fun HomeScreen(
             when (lastFocusedIndex) {
                 HomeFocusIndex.CONTINUE -> continueFocusRequester.requestFocus()
                 HomeFocusIndex.TRENDING -> trendingFocusRequester.requestFocus()
-                HomeFocusIndex.SERIES -> seriesFocusRequester.requestFocus()
+                HomeFocusIndex.DOWNLOADS -> downloadsFocusRequester.requestFocus()
             }
         }
     }
@@ -163,16 +163,16 @@ fun HomeScreen(
                         .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.TRENDING }
                 )
                 HomeHeroCard(
-                    title = stringResource(R.string.nav_series).uppercase(),
-                    description = stringResource(R.string.dashboard_series_desc),
-                    icon = Icons.Default.Tv,
+                    title = "DOWNLOADS LIBRARY",
+                    description = "Watch your offline content anytime",
+                    icon = Icons.Default.FileDownload,
                     accentColor = Color(0xFF00BFFF),
-                    onClick = onNavigateToSeries,
+                    onClick = onNavigateToDownloads,
                     modifier = Modifier
                         .weight(1f)
                         .aspectRatio(1.5f)
-                        .focusRequester(seriesFocusRequester)
-                        .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.SERIES }
+                        .focusRequester(downloadsFocusRequester)
+                        .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.DOWNLOADS }
                 )
             }
         }
@@ -224,7 +224,6 @@ private fun HomeTopNavBar(
             NavTabButton(label = stringResource(R.string.nav_series), isActive = false, onClick = onNavigateToSeries)
 
             HomeRoundIconButton(icon = Icons.Default.Search, contentDescription = stringResource(R.string.nav_search), onClick = onNavigateToSearch)
-            HomeRoundIconButton(icon = Icons.Default.FileDownload, contentDescription = "Downloads", onClick = onNavigateToDownloads)
             HomeRoundIconButton(icon = Icons.Default.Settings, contentDescription = stringResource(R.string.nav_settings), onClick = onNavigateToSettings)
 
             Spacer(modifier = Modifier.weight(1f))

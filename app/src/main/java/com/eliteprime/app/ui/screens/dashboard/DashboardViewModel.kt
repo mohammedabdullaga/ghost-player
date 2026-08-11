@@ -96,23 +96,31 @@ class DashboardViewModel @Inject constructor(
             
             Log.d("DashboardVM", "Fetching trending with API Key: ${apiKey.take(4)}...")
 
-            val lang = preferenceRepository.language.value
+            // Default to Arabic for content descriptions as requested, 
+            // regardless of app language setting.
+            val lang = "ar"
 
             try {
+                // 0. Fetch Genre Mappings
+                val movieGenres = runCatching { tmdbApiService.getMovieGenres(apiKey, lang).genres }.getOrDefault(emptyList()).associate { it.id to it.name }
+                val tvGenres = runCatching { tmdbApiService.getTvGenres(apiKey, lang).genres }.getOrDefault(emptyList()).associate { it.id to it.name }
+
                 // 1. Fetch Trending Movies
                 val movieResp = tmdbApiService.getTrendingMovies(apiKey, lang)
                 val trendingMovies = movieResp.results.map { result ->
-                    val title = result.title ?: ""
-                    val cleanedTitle = title.trim().lowercase()
+                    val displayTitle = result.title ?: ""
+                    val originalTitle = result.original_title ?: ""
                     
+                    // Match strategy:
+                    // Try to match against the Arabic title OR the Original (Universal) title
                     var matched = movieBox.query()
-                        .equal(Movie_.name, title, StringOrder.CASE_INSENSITIVE)
+                        .equal(Movie_.name, displayTitle, StringOrder.CASE_INSENSITIVE)
                         .build()
                         .findFirst()
                     
-                    if (matched == null && cleanedTitle.isNotEmpty()) {
+                    if (matched == null && originalTitle.isNotBlank()) {
                         matched = movieBox.query()
-                            .contains(Movie_.name, cleanedTitle, StringOrder.CASE_INSENSITIVE)
+                            .contains(Movie_.name, originalTitle.lowercase(), StringOrder.CASE_INSENSITIVE)
                             .build()
                             .findFirst()
                     }
@@ -127,15 +135,20 @@ class DashboardViewModel @Inject constructor(
                         }
                     }
 
+                    val overview = result.overview?.takeIf { it.isNotBlank() } 
+                        ?: matched?.plot?.takeIf { it.isNotBlank() } 
+                        ?: ""
+
                     TrendingItem(
                         tmdbId = result.id,
-                        title = title,
-                        overview = result.overview ?: "",
+                        title = displayTitle,
+                        overview = overview,
                         posterUrl = result.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" },
                         backdropUrl = result.backdrop_path?.let { "https://image.tmdb.org/t/p/w1280$it" },
                         releaseDate = result.release_date,
                         voteAverage = result.vote_average,
                         genreIds = result.genre_ids,
+                        genres = result.genre_ids.mapNotNull { movieGenres[it] },
                         localMatch = matched
                     )
                 }.distinctBy { it.tmdbId }.take(20)
@@ -143,17 +156,17 @@ class DashboardViewModel @Inject constructor(
                 // 2. Fetch Trending Series
                 val seriesResp = tmdbApiService.getTrendingTv(apiKey, lang)
                 val trendingSeries = seriesResp.results.map { result ->
-                    val name = result.name ?: ""
-                    val cleanedName = name.trim().lowercase()
+                    val displayName = result.name ?: ""
+                    val originalName = result.original_name ?: ""
 
                     var matched = seriesBox.query()
-                        .equal(Series_.name, name, StringOrder.CASE_INSENSITIVE)
+                        .equal(Series_.name, displayName, StringOrder.CASE_INSENSITIVE)
                         .build()
                         .findFirst()
 
-                    if (matched == null && cleanedName.isNotEmpty()) {
+                    if (matched == null && originalName.isNotBlank()) {
                         matched = seriesBox.query()
-                            .contains(Series_.name, cleanedName, StringOrder.CASE_INSENSITIVE)
+                            .contains(Series_.name, originalName.lowercase(), StringOrder.CASE_INSENSITIVE)
                             .build()
                             .findFirst()
                     }
@@ -168,15 +181,20 @@ class DashboardViewModel @Inject constructor(
                         }
                     }
 
+                    val overview = result.overview?.takeIf { it.isNotBlank() }
+                        ?: matched?.plot?.takeIf { it.isNotBlank() }
+                        ?: ""
+
                     TrendingItem(
                         tmdbId = result.id,
-                        title = name,
-                        overview = result.overview ?: "",
+                        title = displayName,
+                        overview = overview,
                         posterUrl = result.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" },
                         backdropUrl = result.backdrop_path?.let { "https://image.tmdb.org/t/p/w1280$it" },
                         releaseDate = result.first_air_date,
                         voteAverage = result.vote_average,
                         genreIds = result.genre_ids,
+                        genres = result.genre_ids.mapNotNull { tvGenres[it] },
                         localMatch = matched
                     )
                 }.distinctBy { it.tmdbId }.take(20)
