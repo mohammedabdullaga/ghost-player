@@ -31,6 +31,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,6 +50,24 @@ import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
 import java.text.SimpleDateFormat
 import java.util.*
+
+// ─────────────────────────────────────────────────────────────────────────
+// Design tokens — reined back in from Gemini's oversized values. File-scoped
+// so they can't collide with anything else in the module.
+// ─────────────────────────────────────────────────────────────────────────
+private object STSpacing {
+    val xs = 8.dp
+    val sm = 12.dp
+    val md = 16.dp
+    val lg = 18.dp
+}
+
+private object STRadius {
+    val sm = 10.dp
+    val md = 14.dp
+    val lg = 18.dp
+    val xl = 20.dp
+}
 
 private enum class SettingCategory(val labelRes: Int, val icon: ImageVector) {
     ACCOUNT(R.string.settings_account, Icons.Default.Person),
@@ -67,29 +87,41 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var selectedCategory by remember { mutableStateOf(SettingCategory.ACCOUNT) }
     val isTv = LocalContext.current.isTelevisionDevice()
-    
+
     var showEditDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     AppBackground {
-        Scaffold(
-            containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
-                TopAppBar(
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Black.copy(alpha = 0.2f),
-                        titleContentColor = Color.White
-                    ),
-                    title = { ArenaLiveLogo(textSize = 22.sp) },
-                    navigationIcon = {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(STSpacing.md),
+            horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
+        ) {
+            // --- SIDEBAR (Includes Logo & Back) ---
+            Surface(
+                modifier = Modifier.weight(0.26f).fillMaxHeight(),
+                color = Color.Black.copy(alpha = 0.65f),
+                shape = RoundedCornerShape(STRadius.xl),
+                border = BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.18f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(STSpacing.md),
+                    verticalArrangement = Arrangement.spacedBy(STSpacing.xs)
+                ) {
+                    // Header area in Sidebar
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = STSpacing.xs),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(STSpacing.sm)
+                    ) {
                         if (isTv) {
                             TvSurface(
                                 onClick = onBack,
-                                modifier = Modifier.padding(8.dp).size(36.dp),
-                                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+                                modifier = Modifier.size(40.dp),
+                                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
                                 colors = ClickableSurfaceDefaults.colors(
-                                    containerColor = Color.Black.copy(alpha = 0.45f),
+                                    containerColor = Color.White.copy(alpha = 0.05f),
                                     focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
                                 ),
                                 shape = ClickableSurfaceDefaults.shape(CircleShape),
@@ -102,129 +134,111 @@ fun SettingsScreen(
                                 }
                             }
                         } else {
-                            IconButton(onClick = onBack) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                            IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(20.dp))
                             }
                         }
+                        ArenaLiveLogo(textSize = 18.sp)
                     }
-                )
-            }
-        ) { paddingValues ->
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(20.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                // --- SIDEBAR ---
-                Surface(
-                    modifier = Modifier.weight(0.32f).fillMaxHeight(),
-                    color = Color.Black.copy(alpha = 0.65f),
-                    shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.18f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        SettingCategory.entries.forEach { category ->
-                            SidebarItem(
-                                label = stringResource(category.labelRes),
-                                icon = category.icon,
-                                isSelected = selectedCategory == category,
-                                isTv = isTv,
-                                onClick = { selectedCategory = category }
-                            )
-                        }
+
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.08f)))
+
+                    SettingCategory.entries.forEach { category ->
+                        SidebarItem(
+                            label = stringResource(category.labelRes),
+                            icon = category.icon,
+                            isSelected = selectedCategory == category,
+                            isTv = isTv,
+                            onClick = { selectedCategory = category }
+                        )
                     }
                 }
+            }
 
-                // --- CONTENT ---
-                Surface(
-                    modifier = Modifier.weight(0.68f).fillMaxHeight(),
-                    color = Color.Black.copy(alpha = 0.65f),
-                    shape = RoundedCornerShape(24.dp),
-                    border = BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.18f))
-                ) {
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(20.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Icon(selectedCategory.icon, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
-                                Text(
-                                    text = stringResource(selectedCategory.labelRes).uppercase(),
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 13.sp,
-                                    letterSpacing = 1.sp
-                                )
-                            }
-                            
-                            if (selectedCategory == SettingCategory.ACCOUNT && uiState.isSyncing) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = AppColors.ArenaOrange, strokeWidth = 2.dp)
-                            }
+            // --- CONTENT (Starts from Top Edge) ---
+            Surface(
+                modifier = Modifier.weight(0.74f).fillMaxHeight(),
+                color = Color.Black.copy(alpha = 0.65f),
+                shape = RoundedCornerShape(STRadius.xl),
+                border = BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.18f))
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(STSpacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                            Icon(selectedCategory.icon, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
+                            Text(
+                                text = stringResource(selectedCategory.labelRes).uppercase(),
+                                color = Color.White,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 13.sp,
+                                letterSpacing = 1.sp
+                            )
                         }
-                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.08f)))
 
-                        when (selectedCategory) {
-                            SettingCategory.ACCOUNT -> {
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(24.dp),
-                                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                                ) {
-                                    item {
-                                        uiState.account?.let { account ->
-                                            AccountSettingsCard(
-                                                account = account,
-                                                liveCount = uiState.liveCount.toInt(),
-                                                movieCount = uiState.movieCount.toInt(),
-                                                seriesCount = uiState.seriesCount.toInt(),
-                                                epgCount = uiState.epgCount.toInt(),
-                                                isSyncing = uiState.isSyncing,
-                                                onRefresh = { viewModel.syncAll() },
-                                                onEdit = { showEditDialog = true },
-                                                isTv = isTv
-                                            )
-                                        }
-                                    }
-                                    
-                                    item {
-                                        LogoutButton(
-                                            isTv = isTv,
-                                            onLogout = { showLogoutDialog = true }
+                        if (selectedCategory == SettingCategory.ACCOUNT && uiState.isSyncing) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = AppColors.ArenaOrange, strokeWidth = 2.dp)
+                        }
+                    }
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.08f)))
+
+                    when (selectedCategory) {
+                        SettingCategory.ACCOUNT -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(STSpacing.md),
+                                verticalArrangement = Arrangement.spacedBy(STSpacing.md)
+                            ) {
+                                item {
+                                    uiState.account?.let { account ->
+                                        AccountSettingsCard(
+                                            account = account,
+                                            liveCount = uiState.liveCount.toInt(),
+                                            movieCount = uiState.movieCount.toInt(),
+                                            seriesCount = uiState.seriesCount.toInt(),
+                                            epgCount = uiState.epgCount.toInt(),
+                                            isSyncing = uiState.isSyncing,
+                                            onRefresh = { viewModel.syncAll() },
+                                            onEdit = { showEditDialog = true },
+                                            isTv = isTv
                                         )
                                     }
                                 }
-                            }
-                            SettingCategory.GENERAL -> {
-                                GeneralSettingsContent(
-                                    currentLanguage = uiState.language,
-                                    onLanguageChange = { viewModel.setLanguage(it) },
-                                    storageConfig = uiState.storageConfig,
-                                    onFolderSelected = { viewModel.updateStorageConfig(it) },
-                                    isTv = isTv
-                                )
-                            }
-                            SettingCategory.NETWORK -> {
-                                NetworkSettingsContent(
-                                    isEnabled = uiState.isSecureConnectionEnabled,
-                                    onToggle = { viewModel.setSecureConnectionEnabled(it) },
-                                    isTestingSpeed = uiState.isSpeedTesting,
-                                    speedResult = uiState.speedTestResult,
-                                    speedError = uiState.speedTestError,
-                                    onRunSpeedTest = { viewModel.runSpeedTest() },
-                                    isTv = isTv
-                                )
-                            }
-                            else -> {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Text("Coming Soon", color = Color.White.copy(alpha = 0.4f))
+
+                                item {
+                                    LogoutButton(
+                                        isTv = isTv,
+                                        onLogout = { showLogoutDialog = true }
+                                    )
                                 }
+                            }
+                        }
+                        SettingCategory.GENERAL -> {
+                            GeneralSettingsContent(
+                                currentLanguage = uiState.language,
+                                onLanguageChange = { viewModel.setLanguage(it) },
+                                storageConfig = uiState.storageConfig,
+                                onFolderSelected = { viewModel.updateStorageConfig(it) },
+                                isTv = isTv
+                            )
+                        }
+                        SettingCategory.NETWORK -> {
+                            NetworkSettingsContent(
+                                isEnabled = uiState.isSecureConnectionEnabled,
+                                onToggle = { viewModel.setSecureConnectionEnabled(it) },
+                                isTestingSpeed = uiState.isSpeedTesting,
+                                speedResult = uiState.speedTestResult,
+                                speedError = uiState.speedTestError,
+                                onRunSpeedTest = { viewModel.runSpeedTest() },
+                                isTv = isTv
+                            )
+                        }
+                        else -> {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("Coming Soon", color = Color.White.copy(alpha = 0.4f))
                             }
                         }
                     }
@@ -232,7 +246,7 @@ fun SettingsScreen(
             }
         }
     }
-    
+
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
@@ -252,13 +266,13 @@ fun SettingsScreen(
                     Text(stringResource(android.R.string.cancel), color = Color.White.copy(alpha = 0.6f))
                 }
             },
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(STRadius.lg),
             containerColor = Color(0xFF1A1C1E),
             titleContentColor = Color.White,
             textContentColor = Color.White.copy(alpha = 0.7f)
         )
     }
-    
+
     if (showEditDialog && uiState.account != null) {
         EditAccountDialog(
             account = uiState.account!!,
@@ -283,55 +297,56 @@ private fun NetworkSettingsContent(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        contentPadding = PaddingValues(STSpacing.md),
+        verticalArrangement = Arrangement.spacedBy(STSpacing.md)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
                     text = "SECURE CONNECTION",
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
                 )
 
                 Surface(
                     onClick = { onToggle(!isEnabled) },
                     color = Color.White.copy(alpha = 0.05f),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(STRadius.lg),
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
                 ) {
                     Row(
-                        modifier = Modifier.padding(20.dp),
+                        modifier = Modifier.padding(STSpacing.md),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(44.dp)
                                 .background(if (isEnabled) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 if (isEnabled) Icons.Default.Shield else Icons.Default.ShieldMoon,
                                 null,
-                                tint = if (isEnabled) AppColors.ArenaOrange else Color.White.copy(alpha = 0.4f)
+                                tint = if (isEnabled) AppColors.ArenaOrange else Color.White.copy(alpha = 0.4f),
+                                modifier = Modifier.size(22.dp)
                             )
                         }
-                        
+
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = stringResource(R.string.settings_secure_connection),
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
+                                fontSize = 14.sp
                             )
                             Text(
                                 text = stringResource(R.string.settings_secure_connection_desc),
-                                color = Color.White.copy(alpha = 0.4f),
-                                fontSize = 12.sp,
-                                lineHeight = 18.sp
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp
                             )
                         }
 
@@ -351,47 +366,48 @@ private fun NetworkSettingsContent(
         }
 
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
                     text = "INTERNET SPEED TEST",
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
                 )
 
                 Surface(
                     color = Color.White.copy(alpha = 0.05f),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(STRadius.lg),
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
                 ) {
-                    Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(modifier = Modifier.padding(STSpacing.md), verticalArrangement = Arrangement.spacedBy(STSpacing.md)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text("Check your current network speed", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                                Text("Check your current network speed", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 if (speedResult != null) {
                                     Text(
                                         text = "${"%.2f".format(speedResult.megabitsPerSecond)} Mbps",
                                         color = AppColors.ArenaOrange,
                                         fontWeight = FontWeight.Black,
-                                        fontSize = 24.sp
+                                        fontSize = 20.sp
                                     )
                                 }
                             }
 
                             if (isTestingSpeed) {
-                                CircularProgressIndicator(color = AppColors.ArenaOrange, modifier = Modifier.size(24.dp))
+                                CircularProgressIndicator(color = AppColors.ArenaOrange, modifier = Modifier.size(28.dp))
                             } else {
                                 Button(
                                     onClick = onRunSpeedTest,
+                                    modifier = Modifier.height(40.dp).padding(horizontal = STSpacing.xs),
                                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
-                                    shape = RoundedCornerShape(10.dp)
+                                    shape = RoundedCornerShape(STRadius.sm)
                                 ) {
-                                    Text("RUN TEST", fontWeight = FontWeight.Black)
+                                    Text("RUN TEST", fontWeight = FontWeight.Black, fontSize = 13.sp)
                                 }
                             }
                         }
@@ -401,8 +417,8 @@ private fun NetworkSettingsContent(
                         }
 
                         if (speedResult != null) {
-                            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.08f)))
-                            
+                            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.1f)))
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -416,21 +432,21 @@ private fun NetworkSettingsContent(
                                         2160 -> "Perfect for 4K streaming"
                                         else -> "Maximum Performance"
                                     }
-                                    
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Icon(Icons.Default.Recommend, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(16.dp))
-                                        Text(text = recommendation, color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(STSpacing.xs)) {
+                                        Icon(Icons.Default.Recommend, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(15.dp))
+                                        Text(text = recommendation, color = Color.White.copy(alpha = 0.95f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 }
-                                
+
                                 Surface(
-                                    color = Color.White.copy(alpha = 0.08f),
-                                    shape = RoundedCornerShape(8.dp)
+                                    color = Color.White.copy(alpha = 0.1f),
+                                    shape = RoundedCornerShape(STRadius.sm)
                                 ) {
                                     Text(
                                         text = speedResult.transport.name,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                        color = Color.White.copy(alpha = 0.5f),
+                                        modifier = Modifier.padding(horizontal = STSpacing.sm, vertical = 5.dp),
+                                        color = Color.White.copy(alpha = 0.7f),
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Black
                                     )
@@ -458,21 +474,21 @@ private fun GeneralSettingsContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        contentPadding = PaddingValues(STSpacing.md),
+        verticalArrangement = Arrangement.spacedBy(STSpacing.lg)
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = stringResource(R.string.settings_language),
+                    text = stringResource(R.string.settings_language).uppercase(),
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
                 ) {
                     LanguageChip(
                         label = "English",
@@ -493,41 +509,46 @@ private fun GeneralSettingsContent(
         }
 
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
                     text = "DOWNLOAD FOLDER",
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
                 )
-                
+
                 Surface(
                     onClick = { folderLauncher.launch(null) },
                     color = Color.White.copy(alpha = 0.05f),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(STRadius.md),
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
                 ) {
                     Row(
-                        modifier = Modifier.padding(16.dp),
+                        modifier = Modifier.padding(STSpacing.md),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
                     ) {
-                        Icon(Icons.Default.Folder, null, tint = AppColors.ArenaOrange)
+                        Box(
+                            modifier = Modifier.size(40.dp).background(AppColors.ArenaOrange.copy(alpha = 0.1f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Folder, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(20.dp))
+                        }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = storageConfig.displayName ?: "Default (App Storage)",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
+                                fontSize = 13.sp
                             )
                             Text(
                                 text = "Select where to save downloaded content",
-                                color = Color.White.copy(alpha = 0.4f),
+                                color = Color.White.copy(alpha = 0.5f),
                                 fontSize = 11.sp
                             )
                         }
-                        Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.3f))
+                        Icon(Icons.Default.ChevronRight, null, tint = Color.White.copy(alpha = 0.3f), modifier = Modifier.size(20.dp))
                     }
                 }
             }
@@ -548,14 +569,14 @@ private fun LanguageChip(
         TvSurface(
             onClick = onClick,
             modifier = modifier
-                .height(56.dp)
+                .height(48.dp)
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.05f),
                 focusedContainerColor = AppColors.FocusBrown
             ),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.sm)),
             border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -563,16 +584,16 @@ private fun LanguageChip(
                     text = label,
                     color = Color.White,
                     fontWeight = if (isActive || isFocused) FontWeight.Black else FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = 14.sp
                 )
             }
         }
     } else {
         Surface(
             onClick = onClick,
-            modifier = modifier.height(56.dp),
+            modifier = modifier.height(44.dp),
             color = if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.1f),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(STRadius.sm),
             border = BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.1f))
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -580,7 +601,7 @@ private fun LanguageChip(
                     text = label,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = 14.sp
                 )
             }
         }
@@ -607,7 +628,7 @@ private fun SidebarItem(
                 containerColor = if (isSelected) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Transparent,
                 focusedContainerColor = AppColors.FocusBrown
             ),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.md)),
             border = ClickableSurfaceDefaults.border(
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
@@ -618,7 +639,7 @@ private fun SidebarItem(
         Surface(
             onClick = onClick,
             color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.12f) else Color.Transparent,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(STRadius.md)
         ) {
             SidebarItemContent(label, icon, isSelected)
         }
@@ -630,9 +651,9 @@ private fun SidebarItemContent(label: String, icon: ImageVector, isActive: Boole
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = STSpacing.sm, vertical = STSpacing.xs),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(STSpacing.sm)
     ) {
         Box(
             modifier = Modifier
@@ -676,26 +697,27 @@ private fun AccountSettingsCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(STRadius.xl))
             .background(cardBackground)
-            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(24.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(STRadius.xl))
     ) {
-        // Glowing corner accent
+        // Glowing corner accent — scaled down from Gemini's 300dp/120dp
+        // offset, which pushed a huge chunk of orange glow into the card.
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .size(240.dp)
-                .offset(x = 100.dp, y = (-100).dp)
+                .size(220.dp)
+                .offset(x = 90.dp, y = (-90).dp)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(AppColors.ArenaOrange.copy(alpha = 0.15f), Color.Transparent)
+                        colors = listOf(AppColors.ArenaOrange.copy(alpha = 0.16f), Color.Transparent)
                     )
                 )
         )
 
         Column(
-            modifier = Modifier.padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            modifier = Modifier.padding(STSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(STSpacing.lg)
         ) {
             // 1. Header
             Row(
@@ -703,49 +725,49 @@ private fun AccountSettingsCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(STSpacing.xs)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                         Text(
                             text = account.name.ifBlank { "ArenaLive" },
                             color = Color.White,
-                            fontSize = 20.sp,
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Black
                         )
                         Text(
                             text = "(${account.username})",
                             color = Color.White.copy(alpha = 0.5f),
-                            fontSize = 16.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
-                    
+
                     val expirationDate = account.expiryDate?.let {
                         SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(it))
                     } ?: "Unknown"
-                    
+
                     Surface(
-                        color = Color.White.copy(alpha = 0.05f),
-                        shape = RoundedCornerShape(8.dp),
+                        color = Color.White.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(STRadius.sm),
                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = STSpacing.sm, vertical = STSpacing.xs),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(STSpacing.xs)
                         ) {
-                            Icon(Icons.Default.Event, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(14.dp))
-                            Text("EXPIRES ON: $expirationDate", color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.Event, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(15.dp))
+                            Text("EXPIRES ON: $expirationDate", color = Color.White.copy(alpha = 0.9f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
-                
-                StatusPill(label = "ACTIVE", containerColor = AppColors.ArenaOrange)
+
+                StatusPill(label = "ACTIVE", containerColor = AppColors.ArenaOrange, horizontalPadding = 10.dp, verticalPadding = 4.dp)
             }
 
             // 2. Metrics
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(STSpacing.sm)
             ) {
                 SubscriptionMetricCard(
                     title = "Live TV",
@@ -784,27 +806,27 @@ private fun AccountSettingsCard(
             // 3. Actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(STSpacing.sm)
             ) {
                 SettingsActionButton(
                     label = if (isSyncing) stringResource(R.string.player_buffering) else stringResource(R.string.settings_refresh_data),
                     onClick = onRefresh,
                     isPrimary = true,
                     isTv = isTv,
-                    modifier = Modifier.weight(1.5f)
+                    modifier = Modifier.weight(1.5f).height(44.dp)
                 )
                 SettingsActionButton(
                     label = stringResource(R.string.settings_edit_account),
                     onClick = onEdit,
                     isTv = isTv,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).height(44.dp)
                 )
-                
+
                 SettingsActionButton(
                     label = "CLEAR CACHE",
                     onClick = { /* TODO: ViewModel clear cache */ },
                     isTv = isTv,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f).height(44.dp)
                 )
             }
         }
@@ -821,15 +843,16 @@ private fun SubscriptionMetricCard(
     modifier: Modifier = Modifier
 ) {
     if (isTv) {
+        var isFocused by remember { mutableStateOf(false) }
         TvSurface(
-            onClick = {}, 
-            modifier = modifier,
+            onClick = {},
+            modifier = modifier.onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = Color.White.copy(alpha = 0.04f),
                 focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
             ),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.md)),
             border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
         ) {
             SubscriptionMetricCardContent(title, count, icon, accentColor)
@@ -837,7 +860,7 @@ private fun SubscriptionMetricCard(
     } else {
         Surface(
             modifier = modifier,
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(STRadius.md),
             color = Color.White.copy(alpha = 0.04f),
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.06f))
         ) {
@@ -854,15 +877,15 @@ private fun SubscriptionMetricCardContent(
     accentColor: Color
 ) {
     Column(
-        modifier = Modifier.padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        modifier = Modifier.padding(STSpacing.sm),
+        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = accentColor.copy(alpha = 0.8f), modifier = Modifier.size(18.dp))
+        Icon(imageVector = icon, contentDescription = null, tint = accentColor.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
         Column {
             Text(
                 text = String.format(Locale.getDefault(), "%,d", count),
                 color = Color.White,
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
@@ -888,36 +911,34 @@ private fun SettingsActionButton(
         var isFocused by remember { mutableStateOf(false) }
         TvSurface(
             onClick = onClick,
-            modifier = modifier
-                .height(42.dp)
-                .onFocusChanged { isFocused = it.isFocused },
+            modifier = modifier.onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = if (isPrimary) AppColors.ArenaOrange else Color.White.copy(alpha = 0.08f),
                 focusedContainerColor = if (isPrimary) Color.White else AppColors.FocusBrown.copy(alpha = 0.8f)
             ),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.sm)),
             border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = label.uppercase(), 
-                    color = if (isPrimary && isFocused) AppColors.ArenaOrange else Color.White, 
-                    fontWeight = FontWeight.Black, 
-                    fontSize = 12.sp
+                    text = label.uppercase(),
+                    color = if (isPrimary && isFocused) AppColors.ArenaOrange else Color.White,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 11.sp
                 )
             }
         }
     } else {
         Button(
             onClick = onClick,
-            modifier = modifier.height(42.dp),
+            modifier = modifier,
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (isPrimary) AppColors.ArenaOrange else Color.White.copy(alpha = 0.1f)
             ),
-            shape = RoundedCornerShape(10.dp)
+            shape = RoundedCornerShape(STRadius.sm)
         ) {
-            Text(text = label, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(text = label, fontWeight = FontWeight.Bold, fontSize = 12.sp)
         }
     }
 }
@@ -931,14 +952,14 @@ private fun LogoutButton(isTv: Boolean, onLogout: () -> Unit) {
             onClick = onLogout,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
+                .height(52.dp)
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = logoutColor.copy(alpha = 0.08f),
                 focusedContainerColor = logoutColor
             ),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.md)),
             border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
         ) {
             LogoutButtonContent(if (isFocused) Color.White else logoutColor, isFocused)
@@ -948,7 +969,7 @@ private fun LogoutButton(isTv: Boolean, onLogout: () -> Unit) {
             onClick = onLogout,
             modifier = Modifier.fillMaxWidth(),
             color = logoutColor.copy(alpha = 0.1f),
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(STRadius.md),
             border = BorderStroke(1.dp, logoutColor.copy(alpha = 0.25f))
         ) {
             LogoutButtonContent(logoutColor, false)
@@ -959,16 +980,16 @@ private fun LogoutButton(isTv: Boolean, onLogout: () -> Unit) {
 @Composable
 private fun LogoutButtonContent(color: Color, isFocused: Boolean) {
     Row(
-        modifier = Modifier.padding(16.dp),
+        modifier = Modifier.padding(STSpacing.md),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
     ) {
-        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
         Column {
-            Text(stringResource(R.string.nav_logout), color = color, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(stringResource(R.string.nav_logout), color = color, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Text(
-                text = stringResource(R.string.nav_logout_subtitle), 
-                color = if (isFocused) Color.White.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.6f), 
+                text = stringResource(R.string.nav_logout_subtitle),
+                color = if (isFocused) Color.White.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.6f),
                 fontSize = 11.sp
             )
         }
@@ -981,40 +1002,90 @@ private fun EditAccountDialog(
     onDismiss: () -> Unit,
     onSave: (XtreamAccount) -> Unit
 ) {
-    var name by remember { mutableStateOf(account.name) }
-    var serverUrl by remember { mutableStateOf(account.serverUrl) }
     var username by remember { mutableStateOf(account.username) }
     var password by remember { mutableStateOf(account.password) }
+    var passwordVisible by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_edit_account), fontWeight = FontWeight.Bold) },
+        title = { 
+            Text(
+                text = stringResource(R.string.settings_edit_account), 
+                fontWeight = FontWeight.Black,
+                fontSize = 18.sp,
+                color = AppColors.ArenaOrange
+            ) 
+        },
         text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = serverUrl, onValueChange = { serverUrl = it }, label = { Text("Server URL") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = username, onValueChange = { username = it }, label = { Text("Username") }, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Password") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(
+                    value = username, 
+                    onValueChange = { username = it }, 
+                    label = { Text("Username") }, 
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = AppColors.ArenaOrange,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                        focusedContainerColor = Color.White.copy(alpha = 0.05f),
+                        unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                        cursorColor = AppColors.ArenaOrange
+                    )
+                )
+                
+                OutlinedTextField(
+                    value = password, 
+                    onValueChange = { password = it }, 
+                    label = { Text("Password") }, 
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.35f)
+                            )
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = AppColors.ArenaOrange,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                        focusedContainerColor = Color.White.copy(alpha = 0.05f),
+                        unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
+                        cursorColor = AppColors.ArenaOrange
+                    )
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                onSave(account.copy(name = name, serverUrl = serverUrl, username = username, password = password))
-            }) {
-                Text(stringResource(android.R.string.ok), color = AppColors.ArenaOrange, fontWeight = FontWeight.Bold)
+            Button(
+                onClick = { onSave(account.copy(username = username, password = password)) },
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("SAVE CHANGES", fontWeight = FontWeight.Black)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(android.R.string.cancel), color = Color.White.copy(alpha = 0.6f))
+                Text(stringResource(android.R.string.cancel), color = Color.White.copy(alpha = 0.6f), fontWeight = FontWeight.Bold)
             }
         },
-        containerColor = Color(0xFF1A1C1E),
+        shape = RoundedCornerShape(STRadius.xl),
+        containerColor = Color(0xFF14171C),
         titleContentColor = Color.White,
         textContentColor = Color.White
     )
