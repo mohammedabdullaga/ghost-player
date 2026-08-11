@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.remote.TmdbApiService
+import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
@@ -23,7 +24,8 @@ class DashboardViewModel @Inject constructor(
     private val boxStore: BoxStore,
     private val playbackHistoryRepository: PlaybackHistoryRepository,
     private val tmdbApiService: TmdbApiService,
-    private val configRepository: ConfigRepository
+    private val configRepository: ConfigRepository,
+    private val preferenceRepository: PreferenceRepository
 ) : ViewModel() {
 
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
@@ -36,7 +38,11 @@ class DashboardViewModel @Inject constructor(
 
     init {
         observeData()
-        fetchTrending()
+        
+        // Fetch trending data initially and whenever language changes
+        preferenceRepository.language
+            .onEach { fetchTrending() }
+            .launchIn(viewModelScope)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -72,6 +78,8 @@ class DashboardViewModel @Inject constructor(
 
     private fun fetchTrending() {
         viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(isTrendingLoading = true) }
+            
             // Wait for config if not loaded yet
             var apiKey = configRepository.getTmdbApiKey()
             if (apiKey == null) {
@@ -82,21 +90,19 @@ class DashboardViewModel @Inject constructor(
             
             if (apiKey == null) {
                 Log.e("DashboardVM", "TMDB API Key is still null after fetch. Cannot load trending.")
+                _uiState.update { it.copy(isTrendingLoading = false) }
                 return@launch
             }
             
             Log.d("DashboardVM", "Fetching trending with API Key: ${apiKey.take(4)}...")
 
+            val lang = preferenceRepository.language.value
+
             try {
                 // 1. Fetch Trending Movies
-                val movieResp = tmdbApiService.getTrendingMovies(apiKey)
-                val trendingMovies = movieResp.results.mapNotNull { result ->
-                    val title = result.title ?: return@mapNotNull null
-                    
-                    // Match strategy:
-                    // 1. Cleaned Exact Match
-                    // 2. Contains Match (if library title is "Deadpool & Wolverine (2024) [4K]" it contains "Deadpool & Wolverine")
-                    
+                val movieResp = tmdbApiService.getTrendingMovies(apiKey, lang)
+                val trendingMovies = movieResp.results.map { result ->
+                    val title = result.title ?: ""
                     val cleanedTitle = title.trim().lowercase()
                     
                     var matched = movieBox.query()
@@ -104,8 +110,7 @@ class DashboardViewModel @Inject constructor(
                         .build()
                         .findFirst()
                     
-                    if (matched == null) {
-                        // More aggressive: find in library where library name contains TMDB title
+                    if (matched == null && cleanedTitle.isNotEmpty()) {
                         matched = movieBox.query()
                             .contains(Movie_.name, cleanedTitle, StringOrder.CASE_INSENSITIVE)
                             .build()
@@ -121,12 +126,24 @@ class DashboardViewModel @Inject constructor(
                             }
                         }
                     }
-                }.distinctBy { it.id }.take(15)
+
+                    TrendingItem(
+                        tmdbId = result.id,
+                        title = title,
+                        overview = result.overview ?: "",
+                        posterUrl = result.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" },
+                        backdropUrl = result.backdrop_path?.let { "https://image.tmdb.org/t/p/w1280$it" },
+                        releaseDate = result.release_date,
+                        voteAverage = result.vote_average,
+                        genreIds = result.genre_ids,
+                        localMatch = matched
+                    )
+                }.distinctBy { it.tmdbId }.take(20)
 
                 // 2. Fetch Trending Series
-                val seriesResp = tmdbApiService.getTrendingTv(apiKey)
-                val trendingSeries = seriesResp.results.mapNotNull { result ->
-                    val name = result.name ?: return@mapNotNull null
+                val seriesResp = tmdbApiService.getTrendingTv(apiKey, lang)
+                val trendingSeries = seriesResp.results.map { result ->
+                    val name = result.name ?: ""
                     val cleanedName = name.trim().lowercase()
 
                     var matched = seriesBox.query()
@@ -134,7 +151,7 @@ class DashboardViewModel @Inject constructor(
                         .build()
                         .findFirst()
 
-                    if (matched == null) {
+                    if (matched == null && cleanedName.isNotEmpty()) {
                         matched = seriesBox.query()
                             .contains(Series_.name, cleanedName, StringOrder.CASE_INSENSITIVE)
                             .build()
@@ -150,16 +167,30 @@ class DashboardViewModel @Inject constructor(
                             }
                         }
                     }
-                }.distinctBy { it.id }.take(15)
 
-                Log.d("DashboardVM", "Trending match results: Movies=${trendingMovies.size}, Series=${trendingSeries.size}")
+                    TrendingItem(
+                        tmdbId = result.id,
+                        title = name,
+                        overview = result.overview ?: "",
+                        posterUrl = result.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" },
+                        backdropUrl = result.backdrop_path?.let { "https://image.tmdb.org/t/p/w1280$it" },
+                        releaseDate = result.first_air_date,
+                        voteAverage = result.vote_average,
+                        genreIds = result.genre_ids,
+                        localMatch = matched
+                    )
+                }.distinctBy { it.tmdbId }.take(20)
+
+                Log.d("DashboardVM", "Trending results ready: Movies=${trendingMovies.size}, Series=${trendingSeries.size}")
 
                 _uiState.update { it.copy(
                     trendingMovies = trendingMovies,
-                    trendingSeries = trendingSeries
+                    trendingSeries = trendingSeries,
+                    isTrendingLoading = false
                 ) }
             } catch (e: Exception) {
                 Log.e("DashboardVM", "Trending fetch failed", e)
+                _uiState.update { it.copy(isTrendingLoading = false) }
             }
         }
     }

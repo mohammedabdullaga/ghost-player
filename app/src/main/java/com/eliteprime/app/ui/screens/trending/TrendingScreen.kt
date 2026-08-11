@@ -1,42 +1,68 @@
 package com.eliteprime.app.ui.screens.trending
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerDefaults
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.EyebrowStyle
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
+import com.eliteprime.app.ui.screens.dashboard.TrendingItem
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
-import androidx.tv.material3.Surface as TvSurface
-import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Border
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.absoluteValue
+
+private enum class TrendingTab { MOVIES, SERIES }
+
+// Landscape hero ratio (height relative to width) — the card's height is
+// derived from its width using this, so it stays proportionate to the
+// backdrop art it displays (which is itself landscape/16:9-ish) rather
+// than being sized independently of it.
+private const val HERO_ASPECT = 0.5f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,120 +73,86 @@ fun TrendingScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val isTv = LocalContext.current.isTelevisionDevice()
+    var selectedTab by remember { mutableStateOf(TrendingTab.MOVIES) }
+    val context = LocalContext.current
+    val isTv = context.isTelevisionDevice()
+
+    val firstItemFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(uiState.isTrendingLoading, selectedTab) {
+        if (isTv && !uiState.isTrendingLoading) {
+            delay(500)
+            try {
+                firstItemFocusRequester.requestFocus()
+            } catch (e: Exception) {}
+        }
+    }
 
     AppBackground {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                TopAppBar(
-                    title = { Text("TRENDING THIS WEEK", fontWeight = FontWeight.Black) },
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Black.copy(alpha = 0.2f),
-                        titleContentColor = Color.White
+                Column(modifier = Modifier.background(Color.Black.copy(alpha = 0.4f))) {
+                    TopAppBar(
+                        title = { Text("TRENDING THIS WEEK", fontWeight = FontWeight.Black, fontSize = 18.sp) },
+                        navigationIcon = {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            titleContentColor = Color.White
+                        )
                     )
-                )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        TrendingTabButton(
+                            label = "MOVIES",
+                            isSelected = selectedTab == TrendingTab.MOVIES,
+                            onClick = { selectedTab = TrendingTab.MOVIES }
+                        )
+                        TrendingTabButton(
+                            label = "SERIES",
+                            isSelected = selectedTab == TrendingTab.SERIES,
+                            onClick = { selectedTab = TrendingTab.SERIES }
+                        )
+                    }
+                }
             }
         ) { paddingValues ->
-            LazyColumn(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
-                verticalArrangement = Arrangement.spacedBy(32.dp),
-                contentPadding = PaddingValues(vertical = 24.dp)
+                contentAlignment = Alignment.Center
             ) {
-                // 1. Trending Movies Section
-                if (uiState.trendingMovies.isNotEmpty()) {
-                    item {
-                        Column {
-                            Text(
-                                text = "TRENDING MOVIES",
-                                style = EyebrowStyle,
-                                color = AppColors.ArenaOrange,
-                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-                            )
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 24.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                items(uiState.trendingMovies) { movie ->
-                                    TrendingBackdropCard(
-                                        title = movie.name,
-                                        imageUrl = movie.backdropUrl ?: movie.streamIcon,
-                                        rating = movie.rating,
-                                        onClick = { onMovieClick(movie) },
-                                        isTv = isTv
-                                    )
-                                }
-                            }
-                        }
+                if (uiState.isTrendingLoading) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = AppColors.ArenaOrange)
+                        Spacer(Modifier.height(16.dp))
+                        Text("Fetching latest trends...", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
                     }
-                }
+                } else {
+                    val currentItems = if (selectedTab == TrendingTab.MOVIES) uiState.trendingMovies else uiState.trendingSeries
 
-                // 2. Trending Series Section
-                if (uiState.trendingSeries.isNotEmpty()) {
-                    item {
-                        Column {
-                            Text(
-                                text = "TRENDING SERIES",
-                                style = EyebrowStyle,
-                                color = AppColors.ArenaOrange,
-                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
-                            )
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 24.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                items(uiState.trendingSeries) { series ->
-                                    TrendingBackdropCard(
-                                        title = series.name,
-                                        imageUrl = series.backdropUrl ?: series.cover,
-                                        rating = series.rating,
-                                        onClick = { onSeriesClick(series) },
-                                        isTv = isTv
-                                    )
+                    if (currentItems.isEmpty()) {
+                        EmptyTrendingView()
+                    } else {
+                        TrendingCarousel(
+                            items = currentItems,
+                            firstItemFocusRequester = firstItemFocusRequester,
+                            onItemClick = { item ->
+                                if (item.localMatch != null) {
+                                    if (selectedTab == TrendingTab.MOVIES) onMovieClick(item.localMatch as Movie)
+                                    else onSeriesClick(item.localMatch as Series)
                                 }
                             }
-                        }
-                    }
-                }
-
-                if (uiState.trendingMovies.isEmpty() && uiState.trendingSeries.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier.fillParentMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (uiState.isLoading) {
-                                CircularProgressIndicator(color = AppColors.ArenaOrange)
-                            } else {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(
-                                        imageVector = Icons.Default.Movie,
-                                        contentDescription = null,
-                                        tint = Color.White.copy(alpha = 0.2f),
-                                        modifier = Modifier.size(64.dp)
-                                    )
-                                    Spacer(Modifier.height(16.dp))
-                                    Text(
-                                        "No trending content matched your library",
-                                        color = Color.White.copy(alpha = 0.5f),
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        "Matches are based on your synchronized content",
-                                        color = Color.White.copy(alpha = 0.3f),
-                                        fontSize = 13.sp
-                                    )
-                                }
-                            }
-                        }
+                        )
                     }
                 }
             }
@@ -169,81 +161,283 @@ fun TrendingScreen(
 }
 
 @Composable
-private fun TrendingBackdropCard(
-    title: String,
-    imageUrl: String?,
-    rating: Double,
-    onClick: () -> Unit,
-    isTv: Boolean
+private fun TrendingTabButton(label: String, isSelected: Boolean, onClick: () -> Unit) {
+    val alpha by animateFloatAsState(if (isSelected) 1f else 0.5f, label = "tabAlpha")
+
+    Surface(
+        onClick = onClick,
+        color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.Transparent,
+        shape = RoundedCornerShape(12.dp),
+        border = if (isSelected) BorderStroke(1.dp, AppColors.ArenaOrange) else null
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+            color = Color.White.copy(alpha = alpha),
+            fontWeight = FontWeight.Black,
+            fontSize = 13.sp,
+            letterSpacing = 1.sp
+        )
+    }
+}
+
+@Composable
+private fun TrendingCarousel(
+    items: List<TrendingItem<*>>,
+    firstItemFocusRequester: FocusRequester,
+    onItemClick: (TrendingItem<*>) -> Unit
 ) {
-    val content = @Composable {
+    val pagerState = rememberPagerState(pageCount = { items.size })
+    val scope = rememberCoroutineScope()
+    val isTv = LocalContext.current.isTelevisionDevice()
+
+    // Track target page to ensure consistent centering across all directions
+    var targetPage by remember { mutableIntStateOf(0) }
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val screenWidth = maxWidth
+        val screenHeight = maxHeight
+
+        // Large, wide hero card — width is the dominant dimension now
+        // (most of the screen), with just enough left over on each side
+        // for the neighboring card to peek in as a "there's more" cue.
+        // Height is derived from that width as a landscape ratio, so the
+        // card stays proportionate to the backdrop art it displays rather
+        // than being sized independently of it.
+        val cardWidth = screenWidth * 0.8f
+        val cardHeight = (cardWidth * HERO_ASPECT).coerceAtMost(screenHeight * 0.82f)
+
+        // This padding ensures the focused card is perfectly centered
+        val horizontalPadding = (screenWidth - cardWidth) / 2
+
+        HorizontalPager(
+            state = pagerState,
+            contentPadding = PaddingValues(horizontal = horizontalPadding),
+            pageSpacing = 14.dp,
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            beyondViewportPageCount = 2,
+            userScrollEnabled = !isTv
+        ) { page ->
+            val item = items[page]
+            val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
+
+            TrendingCard(
+                item = item,
+                onClick = { onItemClick(item) },
+                scale = lerp(start = 0.92f, stop = 1f, fraction = 1f - pageOffset.coerceIn(0f, 1f)),
+                alpha = lerp(start = 0.5f, stop = 1f, fraction = 1f - pageOffset.coerceIn(0f, 1f)),
+                width = cardWidth,
+                height = cardHeight,
+                modifier = if (page == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier,
+                onFocused = {
+                    if (isTv) {
+                        targetPage = page
+                    }
+                }
+            )
+        }
+    }
+
+    // Effect to handle TV centering animation - handles both directions (L->R and R->L)
+    LaunchedEffect(targetPage) {
+        if (isTv && pagerState.currentPage != targetPage) {
+            pagerState.animateScrollToPage(targetPage)
+        }
+    }
+}
+
+@Composable
+private fun TrendingCard(
+    item: TrendingItem<*>,
+    onClick: () -> Unit,
+    scale: Float,
+    alpha: Float,
+    width: Dp,
+    height: Dp,
+    onFocused: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    var isFocused by remember { mutableStateOf(false) }
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier
+            .width(width)
+            .height(height)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                this.alpha = alpha
+            }
+            .onFocusChanged {
+                isFocused = it.isFocused
+                if (it.isFocused) onFocused()
+            },
+        shape = RoundedCornerShape(24.dp),
+        color = Color(0xFF161921),
+        border = BorderStroke(
+            width = if (isFocused) 3.dp else 1.dp,
+            color = if (isFocused) Color.White else Color.White.copy(alpha = 0.12f)
+        ),
+        tonalElevation = 12.dp
+    ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            // Backdrop art fills the whole card — landscape source image
+            // for a landscape card, instead of a boxed-in poster crop.
             AsyncImage(
-                model = imageUrl,
-                contentDescription = title,
+                model = item.backdropUrl ?: item.posterUrl,
+                contentDescription = item.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-            
-            // Bottom Scrim
+
+            // Horizontal scrim: solid enough on the left for the text
+            // block to stay readable over any backdrop, fading out toward
+            // the right so the image itself stays visible and recognizable.
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.6f)
-                    .align(Alignment.BottomCenter)
+                    .fillMaxSize()
                     .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
+                        Brush.horizontalGradient(
+                            0f to Color.Black.copy(alpha = 0.92f),
+                            0.5f to Color.Black.copy(alpha = 0.6f),
+                            1f to Color.Black.copy(alpha = 0.05f)
                         )
                     )
             )
-            
+            // Extra bottom scrim so the button/description stay legible
+            // even over a bright backdrop.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            0.6f to Color.Transparent,
+                            1f to Color.Black.copy(alpha = 0.55f)
+                        )
+                    )
+            )
+
+            // All info lives here, over the image — title, metadata,
+            // full description, and the watch button, constrained to
+            // roughly the left half so the right side of the backdrop
+            // stays visible.
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(12.dp)
+                    .fillMaxWidth(0.56f)
+                    .padding(28.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = title,
+                    text = item.title,
                     color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    maxLines = 1,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 26.sp,
+                    lineHeight = 30.sp,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (rating > 0) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Icon(Icons.Default.Star, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(10.dp))
-                        Text("%.1f".format(rating), color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp)
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = item.releaseDate?.take(4) ?: "N/A",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Black,
+                        fontSize = 13.sp
+                    )
+
+                    val genreText = when (val match = item.localMatch) {
+                        is Movie -> match.genre ?: ""
+                        is Series -> match.genre ?: ""
+                        else -> ""
+                    }.takeIf { it.isNotBlank() } ?: "Recommended"
+
+                    Surface(
+                        color = AppColors.ArenaOrange.copy(alpha = 0.16f),
+                        shape = RoundedCornerShape(7.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Text(
+                            text = genreText,
+                            color = AppColors.ArenaOrange,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
                     }
+
+                    Surface(
+                        color = Color.White.copy(alpha = 0.12f),
+                        shape = RoundedCornerShape(7.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700), modifier = Modifier.size(13.dp))
+                            Text("%.1f".format(item.voteAverage), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black)
+                        }
+                    }
+                }
+
+                Text(
+                    text = item.overview,
+                    color = Color.White.copy(alpha = 0.85f),
+                    fontSize = 13.sp,
+                    lineHeight = 19.sp,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                Button(
+                    onClick = onClick,
+                    enabled = item.localMatch != null,
+                    modifier = Modifier.height(46.dp),
+                    contentPadding = PaddingValues(horizontal = 28.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AppColors.ArenaOrange,
+                        disabledContainerColor = Color.White.copy(alpha = 0.12f)
+                    )
+                ) {
+                    Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (item.localMatch != null) "WATCH NOW" else "NOT IN YOUR LIBRARY",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 13.sp
+                    )
                 }
             }
         }
     }
+}
 
-    if (isTv) {
-        TvSurface(
-            onClick = onClick,
-            modifier = Modifier
-                .width(280.dp)
-                .aspectRatio(16f / 9f),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
-            border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
-        ) {
-            content()
-        }
-    } else {
-        Surface(
-            onClick = onClick,
-            modifier = Modifier
-                .width(240.dp)
-                .aspectRatio(16f / 9f),
-            shape = RoundedCornerShape(14.dp),
-            color = Color.Black,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
-        ) {
-            content()
-        }
+@Composable
+private fun EmptyTrendingView() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Icon(Icons.Default.Movie, null, tint = Color.White.copy(alpha = 0.1f), modifier = Modifier.size(80.dp))
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "No trending items found in your library",
+            color = Color.White.copy(alpha = 0.5f),
+            fontWeight = FontWeight.Bold
+        )
     }
 }
