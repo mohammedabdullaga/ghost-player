@@ -2,6 +2,8 @@ package com.eliteprime.app.ui.screens.home
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,10 +12,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,46 +20,56 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
+import coil3.compose.AsyncImage
 import com.eliteprime.app.R
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
+import com.eliteprime.app.ui.screens.dashboard.TrendingItem
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 
+// "Cinematic depth" card shape — plain rounded rect, NOT the angled blade
+// shape used previously. Shared radius so all three cards match.
+private val HomeCardRadius = 20.dp
+
+// Shared dark base gradient every card sits on — the per-card identity
+// comes from the accent-colored corner glow layered on top, not from a
+// different gradient per card, so cards stay visually consistent as a set.
+private val HomeCardBaseGradient = Brush.linearGradient(
+    listOf(Color(0xFF1E2E40), Color(0xFF101B28), Color(0xFF080D14))
+)
+
+// How long each trending item stays on screen before the card auto-flips
+// to the next one.
+private val TrendingRotationInterval = 6000L
+
 private object HomeSpacing {
     val xl = 24.dp
-    val lg = 20.dp
-    val md = 16.dp
-    val sm = 12.dp
-    val xs = 8.dp
 }
 
-private object HomeRadius {
-    val xl = 24.dp
-    val lg = 20.dp
-    val md = 14.dp
-}
-
-private enum class HomeFocusIndex { CONTINUE, TRENDING, DOWNLOADS }
+private enum class HomeFocusIndex { TRENDING, CONTINUE, DOWNLOADS }
 
 @Composable
 fun HomeScreen(
@@ -81,19 +90,18 @@ fun HomeScreen(
     var showExitDialog by remember { mutableStateOf(false) }
 
     val isTv = context.isTelevisionDevice()
-    val continueFocusRequester = remember { FocusRequester() }
     val trendingFocusRequester = remember { FocusRequester() }
+    val continueFocusRequester = remember { FocusRequester() }
     val downloadsFocusRequester = remember { FocusRequester() }
-    
-    var lastFocusedIndex by rememberSaveable { mutableStateOf(HomeFocusIndex.CONTINUE) }
 
-    // Restore focus to the card we were on instantly
+    var lastFocusedIndex by rememberSaveable { mutableStateOf(HomeFocusIndex.TRENDING) }
+
     LaunchedEffect(Unit) {
         if (isTv) {
             delay(100)
             when (lastFocusedIndex) {
-                HomeFocusIndex.CONTINUE -> continueFocusRequester.requestFocus()
                 HomeFocusIndex.TRENDING -> trendingFocusRequester.requestFocus()
+                HomeFocusIndex.CONTINUE -> continueFocusRequester.requestFocus()
                 HomeFocusIndex.DOWNLOADS -> downloadsFocusRequester.requestFocus()
             }
         }
@@ -122,69 +130,96 @@ fun HomeScreen(
             HomeTopNavBar(
                 currentTime = currentTime.value,
                 onNavigateToSearch = onNavigateToSearch,
-                onNavigateToDownloads = onNavigateToDownloads,
                 onNavigateToSettings = onNavigateToSettings,
                 onNavigateToLiveTv = onNavigateToLiveTv,
                 onNavigateToMovies = onNavigateToMovies,
                 onNavigateToSeries = onNavigateToSeries
             )
 
+            val lastWatched = uiState.continueWatching.firstOrNull()
+            val continueDesc = if (lastWatched != null) {
+                if (lastWatched.type == "series" || lastWatched.type == "series_episode") {
+                    " — S${lastWatched.seasonNumber} · E${lastWatched.episodeNumber}, ${lastWatched.name}"
+                } else lastWatched.name
+            } else "Your history is empty"
+            val continueProgress = lastWatched?.let { if (it.durationMs > 0) it.lastPositionMs.toFloat() / it.durationMs.toFloat() else 0f }
+
+            val trendingItems = uiState.trendingMovies.ifEmpty { uiState.trendingSeries }
+
+            // Only the Trending card grows on mobile — Continue Watching/
+            // Downloads and the TV layout are untouched. On TV the row's
+            // height is already comfortable for a d-pad-navigated grid; on
+            // a phone screen the extra height gives the backdrop art,
+            // title, and description room to breathe without the eyebrow/
+            // rating/description block feeling cramped against the bottom.
+            val trendingCardHeightFraction = if (isTv) 0.85f else 0.97f
+
             Row(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = HomeSpacing.xl)
-                    .padding(bottom = 68.dp),
-                horizontalArrangement = Arrangement.spacedBy(HomeSpacing.md),
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                HomeHeroCard(
-                    title = "CONTINUE WATCHING",
-                    description = if (uiState.continueWatching.isEmpty()) "Your history is empty" else "Pick up where you left off",
-                    icon = Icons.Default.History,
-                    accentColor = Color(0xFFFF4500),
-                    onClick = onNavigateToContinueWatching,
-                    modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(1.5f)
-                        .focusRequester(continueFocusRequester)
-                        .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.CONTINUE }
-                )
-                HomeHeroCard(
-                    title = "TRENDING THIS WEEK",
-                    description = "Most popular content worldwide",
-                    icon = Icons.Default.Whatshot,
-                    accentColor = Color(0xFFFFB300),
+                TrendingHeroCard(
+                    items = trendingItems,
                     onClick = onNavigateToTrending,
                     modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(1.5f)
+                        .weight(0.65f)
+                        .fillMaxHeight(trendingCardHeightFraction)
                         .focusRequester(trendingFocusRequester)
                         .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.TRENDING }
                 )
-                HomeHeroCard(
-                    title = "DOWNLOADS LIBRARY",
-                    description = "Watch your offline content anytime",
-                    icon = Icons.Default.FileDownload,
-                    accentColor = Color(0xFF00BFFF),
-                    onClick = onNavigateToDownloads,
+                Column(
                     modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(1.5f)
-                        .focusRequester(downloadsFocusRequester)
-                        .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.DOWNLOADS }
-                )
+                        .weight(0.35f)
+                        .fillMaxHeight(0.85f),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    HomeHeroCard(
+                        title = "Continue watching",
+                        description = continueDesc,
+                        icon = Icons.Default.History,
+                        accentColor = Color(0xFFFF4500),
+                        onClick = onNavigateToContinueWatching,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .focusRequester(continueFocusRequester)
+                            .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.CONTINUE },
+                        progress = continueProgress
+                    )
+                    HomeHeroCard(
+                        title = "Downloads",
+                        description = "Watch your offline content",
+                        icon = Icons.Default.Download,
+                        accentColor = Color(0xFF00BFFF),
+                        onClick = onNavigateToDownloads,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .focusRequester(downloadsFocusRequester)
+                            .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.DOWNLOADS }
+                    )
+                }
             }
         }
 
         uiState.providerHealth.expirationDate?.let { expiryMs ->
-            val date = remember(expiryMs) { SimpleDateFormat("dd / MM / yyyy", Locale.getDefault()).format(Date(expiryMs)) }
+            val date = remember(expiryMs) { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(expiryMs)) }
+
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = HomeSpacing.md, end = HomeSpacing.xl)
+                    .padding(HomeSpacing.xl)
             ) {
-                ExpiryBadge(date = date)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Plan ends", color = Color.White.copy(alpha = 0.4f), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = date, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
@@ -194,50 +229,56 @@ fun HomeScreen(
 private fun HomeTopNavBar(
     currentTime: String,
     onNavigateToSearch: () -> Unit,
-    onNavigateToDownloads: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToLiveTv: () -> Unit,
     onNavigateToMovies: () -> Unit,
     onNavigateToSeries: () -> Unit
 ) {
-    Column {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp, vertical = 24.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        ArenaLiveLogo(textSize = 22.sp)
+
+        Spacer(modifier = Modifier.width(48.dp))
+
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = HomeSpacing.xl, vertical = HomeSpacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(HomeSpacing.sm)
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            HomeRoundIconButton(
-                icon = Icons.Default.Home, 
-                contentDescription = stringResource(R.string.nav_home), 
-                onClick = {}, 
-                isActive = true
-            )
-
-            ArenaLiveLogo(textSize = 20.sp)
-
-            Spacer(modifier = Modifier.width(HomeSpacing.xs))
-
+            NavTabButton(label = "Home", isActive = true, onClick = {})
             NavTabButton(label = stringResource(R.string.nav_live_tv), isActive = false, onClick = onNavigateToLiveTv)
             NavTabButton(label = stringResource(R.string.nav_movies), isActive = false, onClick = onNavigateToMovies)
             NavTabButton(label = stringResource(R.string.nav_series), isActive = false, onClick = onNavigateToSeries)
-
-            HomeRoundIconButton(icon = Icons.Default.Search, contentDescription = stringResource(R.string.nav_search), onClick = onNavigateToSearch)
-            HomeRoundIconButton(icon = Icons.Default.Settings, contentDescription = stringResource(R.string.nav_settings), onClick = onNavigateToSettings)
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            Text(text = currentTime, color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.08f)))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HomeRoundIconButton(icon = Icons.Default.Search, contentDescription = "Search", onClick = onNavigateToSearch)
+            HomeRoundIconButton(icon = Icons.Default.Tune, contentDescription = "Settings", onClick = onNavigateToSettings)
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = currentTime,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+        }
     }
 }
 
 @Composable
 private fun HomeRoundIconButton(
-    icon: ImageVector, 
-    contentDescription: String?, 
+    icon: ImageVector,
+    contentDescription: String?,
     onClick: () -> Unit,
     isActive: Boolean = false
 ) {
@@ -252,8 +293,9 @@ private fun HomeRoundIconButton(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
-                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.05f),
+                focusedContainerColor = Color.White,
+                pressedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             border = ClickableSurfaceDefaults.border(
@@ -262,9 +304,9 @@ private fun HomeRoundIconButton(
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Icon(
-                    icon, 
-                    contentDescription = contentDescription, 
-                    tint = if (isActive || isFocused) Color.White else Color.White.copy(alpha = 0.8f), 
+                    icon,
+                    contentDescription = contentDescription,
+                    tint = if (isFocused) Color.Black else Color.White,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -272,73 +314,39 @@ private fun HomeRoundIconButton(
     } else {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.35f), CircleShape)
+            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f), CircleShape)
         ) {
             Icon(
-                icon, 
-                contentDescription = contentDescription, 
-                tint = if (isActive) AppColors.ArenaOrange else Color.White, 
+                icon,
+                contentDescription = contentDescription,
+                tint = if (isActive) AppColors.ArenaOrange else Color.White,
                 modifier = Modifier.size(20.dp)
             )
         }
     }
 }
 
-@Composable
-private fun ExpiryBadge(date: String) {
-    Surface(
-        color = Color.Black.copy(alpha = 0.5f),
-        shape = RoundedCornerShape(HomeRadius.md),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = HomeSpacing.sm, vertical = HomeSpacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(HomeSpacing.xs)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .background(Color.White.copy(alpha = 0.1f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.CalendarToday,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(12.dp)
-                )
-            }
-            Column {
-                Text(
-                    text = stringResource(R.string.dashboard_expires),
-                    color = Color.White.copy(alpha = 0.4f),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = date,
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}
-
+// ─────────────────────────────────────────────────────────────────────────
+// Static hero card — Continue Watching / Downloads. "Cinematic depth":
+// shared dark gradient base, accent-colored corner glow, icon watermark,
+// optional status badge. Rounded corners, no angled cut, no diagonal line
+// texture — that was the old "blade" era and is gone now.
+// ─────────────────────────────────────────────────────────────────────────
 @Composable
 fun HomeHeroCard(
     title: String,
     description: String,
-    icon: ImageVector,
     accentColor: Color,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    progress: Float? = null,
+    badgeLabel: String? = null
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
     val focusRequester = remember { FocusRequester() }
     var isFocused by remember { mutableStateOf(false) }
+    val shape = remember { RoundedCornerShape(HomeCardRadius) }
 
     if (isTv) {
         TvSurface(
@@ -347,16 +355,17 @@ fun HomeHeroCard(
                 .focusRequester(focusRequester)
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(HomeRadius.xl)),
+            shape = ClickableSurfaceDefaults.shape(shape),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color.Black.copy(alpha = 0.45f),
-                focusedContainerColor = accentColor.copy(alpha = 0.8f) // DYNAMIC COLOR FOCUS
+                containerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent
             ),
             border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(3.dp, Color.White))
+                border = Border.None,
+                focusedBorder = Border.None
             )
         ) {
-            HomeHeroCardContent(title, description, icon, accentColor, isFocused)
+            HomeHeroCardContent(title, description, icon, accentColor, isFocused, progress, badgeLabel, shape)
         }
     } else {
         val interactionSource = remember { MutableInteractionSource() }
@@ -366,9 +375,9 @@ fun HomeHeroCard(
             interactionSource = interactionSource,
             modifier = modifier,
             color = Color.Transparent,
-            shape = RoundedCornerShape(HomeRadius.xl)
+            shape = shape
         ) {
-            HomeHeroCardContent(title, description, icon, accentColor, isPressed)
+            HomeHeroCardContent(title, description, icon, accentColor, isPressed, progress, badgeLabel, shape)
         }
     }
 }
@@ -377,101 +386,301 @@ fun HomeHeroCard(
 private fun HomeHeroCardContent(
     title: String,
     description: String,
-    icon: ImageVector,
+    icon: ImageVector?,
     accentColor: Color,
-    isActive: Boolean
+    isActive: Boolean,
+    progress: Float?,
+    badgeLabel: String?,
+    shape: RoundedCornerShape
 ) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .clip(RoundedCornerShape(HomeRadius.xl))
-            .background(if (isActive) Color.Transparent else Color.Black.copy(alpha = 0.55f))
+            .clip(shape)
+            .background(HomeCardBaseGradient)
             .border(
-                width = 1.dp,
-                color = if (isActive) Color.White else Color.White.copy(alpha = 0.12f),
-                shape = RoundedCornerShape(HomeRadius.xl)
+                width = if (isActive) 2.dp else 1.dp,
+                color = if (isActive) accentColor else Color.White.copy(alpha = 0.12f),
+                shape = shape
             )
     ) {
-        // Vertical scrim for text legibility
+        // Per-card identity: a soft corner glow in the card's own accent
+        // color, sitting on the shared base gradient every card uses.
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Black.copy(alpha = 0.15f), Color.Black.copy(alpha = 0.75f))
+                .drawBehind {
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(accentColor.copy(alpha = if (isActive) 0.38f else 0.22f), Color.Transparent),
+                            center = Offset(size.width, size.height),
+                            radius = size.width * 1.15f
+                        )
                     )
-                )
+                }
         )
-        Box(
+
+        if (badgeLabel != null) {
+            Surface(
+                color = accentColor,
+                shape = RoundedCornerShape(6.dp),
+                modifier = Modifier.align(Alignment.TopStart).padding(14.dp)
+            ) {
+                Text(
+                    text = badgeLabel,
+                    color = Color(0xFF14100A),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 0.5.sp,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                )
+            }
+        }
+
+        // Compact text block designed for the small card, not a shrunk-down
+        // version of the old large-card layout: tighter line spacing, both
+        // lines capped to one line each so long titles/descriptions never
+        // push the progress bar out of the card.
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(accentColor.copy(alpha = 0.28f), Color.Transparent),
-                        radius = 260f
-                    ),
-                    alpha = if (isActive) 1f else 0.7f
-                )
-        )
-
-        Column(
-            modifier = Modifier.fillMaxSize().padding(HomeSpacing.md)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.Bottom
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isActive) Color.White else accentColor,
-                modifier = Modifier.align(Alignment.End).size(28.dp)
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
             Text(
                 text = title,
                 color = Color.White,
-                fontWeight = FontWeight.ExtraBold,
-                fontSize = 24.sp,
-                letterSpacing = 0.3.sp
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                lineHeight = 17.sp,
+                letterSpacing = (-0.1).sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(2.dp))
 
             Text(
                 text = description,
-                color = Color.White.copy(alpha = 0.7f),
-                fontSize = 11.sp,
-                lineHeight = 14.sp,
-                maxLines = 2,
-                modifier = Modifier.fillMaxWidth(0.75f)
+                color = Color.White.copy(alpha = 0.65f),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(modifier = Modifier.height(HomeSpacing.sm))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            if (progress != null) {
+                Spacer(modifier = Modifier.height(10.dp))
                 Box(
                     modifier = Modifier
-                        .width(30.dp)
-                        .height(2.dp)
-                        .background(if (isActive) Color.White else accentColor, RoundedCornerShape(1.dp))
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.15f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progress.coerceIn(0f, 1f))
+                            .fillMaxHeight()
+                            .background(accentColor)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Dynamic Trending card — owns its own rotation state (advances through
+// `items` every TrendingRotationInterval), crossfading backdrop art,
+// title, and rating between items. Same rounded "cinematic depth" shape
+// and corner-glow treatment as the static cards, so it reads as one set.
+// ─────────────────────────────────────────────────────────────────────────
+@Composable
+fun TrendingHeroCard(
+    items: List<TrendingItem<*>>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    val focusRequester = remember { FocusRequester() }
+    var isFocused by remember { mutableStateOf(false) }
+    val shape = remember { RoundedCornerShape(HomeCardRadius) }
+
+    var index by remember(items) { mutableIntStateOf(0) }
+    LaunchedEffect(items) {
+        if (items.size <= 1) return@LaunchedEffect
+        while (true) {
+            delay(TrendingRotationInterval)
+            index = (index + 1) % items.size
+        }
+    }
+    val current = items.getOrNull(index)
+
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            modifier = modifier
+                .focusRequester(focusRequester)
+                .onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+            shape = ClickableSurfaceDefaults.shape(shape),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent
+            ),
+            border = ClickableSurfaceDefaults.border(
+                border = Border.None,
+                focusedBorder = Border.None
+            )
+        ) {
+            TrendingHeroCardContent(current, itemCount = items.size, currentIndex = index, isActive = isFocused, shape = shape)
+        }
+    } else {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        Surface(
+            onClick = onClick,
+            interactionSource = interactionSource,
+            modifier = modifier,
+            color = Color.Transparent,
+            shape = shape
+        ) {
+            TrendingHeroCardContent(current, itemCount = items.size, currentIndex = index, isActive = isPressed, shape = shape)
+        }
+    }
+}
+
+@Composable
+private fun TrendingHeroCardContent(
+    item: TrendingItem<*>?,
+    itemCount: Int,
+    currentIndex: Int,
+    isActive: Boolean,
+    shape: RoundedCornerShape
+) {
+    val accentColor = Color(0xFFE0812E)
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(shape)
+            .background(HomeCardBaseGradient)
+            .border(
+                width = if (isActive) 2.dp else 1.dp,
+                color = if (isActive) accentColor else Color.White.copy(alpha = 0.12f),
+                shape = shape
+            )
+    ) {
+        Crossfade(targetState = item, animationSpec = tween(600), label = "trendingCardItem") { crossfadeItem ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (crossfadeItem != null) {
+                    AsyncImage(
+                        model = crossfadeItem.backdropUrl ?: crossfadeItem.posterUrl,
+                        contentDescription = crossfadeItem.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                // Vertical scrim so text stays legible over any backdrop.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Black.copy(alpha = 0.1f), Color.Black.copy(alpha = 0.88f))
+                            )
+                        )
                 )
 
-                Surface(
-                    onClick = {},
-                    modifier = Modifier.size(34.dp),
-                    shape = CircleShape,
-                    color = if (isActive) Color.White else accentColor,
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.25f))
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .drawBehind {
+                            drawRect(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(accentColor.copy(alpha = if (isActive) 0.38f else 0.22f), Color.Transparent),
+                                    center = Offset(size.width, size.height),
+                                    radius = size.width * 1.15f
+                                )
+                            )
+                        }
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 28.dp, vertical = 26.dp),
+                    verticalArrangement = Arrangement.Bottom
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = if (isActive) AppColors.ArenaOrange else Color.White,
-                            modifier = Modifier.size(16.dp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "TRENDING THIS WEEK",
+                            color = accentColor,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 11.sp,
+                            letterSpacing = 1.sp
+                        )
+                        if (itemCount > 1) {
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                repeat(itemCount.coerceAtMost(8)) { dotIndex ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(5.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (dotIndex == currentIndex) accentColor else Color.White.copy(alpha = 0.25f)
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = crossfadeItem?.title ?: "Most popular content",
+                        color = Color.White,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp,
+                        letterSpacing = (-0.3).sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    if (crossfadeItem != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700), modifier = Modifier.size(13.dp))
+                            Text(
+                                text = "%.1f".format(crossfadeItem.voteAverage),
+                                color = Color.White.copy(alpha = 0.85f),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            crossfadeItem.releaseDate?.take(4)?.let { year ->
+                                Text(
+                                    text = "· $year",
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+
+                    if (!crossfadeItem?.overview.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = crossfadeItem!!.overview,
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
