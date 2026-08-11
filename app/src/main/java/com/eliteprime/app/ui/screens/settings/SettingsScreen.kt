@@ -1,6 +1,7 @@
 package com.eliteprime.app.ui.screens.settings
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -90,6 +91,13 @@ fun SettingsScreen(
 
     var showEditDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.userMessage.collect { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     AppBackground {
         Row(
@@ -203,6 +211,7 @@ fun SettingsScreen(
                                             isSyncing = uiState.isSyncing,
                                             onRefresh = { viewModel.syncAll() },
                                             onEdit = { showEditDialog = true },
+                                            onClearCache = { viewModel.clearCache() },
                                             isTv = isTv
                                         )
                                     }
@@ -688,6 +697,7 @@ private fun AccountSettingsCard(
     isSyncing: Boolean,
     onRefresh: () -> Unit,
     onEdit: () -> Unit,
+    onClearCache: () -> Unit,
     isTv: Boolean
 ) {
     val cardBackground = Brush.linearGradient(
@@ -824,7 +834,7 @@ private fun AccountSettingsCard(
 
                 SettingsActionButton(
                     label = "CLEAR CACHE",
-                    onClick = { /* TODO: ViewModel clear cache */ },
+                    onClick = onClearCache,
                     isTv = isTv,
                     modifier = Modifier.weight(1f).height(44.dp)
                 )

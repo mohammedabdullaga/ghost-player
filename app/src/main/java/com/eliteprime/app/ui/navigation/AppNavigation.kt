@@ -42,6 +42,7 @@ import com.eliteprime.app.ui.screens.downloads.DownloadsScreen
 import com.eliteprime.app.ui.screens.downloads.DownloadViewModel
 import com.eliteprime.app.domain.model.DownloadContentType
 import com.eliteprime.app.ui.screens.dashboard.ContinueWatchingGridScreen
+import com.eliteprime.app.ui.screens.trending.TrendingScreen
 
 @Composable
 fun AppNavigation(
@@ -86,8 +87,16 @@ fun AppNavigation(
                 onNavigateToLiveTv = { stopPlayerAndNavigate("live") },
                 onNavigateToMovies = { stopPlayerAndNavigate("movies") },
                 onNavigateToSeries = { stopPlayerAndNavigate("series") },
+                onNavigateToTrending = { navController.navigate("trending") },
                 onNavigateToDownloads = { stopPlayerAndNavigate("downloads") },
                 onNavigateToContinueWatching = { navController.navigate("continue_watching") }
+            )
+        }
+        composable("trending") {
+            TrendingScreen(
+                onBack = { navController.popBackStack() },
+                onMovieClick = { movie -> navController.navigate("movie_details/${movie.id}") },
+                onSeriesClick = { series -> navController.navigate("series_details/${series.id}") }
             )
         }
         composable("live") {

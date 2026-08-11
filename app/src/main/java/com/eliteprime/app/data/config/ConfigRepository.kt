@@ -20,6 +20,19 @@ class ConfigRepository @Inject constructor(
 ) {
     private var cachedConfig: ConfigResponse? = null
     private val CONFIG_ENDPOINT = "https://api.arenaliveapp.top/api/config"
+    private val prefs = context.getSharedPreferences("config_prefs", Context.MODE_PRIVATE)
+
+    init {
+        // Load from disk on startup
+        val saved = prefs.getString("cached_config", null)
+        if (saved != null) {
+            try {
+                cachedConfig = json.decodeFromString<ConfigResponse>(saved)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
 
     suspend fun fetchConfig(): ConfigResponse? = withContext(Dispatchers.IO) {
         val request = Request.Builder()
@@ -35,6 +48,8 @@ class ConfigRepository @Inject constructor(
             if (response.isSuccessful) {
                 val config = json.decodeFromString<ConfigResponse>(body)
                 cachedConfig = config
+                // Save to disk
+                prefs.edit().putString("cached_config", body).apply()
                 return@withContext config
             }
         } catch (e: Exception) {
@@ -55,5 +70,9 @@ class ConfigRepository @Inject constructor(
         config.proxy_host?.takeIf { it.isNotBlank() }?.let { hosts.add(it) }
         hosts.addAll(config.proxy_hosts.filter { it.isNotBlank() })
         return hosts
+    }
+
+    fun getTmdbApiKey(): String? {
+        return cachedConfig?.tmdb_api_key?.takeIf { it.isNotBlank() }
     }
 }

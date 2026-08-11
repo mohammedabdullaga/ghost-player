@@ -1,8 +1,10 @@
 package com.eliteprime.app.ui.screens.settings
 
+import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import coil3.SingletonImageLoader
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.repository.XtreamRepository
@@ -12,13 +14,17 @@ import com.eliteprime.app.util.speedtest.InternetSpeedTestResult
 import com.eliteprime.app.util.speedtest.InternetSpeedTestRunner
 import com.eliteprime.app.util.speedtest.InternetSpeedTestSnapshot
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import io.objectbox.Box
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 data class SettingsUiState(
@@ -42,7 +48,9 @@ class SettingsViewModel @Inject constructor(
     private val xtreamRepository: XtreamRepository,
     private val preferenceRepository: PreferenceRepository,
     private val downloadManager: DownloadManager,
-    private val speedTestRunner: InternetSpeedTestRunner
+    private val speedTestRunner: InternetSpeedTestRunner,
+    private val okHttpClient: OkHttpClient,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
@@ -150,5 +158,31 @@ class SettingsViewModel @Inject constructor(
 
     fun logout() {
         accountBox.removeAll()
+    }
+
+    private val _userMessage = MutableSharedFlow<String>()
+    val userMessage = _userMessage.asSharedFlow()
+
+    fun clearCache() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                try {
+                    // 1. Clear OkHttp Cache
+                    okHttpClient.cache?.evictAll()
+
+                    // 2. Clear Coil (ImageLoader) Cache
+                    val loader = SingletonImageLoader.get(context)
+                    loader.memoryCache?.clear()
+                    loader.diskCache?.clear()
+
+                    // 3. Clear EPG
+                    epgBox.removeAll()
+
+                    _userMessage.emit("Cache cleared successfully")
+                } catch (e: Exception) {
+                    _userMessage.emit("Failed to clear cache: ${e.message}")
+                }
+            }
+        }
     }
 }

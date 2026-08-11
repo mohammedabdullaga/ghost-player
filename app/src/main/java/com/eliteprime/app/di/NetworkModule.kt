@@ -15,6 +15,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import okhttp3.Cache
 import okhttp3.ConnectionPool
 import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
@@ -27,6 +28,7 @@ import java.net.ProxySelector
 import java.net.URI
 import java.net.SocketAddress
 import java.io.IOException
+import java.io.File
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
@@ -34,6 +36,8 @@ import javax.net.ssl.HostnameVerifier
 import javax.net.ssl.SSLContext
 import javax.net.ssl.X509TrustManager
 import javax.inject.Singleton
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -110,7 +114,10 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(proxySelector: ProxySelector): OkHttpClient {
+    fun provideOkHttpClient(
+        @ApplicationContext context: Context,
+        proxySelector: ProxySelector
+    ): OkHttpClient {
         val trustAllManager = object : X509TrustManager {
             override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
             override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) = Unit
@@ -121,6 +128,12 @@ object NetworkModule {
         }
 
         return OkHttpClient.Builder()
+            .cache(
+                Cache(
+                    directory = File(context.cacheDir, "http_cache"),
+                    maxSize = 50L * 1024 * 1024 // 50 MB
+                )
+            )
             .sslSocketFactory(sslContext.socketFactory, trustAllManager)
             .hostnameVerifier(HostnameVerifier { _, _ -> true })
             .proxySelector(proxySelector)

@@ -60,7 +60,7 @@ private object HomeRadius {
     val md = 14.dp
 }
 
-private enum class HomeFocusIndex { CONTINUE, MOVIES, SERIES }
+private enum class HomeFocusIndex { CONTINUE, TRENDING, SERIES }
 
 @Composable
 fun HomeScreen(
@@ -69,6 +69,7 @@ fun HomeScreen(
     onNavigateToLiveTv: () -> Unit,
     onNavigateToMovies: () -> Unit,
     onNavigateToSeries: () -> Unit,
+    onNavigateToTrending: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToContinueWatching: () -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
@@ -81,7 +82,7 @@ fun HomeScreen(
 
     val isTv = context.isTelevisionDevice()
     val continueFocusRequester = remember { FocusRequester() }
-    val moviesFocusRequester = remember { FocusRequester() }
+    val trendingFocusRequester = remember { FocusRequester() }
     val seriesFocusRequester = remember { FocusRequester() }
     
     var lastFocusedIndex by rememberSaveable { mutableStateOf(HomeFocusIndex.CONTINUE) }
@@ -92,7 +93,7 @@ fun HomeScreen(
             delay(100)
             when (lastFocusedIndex) {
                 HomeFocusIndex.CONTINUE -> continueFocusRequester.requestFocus()
-                HomeFocusIndex.MOVIES -> moviesFocusRequester.requestFocus()
+                HomeFocusIndex.TRENDING -> trendingFocusRequester.requestFocus()
                 HomeFocusIndex.SERIES -> seriesFocusRequester.requestFocus()
             }
         }
@@ -150,16 +151,16 @@ fun HomeScreen(
                         .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.CONTINUE }
                 )
                 HomeHeroCard(
-                    title = stringResource(R.string.nav_movies).uppercase(),
-                    description = stringResource(R.string.dashboard_movies_desc),
-                    icon = Icons.Default.Movie,
+                    title = "TRENDING THIS WEEK",
+                    description = "Most popular content worldwide",
+                    icon = Icons.Default.Whatshot,
                     accentColor = Color(0xFFFFB300),
-                    onClick = onNavigateToMovies,
+                    onClick = onNavigateToTrending,
                     modifier = Modifier
                         .weight(1f)
                         .aspectRatio(1.5f)
-                        .focusRequester(moviesFocusRequester)
-                        .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.MOVIES }
+                        .focusRequester(trendingFocusRequester)
+                        .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.TRENDING }
                 )
                 HomeHeroCard(
                     title = stringResource(R.string.nav_series).uppercase(),
