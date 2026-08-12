@@ -23,7 +23,7 @@ import com.eliteprime.app.player.GlobalPlayerState
 import com.eliteprime.app.player.PlayerEngine
 import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.MainShell
-import com.eliteprime.app.ui.theme.ELITPRIMETheme
+import com.eliteprime.app.ui.theme.ArenaLiveTheme
 import dagger.hilt.android.AndroidEntryPoint
 import io.objectbox.BoxStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,7 +66,7 @@ class MainActivity : AppCompatActivity() {
         _pictureInPictureModeFlow.value = isInPictureInPictureMode
 
         setContent {
-            ELITPRIMETheme {
+            ArenaLiveTheme {
                 MainShell(
                     playerEngine = playerEngine,
                     globalPlayerState = globalPlayerState,

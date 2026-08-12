@@ -24,8 +24,10 @@ class XtreamRepository @Inject constructor(
 ) {
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
     private val categoryBox = boxStore.boxFor(Category::class.java)
+    private val liveBox = boxStore.boxFor(LiveStream::class.java)
     private val movieBox = boxStore.boxFor(Movie::class.java)
     private val seriesBox = boxStore.boxFor(Series::class.java)
+    private val epgBox = boxStore.boxFor(EPGProgram::class.java)
 
     suspend fun login(user: String, pass: String): Boolean = withContext(Dispatchers.IO) {
         val hosts = configRepository.getActiveHosts()
@@ -92,6 +94,31 @@ class XtreamRepository @Inject constructor(
         syncStreamType(account, "get_live_streams") { inputStream -> parser.parseLiveStreams(inputStream, null, onLiveProgress) }
         syncStreamType(account, "get_vod_streams") { inputStream -> parser.parseMovies(inputStream, null, onMovieProgress) }
         syncStreamType(account, "get_series") { inputStream -> parser.parseSeries(inputStream, null, onSeriesProgress) }
+
+        // Cleanup: Remove orphaned EPG data for channels that no longer exist
+        cleanupOrphanedData()
+    }
+
+    private fun cleanupOrphanedData() {
+        // 1. Fetch all current IDs
+        val liveIds = liveBox.all.map { it.id }.toSet()
+        val seriesIds = seriesBox.all.map { it.id }.toSet()
+        
+        boxStore.runInTx {
+            // 2. Remove EPG for channels that no longer exist
+            val orphanedEpg = epgBox.all.filter { it.channelId !in liveIds }
+            epgBox.remove(orphanedEpg)
+            
+            // 3. Remove Episodes and Seasons for Series that no longer exist
+            val episodeBox = boxStore.boxFor(Episode::class.java)
+            val seasonBox = boxStore.boxFor(Season::class.java)
+            
+            val orphanedEpisodes = episodeBox.all.filter { it.seriesId !in seriesIds }
+            val orphanedSeasons = seasonBox.all.filter { it.seriesId !in seriesIds }
+            
+            episodeBox.remove(orphanedEpisodes)
+            seasonBox.remove(orphanedSeasons)
+        }
     }
 
     private fun syncStreamType(account: XtreamAccount, action: String, parseAction: (InputStream) -> Unit) {
@@ -108,6 +135,17 @@ class XtreamRepository @Inject constructor(
         val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
         val fullUrl = "${account.serverUrl}player_api.php"
         try {
+            // 1. First, cleanup OLD EPG data for ALL channels to keep DB size small
+            // We remove anything that stopped more than 2 hours ago
+            val cleanupThreshold = System.currentTimeMillis() - (2 * 60 * 60 * 1000L)
+            boxStore.runInTx {
+                epgBox.query()
+                    .less(EPGProgram_.stopTimestamp, cleanupThreshold)
+                    .build()
+                    .remove()
+            }
+
+            // 2. Fetch fresh EPG for this specific channel
             val response = xtreamApi.getShortEpg(fullUrl, account.username, account.password, streamId = channel.id)
             response.listings?.let { listings ->
                 val epgPrograms = listings.map {

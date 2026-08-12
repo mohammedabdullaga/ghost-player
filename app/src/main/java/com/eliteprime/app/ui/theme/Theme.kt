@@ -17,7 +17,7 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 @Composable
-fun ELITPRIMETheme(
+fun ArenaLiveTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
