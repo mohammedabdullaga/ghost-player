@@ -2,6 +2,8 @@ package com.eliteprime.app.ui.screens.live
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.app.Application
+import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.remote.XtreamUrlFactory
 import com.eliteprime.app.data.repository.PreferenceRepository
@@ -32,7 +34,8 @@ class LiveViewModel @Inject constructor(
     val playerEngine: PlayerEngine,
     val globalPlayerState: GlobalPlayerState,
     private val xtreamRepository: XtreamRepository,
-    private val preferenceRepository: PreferenceRepository
+    private val preferenceRepository: PreferenceRepository,
+    private val application: Application
 ) : ViewModel() {
 
     companion object {
@@ -64,9 +67,9 @@ class LiveViewModel @Inject constructor(
         customGroupBox.query().build().flow()
     ) { providerCats, customGroups ->
         val virtualCats = listOf(
-            Category(id = CAT_ID_FAVORITES, categoryName = "★ Favorites", isVirtual = true),
-            Category(id = CAT_ID_RECENT, categoryName = "🕒 Recent", isVirtual = true),
-            Category(id = CAT_ID_ALL, categoryName = "All Channels", isVirtual = true)
+            Category(id = CAT_ID_FAVORITES, categoryName = application.getString(R.string.nav_favorites), isVirtual = true),
+            Category(id = CAT_ID_RECENT, categoryName = application.getString(R.string.nav_recent), isVirtual = true),
+            Category(id = CAT_ID_ALL, categoryName = application.getString(R.string.nav_all_channels), isVirtual = true)
         )
         val customGroupCats = customGroups
             .filter { it.groupType == "live" }

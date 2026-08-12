@@ -215,27 +215,28 @@ private fun VodTopNavBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            VodRoundIconButton(
-                icon = Icons.Default.Home, 
-                contentDescription = "Home", 
-                onClick = onBack
-            )
-
             ArenaLiveLogo(textSize = 20.sp)
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(32.dp))
 
-            NavTabButton(label = stringResource(R.string.nav_live_tv), isActive = false, onClick = onNavigateToLiveTv)
-            NavTabButton(label = stringResource(R.string.nav_movies), isActive = false, onClick = onNavigateToMovies)
-            NavTabButton(label = stringResource(R.string.nav_series), isActive = true, onClick = {})
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                NavTabButton(label = stringResource(R.string.nav_home), isActive = false, onClick = onBack)
+                NavTabButton(label = stringResource(R.string.nav_live_tv), isActive = false, onClick = onNavigateToLiveTv)
+                NavTabButton(label = stringResource(R.string.nav_movies), isActive = false, onClick = onNavigateToMovies)
+                NavTabButton(label = stringResource(R.string.nav_series), isActive = true, onClick = {})
+            }
 
             VodRoundIconButton(
                 icon = Icons.Default.Search, 
-                contentDescription = "Search", 
+                contentDescription = stringResource(R.string.nav_search), 
                 onClick = onNavigateToSearch
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.width(8.dp))
 
             Text(text = currentTime, color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }

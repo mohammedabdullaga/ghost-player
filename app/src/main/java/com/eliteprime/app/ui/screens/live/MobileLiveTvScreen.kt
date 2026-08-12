@@ -764,27 +764,28 @@ private fun LiveTopNavBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            LiveRoundIconButton(
-                icon = Icons.Default.Home, 
-                contentDescription = "Home", 
-                onClick = onBack
-            )
-
             ArenaLiveLogo(textSize = 20.sp)
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(32.dp))
 
-            NavTabButton(label = "Live TV", isActive = true, onClick = {})
-            NavTabButton(label = "Movies", isActive = false, onClick = onNavigateToMovies)
-            NavTabButton(label = "Series", isActive = false, onClick = onNavigateToSeries)
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                NavTabButton(label = stringResource(R.string.nav_home), isActive = false, onClick = onBack)
+                NavTabButton(label = stringResource(R.string.nav_live_tv), isActive = true, onClick = {})
+                NavTabButton(label = stringResource(R.string.nav_movies), isActive = false, onClick = onNavigateToMovies)
+                NavTabButton(label = stringResource(R.string.nav_series), isActive = false, onClick = onNavigateToSeries)
+            }
 
             LiveRoundIconButton(
                 icon = Icons.Default.Search, 
-                contentDescription = "Search", 
+                contentDescription = stringResource(R.string.nav_search), 
                 onClick = onNavigateToSearch
             )
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.width(8.dp))
 
             Text(text = currentTime, color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }

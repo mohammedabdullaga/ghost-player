@@ -47,7 +47,7 @@ fun NavTabButton(
         ) {
             Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
                 Text(
-                    text = label.uppercase(),
+                    text = label,
                     color = Color.White,
                     fontWeight = if (isActive || isFocused) FontWeight.Black else FontWeight.Bold,
                     fontSize = 12.sp,
