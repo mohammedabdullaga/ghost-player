@@ -7,6 +7,7 @@ import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.remote.TmdbApiService
 import com.eliteprime.app.data.repository.PreferenceRepository
+import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.domain.model.DownloadStatus
 import com.eliteprime.app.domain.repository.DownloadManager
 import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
@@ -32,7 +33,8 @@ class DashboardViewModel @Inject constructor(
     private val downloadManager: DownloadManager,
     private val tmdbApiService: TmdbApiService,
     private val configRepository: ConfigRepository,
-    private val preferenceRepository: PreferenceRepository
+    private val preferenceRepository: PreferenceRepository,
+    private val xtreamRepository: XtreamRepository
 ) : ViewModel() {
 
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
@@ -51,6 +53,23 @@ class DashboardViewModel @Inject constructor(
         
         // Initial load from cache to show instantly
         loadTrendingFromCache()
+        
+        // Background Silent Sync check (every 12 hours)
+        viewModelScope.launch(Dispatchers.IO) {
+            val lastSync = preferenceRepository.getLastSyncTimestamp()
+            val now = System.currentTimeMillis()
+            if (now - lastSync > 12 * 60 * 60 * 1000L) {
+                Log.d("DashboardVM", "Starting background silent sync...")
+                try {
+                    xtreamRepository.syncCategories()
+                    xtreamRepository.syncAllStreams({}, {}, {})
+                    preferenceRepository.setLastSyncTimestamp(now)
+                    Log.d("DashboardVM", "Silent sync completed successfully.")
+                } catch (e: Exception) {
+                    Log.e("DashboardVM", "Silent sync failed", e)
+                }
+            }
+        }
         
         // Refresh from TMDB only once every 24 hours
         viewModelScope.launch {

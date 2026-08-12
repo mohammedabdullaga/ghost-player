@@ -26,6 +26,12 @@ class PreferenceRepository @Inject constructor(
     private val _isSecureConnectionEnabled = MutableStateFlow(prefs.getBoolean("secure_connection_enabled", false))
     val isSecureConnectionEnabled: StateFlow<Boolean> = _isSecureConnectionEnabled
 
+    fun getLastSyncTimestamp(): Long = prefs.getLong("last_sync_timestamp", 0L)
+
+    fun setLastSyncTimestamp(timestamp: Long) {
+        prefs.edit().putLong("last_sync_timestamp", timestamp).apply()
+    }
+
     private fun getCurrentLanguage(): String {
         val locales = AppCompatDelegate.getApplicationLocales()
         if (!locales.isEmpty) {
