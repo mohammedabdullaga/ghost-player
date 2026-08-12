@@ -47,4 +47,17 @@
     <string name="player_resume_btn">استئناف</string>
     <string name="player_buffering">جاري التحميل...</string>
     <string name="player_error_title">خطأ في التشغيل</string>
+
+    <string name="settings_subtitle_size_small">صغير</string>
+    <string name="settings_subtitle_size_default">تلقائي</string>
+    <string name="settings_subtitle_size_large">كبير</string>
+    <string name="settings_subtitle_size_extra_large">كبير جداً</string>
+    <string name="settings_subtitle_color_white">أبيض</string>
+    <string name="settings_subtitle_color_yellow">أصفر</string>
+    <string name="settings_subtitle_color_cyan">سماوي</string>
+    <string name="settings_subtitle_color_green">أخضر</string>
+    <string name="settings_subtitle_background_transparent">شفاف</string>
+    <string name="settings_subtitle_background_dim">خافت</string>
+    <string name="settings_subtitle_background_black">أسود</string>
+    <string name="settings_subtitle_background_blue">أزرق</string>
 </resources>

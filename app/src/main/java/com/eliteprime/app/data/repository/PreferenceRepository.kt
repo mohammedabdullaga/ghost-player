@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import com.eliteprime.app.player.PlayerSubtitleStyle
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,26 @@ class PreferenceRepository @Inject constructor(
 
     private val _isSecureConnectionEnabled = MutableStateFlow(prefs.getBoolean("secure_connection_enabled", false))
     val isSecureConnectionEnabled: StateFlow<Boolean> = _isSecureConnectionEnabled
+
+    private val _subtitleStyle = MutableStateFlow(loadSubtitleStyle())
+    val subtitleStyle: StateFlow<PlayerSubtitleStyle> = _subtitleStyle
+
+    private fun loadSubtitleStyle(): PlayerSubtitleStyle {
+        return PlayerSubtitleStyle(
+            textScale = prefs.getFloat("subtitle_text_scale", 1.0f),
+            foregroundColorArgb = prefs.getInt("subtitle_text_color", 0xFFFFFFFF.toInt()),
+            backgroundColorArgb = prefs.getInt("subtitle_background_color", 0x00000000)
+        )
+    }
+
+    fun setSubtitleStyle(style: PlayerSubtitleStyle) {
+        prefs.edit()
+            .putFloat("subtitle_text_scale", style.textScale)
+            .putInt("subtitle_text_color", style.foregroundColorArgb)
+            .putInt("subtitle_background_color", style.backgroundColorArgb)
+            .apply()
+        _subtitleStyle.value = style
+    }
 
     fun getLastSyncTimestamp(): Long = prefs.getLong("last_sync_timestamp", 0L)
 

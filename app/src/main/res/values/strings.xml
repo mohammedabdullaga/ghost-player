@@ -47,4 +47,17 @@
     <string name="player_resume_btn">Resume</string>
     <string name="player_buffering">Buffering...</string>
     <string name="player_error_title">Playback Error</string>
+
+    <string name="settings_subtitle_size_small">Small</string>
+    <string name="settings_subtitle_size_default">Default</string>
+    <string name="settings_subtitle_size_large">Large</string>
+    <string name="settings_subtitle_size_extra_large">Extra Large</string>
+    <string name="settings_subtitle_color_white">White</string>
+    <string name="settings_subtitle_color_yellow">Yellow</string>
+    <string name="settings_subtitle_color_cyan">Cyan</string>
+    <string name="settings_subtitle_color_green">Green</string>
+    <string name="settings_subtitle_background_transparent">Transparent</string>
+    <string name="settings_subtitle_background_dim">Dim</string>
+    <string name="settings_subtitle_background_black">Black</string>
+    <string name="settings_subtitle_background_blue">Blue</string>
 </resources>

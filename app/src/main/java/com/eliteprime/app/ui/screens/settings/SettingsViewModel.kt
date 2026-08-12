@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil3.SingletonImageLoader
 import com.eliteprime.app.data.local.entity.*
+import com.eliteprime.app.player.PlayerSubtitleStyle
 import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.domain.model.DownloadStorageConfig
@@ -39,7 +40,8 @@ data class SettingsUiState(
     val isSecureConnectionEnabled: Boolean = false,
     val isSpeedTesting: Boolean = false,
     val speedTestResult: InternetSpeedTestSnapshot? = null,
-    val speedTestError: String? = null
+    val speedTestError: String? = null,
+    val subtitleStyle: PlayerSubtitleStyle = PlayerSubtitleStyle()
 )
 
 @HiltViewModel
@@ -84,7 +86,8 @@ class SettingsViewModel @Inject constructor(
         preferenceRepository.isSecureConnectionEnabled,
         _isSpeedTesting,
         _speedTestSnapshot,
-        _speedTestError
+        _speedTestError,
+        preferenceRepository.subtitleStyle
     ) { params ->
         SettingsUiState(
             account = params[0] as? XtreamAccount,
@@ -98,7 +101,8 @@ class SettingsViewModel @Inject constructor(
             isSecureConnectionEnabled = params[8] as Boolean,
             isSpeedTesting = params[9] as Boolean,
             speedTestResult = params[10] as? InternetSpeedTestSnapshot,
-            speedTestError = params[11] as? String
+            speedTestError = params[11] as? String,
+            subtitleStyle = params[12] as PlayerSubtitleStyle
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
@@ -144,6 +148,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setSecureConnectionEnabled(enabled: Boolean) {
         preferenceRepository.setSecureConnectionEnabled(enabled)
+    }
+
+    fun setSubtitleStyle(style: PlayerSubtitleStyle) {
+        preferenceRepository.setSubtitleStyle(style)
     }
 
     fun updateStorageConfig(uri: Uri) {

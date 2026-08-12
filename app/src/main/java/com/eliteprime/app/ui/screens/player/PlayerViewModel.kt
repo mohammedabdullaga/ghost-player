@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.MainActivity
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.remote.XtreamUrlFactory
+import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.repository.TvContinuationRepository
 import com.eliteprime.app.domain.model.StreamInfo
 import com.eliteprime.app.domain.model.StreamType
@@ -34,6 +35,7 @@ class PlayerViewModel @Inject constructor(
     private val tvContinuationRepository: TvContinuationRepository,
     private val playbackHistoryRepository: PlaybackHistoryRepository,
     private val downloadManager: DownloadManager,
+    private val preferenceRepository: PreferenceRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -109,6 +111,7 @@ class PlayerViewModel @Inject constructor(
 
             observePlayback()
             startAutoHideTimer()
+            observeSubtitleStyle()
             if (type == "series") {
                 loadSeriesContext()
             } else if (type == "live") {
@@ -199,6 +202,14 @@ class PlayerViewModel @Inject constructor(
             seekTo(currentPosition.value + finalSeekAmountMs)
             _seekAccumulator.value = 0
         }
+    }
+
+    private fun observeSubtitleStyle() {
+        preferenceRepository.subtitleStyle
+            .onEach { style ->
+                playerEngine.setSubtitleStyle(style)
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun observeVideoFormat() {

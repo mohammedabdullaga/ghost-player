@@ -47,6 +47,7 @@ class Media3PlayerEngine @Inject constructor(
     private var positionUpdateJob: Job? = null
     private var currentBufferPolicy: PlaybackBufferPolicy? = null
     private var mediaSourceFactory: PlayerMediaSourceFactory? = null
+    private val subtitleStyleController = SubtitleStyleController()
 
     private val _playbackState = MutableStateFlow(PlaybackState.IDLE)
     override val playbackState = _playbackState.asStateFlow()
@@ -227,7 +228,11 @@ class Media3PlayerEngine @Inject constructor(
         }
     }
 
-    override fun setSubtitleStyle(style: PlayerSubtitleStyle) {}
+    override fun setSubtitleStyle(style: PlayerSubtitleStyle) {
+        subtitleStyleController.updateStyle(style)
+        boundPlayerView?.let { subtitleStyleController.apply(it) }
+    }
+
     override fun renewStreamUrl(streamInfo: StreamInfo) {
         currentStreamInfo = streamInfo
         _prepareStatus.value = streamInfo
@@ -287,6 +292,8 @@ class Media3PlayerEngine @Inject constructor(
             playerView.resizeMode = targetResizeMode
             playerView.requestLayout()
         }
+
+        subtitleStyleController.apply(playerView)
     }
 
     override fun unbindRenderView(renderView: View) {

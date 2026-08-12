@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eliteprime.app.MainActivity
 import com.eliteprime.app.player.PlayerEngine
+import com.eliteprime.app.player.PlayerTrack
 import com.eliteprime.app.player.PlaybackState
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
@@ -238,6 +239,28 @@ fun PlayerScreen(
                     onStartOver = { viewModel.dismissResumePrompt(false) },
                     onResume = { viewModel.dismissResumePrompt(true) },
                     modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            if (showAudioDialog) {
+                PlayerTrackSelectionDialog(
+                    title = "SELECT AUDIO",
+                    tracks = audioTracks,
+                    onTrackSelected = { viewModel.selectAudioTrack(it.id) },
+                    onDismissRequest = { showAudioDialog = false }
+                )
+            }
+
+            if (showSubtitleDialog) {
+                val subOptions = listOf(PlayerTrack(id = "none", label = "OFF", isSelected = !subtitleTracks.any { it.isSelected })) + subtitleTracks
+                PlayerTrackSelectionDialog(
+                    title = "SELECT SUBTITLES",
+                    tracks = subOptions,
+                    onTrackSelected = { 
+                        if (it.id == "none") viewModel.selectSubtitleTrack(null)
+                        else viewModel.selectSubtitleTrack(it.id)
+                    },
+                    onDismissRequest = { showSubtitleDialog = false }
                 )
             }
         }

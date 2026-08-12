@@ -22,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -45,6 +46,7 @@ import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.XtreamAccount
 import com.eliteprime.app.domain.model.DownloadStorageConfig
+import com.eliteprime.app.player.PlayerSubtitleStyle
 import com.eliteprime.app.util.speedtest.InternetSpeedTestSnapshot
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
@@ -75,6 +77,7 @@ private enum class SettingCategory(val labelRes: Int, val icon: ImageVector) {
     GENERAL(R.string.settings_general, Icons.Default.Settings),
     NETWORK(R.string.settings_network, Icons.Default.NetworkCheck),
     PLAYBACK(R.string.settings_playback, Icons.Default.PlayCircle),
+    SUBTITLES(R.string.player_subs, Icons.Default.Subtitles),
     ABOUT(R.string.settings_about, Icons.Default.Info),
 }
 
@@ -242,6 +245,13 @@ fun SettingsScreen(
                                 speedResult = uiState.speedTestResult,
                                 speedError = uiState.speedTestError,
                                 onRunSpeedTest = { viewModel.runSpeedTest() },
+                                isTv = isTv
+                            )
+                        }
+                        SettingCategory.SUBTITLES -> {
+                            SubtitleSettingsContent(
+                                currentStyle = uiState.subtitleStyle,
+                                onStyleChange = { viewModel.setSubtitleStyle(it) },
                                 isTv = isTv
                             )
                         }
@@ -614,6 +624,194 @@ private fun LanguageChip(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SubtitleSettingsContent(
+    currentStyle: PlayerSubtitleStyle,
+    onStyleChange: (PlayerSubtitleStyle) -> Unit,
+    isTv: Boolean
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(STSpacing.md),
+        verticalArrangement = Arrangement.spacedBy(STSpacing.lg)
+    ) {
+        // Size
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                Text(
+                    text = "SUBTITLE SIZE",
+                    color = Color.White.copy(alpha = 0.6f),
+                    style = EyebrowStyle
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
+                ) {
+                    subtitleSizeOptions().forEach { option ->
+                        val isActive = currentStyle.textScale == option.scale
+                        SubFilterChip(
+                            label = stringResource(option.labelResId),
+                            icon = Icons.Default.FormatSize,
+                            isActive = isActive,
+                            onClick = { onStyleChange(currentStyle.copy(textScale = option.scale)) }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Text Color
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                Text(
+                    text = "TEXT COLOR",
+                    color = Color.White.copy(alpha = 0.6f),
+                    style = EyebrowStyle
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
+                ) {
+                    subtitleTextColorOptions().forEach { option ->
+                        val isActive = currentStyle.foregroundColorArgb == option.colorArgb
+                        SubtitleColorChip(
+                            label = stringResource(option.labelResId),
+                            color = Color(option.colorArgb),
+                            isActive = isActive,
+                            onClick = { onStyleChange(currentStyle.copy(foregroundColorArgb = option.colorArgb)) }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Background Color
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                Text(
+                    text = "BACKGROUND",
+                    color = Color.White.copy(alpha = 0.6f),
+                    style = EyebrowStyle
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
+                ) {
+                    subtitleBackgroundColorOptions().forEach { option ->
+                        val isActive = currentStyle.backgroundColorArgb == option.colorArgb
+                        SubtitleColorChip(
+                            label = stringResource(option.labelResId),
+                            color = Color(option.colorArgb),
+                            isActive = isActive,
+                            onClick = { onStyleChange(currentStyle.copy(backgroundColorArgb = option.colorArgb)) }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Preview Card
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                Text(
+                    text = "PREVIEW",
+                    color = Color.White.copy(alpha = 0.6f),
+                    style = EyebrowStyle
+                )
+                
+                Surface(
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    color = Color.Black,
+                    shape = RoundedCornerShape(STRadius.lg),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        // Dummy image simulation
+                        Box(modifier = Modifier.fillMaxSize().background(
+                            Brush.linearGradient(listOf(Color(0xFF1A2A6C), Color(0xFFB21F1F), Color(0xFFFDBB2D)))
+                        ).alpha(0.4f))
+
+                        Surface(
+                            color = Color(currentStyle.backgroundColorArgb),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "Sample Subtitle Text",
+                                color = Color(currentStyle.foregroundColorArgb),
+                                fontSize = (16 * currentStyle.textScale).sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubtitleColorChip(
+    label: String,
+    color: Color,
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    var isFocused by remember { mutableStateOf(false) }
+    
+    if (isTv) {
+        TvSurface(
+            onClick = onClick,
+            modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isActive) AppColors.FocusBrown else Color.Black.copy(alpha = 0.85f),
+                focusedContainerColor = AppColors.FocusBrown
+            ),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+            border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+        ) {
+            SubtitleColorChipContent(label, color, isActive || isFocused)
+        }
+    } else {
+        Surface(
+            onClick = onClick,
+            color = if (isActive) AppColors.ArenaOrange else Color.Black.copy(alpha = 0.85f),
+            shape = RoundedCornerShape(10.dp),
+            border = BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.15f))
+        ) {
+            SubtitleColorChipContent(label, color, isActive)
+        }
+    }
+}
+
+@Composable
+private fun SubtitleColorChipContent(label: String, color: Color, active: Boolean) {
+    Row(
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(16.dp)
+                .clip(CircleShape)
+                .background(color)
+                .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+        )
+        Text(
+            text = label,
+            color = if (active) Color.White else Color.White.copy(alpha = 0.6f),
+            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+            fontSize = 12.sp
+        )
     }
 }
 
