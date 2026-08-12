@@ -25,8 +25,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import com.eliteprime.app.R
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -210,7 +212,7 @@ fun SeriesDetailsScreen(
                     item {
                         InfoCard {
                             Text(
-                                text = series.genre?.uppercase() ?: "SERIES", 
+                                text = series.genre?.uppercase() ?: stringResource(R.string.generic_series), 
                                 style = EyebrowStyle, 
                                 color = AppColors.ArenaOrange
                             )
@@ -237,9 +239,9 @@ fun SeriesDetailsScreen(
                                 val isDl = dl?.status == DownloadStatus.COMPLETED
                                 val hasProgress = resumeEpisode!!.watchProgress > 10000L
                                 val buttonText = when {
-                                    isDl -> "PLAY DOWNLOADED S${resumeEpisode!!.seasonNumber} E${resumeEpisode!!.episodeNumber}"
-                                    hasProgress -> "RESUME S${resumeEpisode!!.seasonNumber} E${resumeEpisode!!.episodeNumber} FROM ${formatPositionMs(resumeEpisode!!.watchProgress)}"
-                                    else -> "PLAY S${resumeEpisode!!.seasonNumber} E${resumeEpisode!!.episodeNumber}"
+                                    isDl -> stringResource(R.string.player_play_downloaded_episode, resumeEpisode!!.seasonNumber ?: 0, resumeEpisode!!.episodeNumber ?: 0)
+                                    hasProgress -> stringResource(R.string.player_resume_episode_from, resumeEpisode!!.seasonNumber ?: 0, resumeEpisode!!.episodeNumber ?: 0, formatPositionMs(resumeEpisode!!.watchProgress))
+                                    else -> stringResource(R.string.player_play_episode, resumeEpisode!!.seasonNumber ?: 0, resumeEpisode!!.episodeNumber ?: 0)
                                 }
 
                                 Row(modifier = Modifier.padding(vertical = 4.dp)) {
@@ -296,9 +298,9 @@ fun SeriesDetailsScreen(
 
                             MetadataGrid(
                                 listOfNotNull(
-                                    series.releaseDate?.take(4)?.let { "YEAR" to it },
-                                    series.director?.takeIf { it.isNotBlank() }?.let { "DIRECTOR" to it },
-                                    series.cast?.takeIf { it.isNotBlank() }?.let { "CAST" to it }
+                                    series.releaseDate?.take(4)?.let { stringResource(R.string.metadata_year) to it },
+                                    series.director?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.metadata_director) to it },
+                                    series.cast?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.metadata_cast) to it }
                                 )
                             )
                         }
@@ -343,7 +345,7 @@ fun SeriesDetailsScreen(
                         if (relatedSeries.isEmpty()) {
                             item {
                                 Box(modifier = Modifier.fillMaxWidth().padding(48.dp), contentAlignment = Alignment.Center) {
-                                    Text("No related series found", color = Color.White.copy(alpha = 0.5f))
+                                    Text(stringResource(R.string.detail_no_related_series), color = Color.White.copy(alpha = 0.5f))
                                 }
                             }
                         } else {
@@ -398,7 +400,7 @@ private fun DetailTabSection(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = if (isActive && selectedSeason != null) selectedSeason.season.name else "EPISODES",
+                        text = if (isActive && selectedSeason != null) selectedSeason.season.name else stringResource(R.string.detail_tab_episodes),
                         color = Color.White,
                         fontWeight = FontWeight.Black,
                         fontSize = 13.sp,
@@ -473,7 +475,7 @@ private fun DetailTabSection(
                 border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
             ) {
                 Box(modifier = Modifier.padding(horizontal = 16.dp).fillMaxHeight(), contentAlignment = Alignment.Center) {
-                    Text("MORE LIKE THIS", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    Text(stringResource(R.string.detail_tab_related), color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
                 }
             }
         } else {
@@ -485,7 +487,7 @@ private fun DetailTabSection(
                 border = BorderStroke(1.dp, if (isRelatedActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.1f))
             ) {
                 Box(modifier = Modifier.padding(horizontal = 16.dp).fillMaxHeight(), contentAlignment = Alignment.Center) {
-                    Text("MORE LIKE THIS", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    Text(stringResource(R.string.detail_tab_related), color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
                 }
             }
         }
@@ -770,7 +772,7 @@ private fun EpisodeRowContent(episode: Episode, index: Int, isHighlighted: Boole
         }
 
         if (isHighlighted) {
-            StatusPill(label = "WATCHING", containerColor = AppColors.ArenaOrange.copy(alpha = 0.2f), contentColor = AppColors.ArenaOrange)
+            StatusPill(label = stringResource(R.string.generic_status_watching), containerColor = AppColors.ArenaOrange.copy(alpha = 0.2f), contentColor = AppColors.ArenaOrange)
         }
 
         if (isDownloaded) {

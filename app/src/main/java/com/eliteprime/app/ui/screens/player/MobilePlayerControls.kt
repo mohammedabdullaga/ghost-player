@@ -214,7 +214,7 @@ fun MobilePlayerControls(
                                     .size(40.dp)
                                     .background(Color.White.copy(alpha = 0.1f), CircleShape)
                             ) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close", tint = Color.White, modifier = Modifier.size(20.dp))
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.generic_close), tint = Color.White, modifier = Modifier.size(20.dp))
                             }
 
                             Column(modifier = Modifier.weight(1f)) {
@@ -234,7 +234,7 @@ fun MobilePlayerControls(
                             ) {
                                 PlayerTopIconButton(
                                     icon = Icons.Default.BugReport,
-                                    contentDescription = "Diagnostics",
+                                    contentDescription = stringResource(R.string.player_diagnostics),
                                     onClick = onToggleDiagnostics,
                                     onInteraction = onInteraction
                                 )
@@ -261,13 +261,13 @@ fun MobilePlayerControls(
                                 )
                                 PlayerTopIconButton(
                                     icon = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
-                                    contentDescription = "Mute",
+                                    contentDescription = stringResource(R.string.player_mute),
                                     onClick = onToggleMute,
                                     onInteraction = onInteraction
                                 )
                                 PlayerTopIconButton(
                                     icon = Icons.Default.PictureInPicture,
-                                    contentDescription = "PiP",
+                                    contentDescription = stringResource(R.string.player_pip),
                                     onClick = onEnterPiP,
                                     onInteraction = onInteraction
                                 )
@@ -296,7 +296,7 @@ fun MobilePlayerControls(
                             if (contentType != PlayerContentType.MOVIE) {
                                 PlayerControlButton(
                                     icon = Icons.Default.SkipPrevious,
-                                    contentDescription = "Previous",
+                                    contentDescription = stringResource(R.string.generic_previous),
                                     onClick = onPreviousEpisode,
                                     onInteraction = onInteraction,
                                     enabled = hasPreviousEpisode
@@ -307,7 +307,7 @@ fun MobilePlayerControls(
                             if (contentType != PlayerContentType.LIVE_TV) {
                                 PlayerControlButton(
                                     icon = Icons.Default.Replay10,
-                                    contentDescription = "Rewind 10s",
+                                    contentDescription = stringResource(R.string.player_rewind_10),
                                     onInteraction = onInteraction,
                                     onClick = onSeekBackward
                                 )
@@ -316,7 +316,7 @@ fun MobilePlayerControls(
                             // 3. Play/Pause (Center Anchor)
                             PlayerControlButton(
                                 icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = "Play/Pause",
+                                contentDescription = stringResource(R.string.player_play_pause),
                                 onClick = onTogglePlayPause,
                                 onInteraction = onInteraction,
                                 containerColor = AppColors.ArenaOrange,
@@ -328,7 +328,7 @@ fun MobilePlayerControls(
                             if (contentType != PlayerContentType.LIVE_TV) {
                                 PlayerControlButton(
                                     icon = Icons.Default.Forward10,
-                                    contentDescription = "Forward 10s",
+                                    contentDescription = stringResource(R.string.player_forward_10),
                                     onInteraction = onInteraction,
                                     onClick = onSeekForward
                                 )
@@ -338,7 +338,7 @@ fun MobilePlayerControls(
                             if (contentType != PlayerContentType.MOVIE) {
                                 PlayerControlButton(
                                     icon = Icons.Default.SkipNext,
-                                    contentDescription = "Next",
+                                    contentDescription = stringResource(R.string.generic_next),
                                     onClick = onNextEpisode,
                                     onInteraction = onInteraction,
                                     enabled = hasNextEpisode
@@ -498,7 +498,7 @@ private fun LiveIndicatorBar() {
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = alpha))
                 )
-                Text("LIVE", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
+                Text(stringResource(R.string.generic_live), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 0.5.sp)
             }
         }
         Box(
@@ -712,7 +712,7 @@ fun MobileResumePrompt(
                                 border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
                             ) {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Text("START OVER", color = Color.Unspecified, fontWeight = FontWeight.Bold)
+                                    Text(stringResource(R.string.player_resume_start_over).uppercase(), color = Color.Unspecified, fontWeight = FontWeight.Bold)
                                 }
                             }
 
@@ -727,7 +727,7 @@ fun MobileResumePrompt(
                                 border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
                             ) {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Text("RESUME", color = Color.Unspecified, fontWeight = FontWeight.Black)
+                                    Text(stringResource(R.string.player_resume_btn).uppercase(), color = Color.Unspecified, fontWeight = FontWeight.Black)
                                 }
                             }
                         } else {

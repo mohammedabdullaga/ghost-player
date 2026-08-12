@@ -59,7 +59,7 @@ fun DownloadsScreen(
             topBar = {
                 Column(modifier = Modifier.background(Color.Black.copy(alpha = 0.4f))) {
                     TopAppBar(
-                        title = { Text("DOWNLOADS LIBRARY", fontWeight = FontWeight.Black, fontSize = 18.sp) },
+                        title = { Text(stringResource(R.string.downloads_title), fontWeight = FontWeight.Black, fontSize = 18.sp) },
                         navigationIcon = {
                             IconButton(onClick = onBack) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -79,21 +79,21 @@ fun DownloadsScreen(
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         DownloadTabButton(
-                            label = "ALL",
+                            label = stringResource(R.string.filter_all),
                             count = uiState.allCount,
                             isSelected = uiState.currentFilter == DownloadFilter.ALL,
                             onClick = { viewModel.setFilter(DownloadFilter.ALL) },
                             isTv = isTv
                         )
                         DownloadTabButton(
-                            label = "MOVIES",
+                            label = stringResource(R.string.filter_movies),
                             count = uiState.movieCount,
                             isSelected = uiState.currentFilter == DownloadFilter.MOVIES,
                             onClick = { viewModel.setFilter(DownloadFilter.MOVIES) },
                             isTv = isTv
                         )
                         DownloadTabButton(
-                            label = "SERIES",
+                            label = stringResource(R.string.filter_series),
                             count = uiState.seriesCount,
                             isSelected = uiState.currentFilter == DownloadFilter.SERIES,
                             onClick = { viewModel.setFilter(DownloadFilter.SERIES) },
@@ -109,7 +109,7 @@ fun DownloadsScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.DownloadForOffline, null, tint = Color.White.copy(alpha = 0.1f), modifier = Modifier.size(80.dp))
                             Spacer(Modifier.height(16.dp))
-                            Text("No downloads in this category", color = Color.White.copy(alpha = 0.5f), fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.downloads_empty), color = Color.White.copy(alpha = 0.5f), fontWeight = FontWeight.Bold)
                         }
                     }
                 } else if (uiState.isLoading) {
@@ -267,12 +267,12 @@ private fun MobileDownloadCard(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     val displayName = if (item.seasonNumber != null && item.episodeNumber != null) {
-                        "S${item.seasonNumber} E${item.episodeNumber} - ${item.contentName}"
+                        stringResource(R.string.downloads_episode_format, item.seasonNumber, item.episodeNumber, item.contentName)
                     } else {
                         item.contentName
                     }
                     Text(displayName, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(item.status.name, color = statusColor(item.status), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(formatDownloadStatus(item.status), color = statusColor(item.status), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -348,12 +348,12 @@ private fun TvDownloadCard(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     val displayName = if (item.seasonNumber != null && item.episodeNumber != null) {
-                        "S${item.seasonNumber} E${item.episodeNumber} - ${item.contentName}"
+                        stringResource(R.string.downloads_episode_format, item.seasonNumber, item.episodeNumber, item.contentName)
                     } else {
                         item.contentName
                     }
                     Text(displayName, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
-                    Text(item.status.name, color = statusColor(item.status), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(formatDownloadStatus(item.status), color = statusColor(item.status), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -383,12 +383,12 @@ private fun TvDownloadCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (item.status == DownloadStatus.FAILED || item.status == DownloadStatus.PAUSED) {
-                        TvIconButton(Icons.Default.Refresh, "Resume", onResume)
+                        TvIconButton(Icons.Default.Refresh, stringResource(R.string.generic_resume), onResume)
                     }
                     if (item.status == DownloadStatus.DOWNLOADING || item.status == DownloadStatus.PENDING) {
-                        TvIconButton(Icons.Default.Close, "Cancel", onCancel)
+                        TvIconButton(Icons.Default.Close, stringResource(R.string.generic_cancel), onCancel)
                     }
-                    TvIconButton(Icons.Default.Delete, "Delete", onDelete, tint = Color.Red.copy(alpha = 0.8f))
+                    TvIconButton(Icons.Default.Delete, stringResource(R.string.generic_delete), onDelete, tint = Color.Red.copy(alpha = 0.8f))
                 }
             }
         }
@@ -429,6 +429,16 @@ private fun formatEta(ms: Long?): String {
     val seconds = totalSeconds % 60
     return if (hours > 0) String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
     else String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+}
+
+@Composable
+private fun formatDownloadStatus(status: DownloadStatus): String = when (status) {
+    DownloadStatus.PENDING -> stringResource(R.string.download_status_pending)
+    DownloadStatus.DOWNLOADING -> stringResource(R.string.download_status_downloading)
+    DownloadStatus.PAUSED -> stringResource(R.string.download_status_paused)
+    DownloadStatus.COMPLETED -> stringResource(R.string.download_status_completed)
+    DownloadStatus.FAILED -> stringResource(R.string.download_status_failed)
+    DownloadStatus.CANCELLED -> stringResource(R.string.download_status_cancelled)
 }
 
 private fun statusColor(status: DownloadStatus): Color = when (status) {

@@ -22,6 +22,7 @@ import io.objectbox.kotlin.flow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -46,7 +47,11 @@ data class SettingsUiState(
     val zapAutoRevert: Boolean = false,
     val preventStandby: Boolean = true,
     val liveBufferSize: Int = 0,
-    val decoderMode: String = "AUTO"
+    val decoderMode: String = "AUTO",
+    val lastUpdateCheckTimestamp: Long = 0,
+    val isCheckingForUpdates: Boolean = false,
+    val latestVersion: String? = null,
+    val updateStatus: String = "Up to date"
 )
 
 @HiltViewModel
@@ -70,6 +75,11 @@ class SettingsViewModel @Inject constructor(
     private val _isSpeedTesting = MutableStateFlow(false)
     private val _speedTestSnapshot = MutableStateFlow<InternetSpeedTestSnapshot?>(null)
     private val _speedTestError = MutableStateFlow<String?>(null)
+
+    private val _isCheckingForUpdates = MutableStateFlow(false)
+    private val _latestVersion = MutableStateFlow<String?>(null)
+    private val _updateStatus = MutableStateFlow("Up to date")
+    private val _lastUpdateCheckTimestamp = MutableStateFlow(preferenceRepository.getLastUpdateCheckTimestamp())
 
     private fun <T> reactiveCount(box: Box<T>): Flow<Long> = callbackFlow {
         val subscription = boxStore.subscribe(box.entityClass)
@@ -97,7 +107,11 @@ class SettingsViewModel @Inject constructor(
         preferenceRepository.zapAutoRevert,
         preferenceRepository.preventStandby,
         preferenceRepository.liveBufferSize,
-        preferenceRepository.decoderMode
+        preferenceRepository.decoderMode,
+        _isCheckingForUpdates,
+        _latestVersion,
+        _updateStatus,
+        _lastUpdateCheckTimestamp
     ) { params ->
         SettingsUiState(
             account = params[0] as? XtreamAccount,
@@ -117,7 +131,11 @@ class SettingsViewModel @Inject constructor(
             zapAutoRevert = params[14] as Boolean,
             preventStandby = params[15] as Boolean,
             liveBufferSize = params[16] as Int,
-            decoderMode = params[17] as String
+            decoderMode = params[17] as String,
+            isCheckingForUpdates = params[18] as Boolean,
+            latestVersion = params[19] as? String,
+            updateStatus = params[20] as String,
+            lastUpdateCheckTimestamp = params[21] as Long
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
@@ -187,6 +205,34 @@ class SettingsViewModel @Inject constructor(
 
     fun setDecoderMode(mode: String) {
         preferenceRepository.setDecoderMode(mode)
+    }
+
+    fun checkForUpdates() {
+        viewModelScope.launch {
+            _isCheckingForUpdates.value = true
+            _updateStatus.value = "Checking..."
+            
+            // Simulation of update check
+            delay(2000)
+            
+            val now = System.currentTimeMillis()
+            preferenceRepository.setLastUpdateCheckTimestamp(now)
+            _lastUpdateCheckTimestamp.value = now
+            
+            // Placeholder logic
+            val currentVersion = "1.0.0"
+            val latestFromServer = "1.0.0" // Replace with actual API call later
+            
+            if (currentVersion == latestFromServer) {
+                _updateStatus.value = "Up to date"
+                _latestVersion.value = latestFromServer
+            } else {
+                _updateStatus.value = "New update available: $latestFromServer"
+                _latestVersion.value = latestFromServer
+            }
+            
+            _isCheckingForUpdates.value = false
+        }
     }
 
     fun updateStorageConfig(uri: Uri) {

@@ -146,7 +146,7 @@ fun HomeScreen(
                 if (lastWatched.type == "series" || lastWatched.type == "series_episode") {
                     " — S${lastWatched.seasonNumber} · E${lastWatched.episodeNumber}, ${lastWatched.name}"
                 } else lastWatched.name
-            } else "Your history is empty"
+            } else stringResource(R.string.home_history_empty)
             val continueProgress = lastWatched?.let { if (it.durationMs > 0) it.lastPositionMs.toFloat() / it.durationMs.toFloat() else 0f }
 
             val trendingItems = uiState.trendingMovies.ifEmpty { uiState.trendingSeries }
@@ -178,7 +178,7 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     HomeHeroCard(
-                        title = "Continue watching",
+                        title = stringResource(R.string.home_continue_watching),
                         description = continueDesc,
                         backgroundUrl = lastWatched?.backdropUrl ?: lastWatched?.posterUrl,
                         accentColor = Color(0xFFFF4500),
@@ -191,8 +191,8 @@ fun HomeScreen(
                         progress = continueProgress
                     )
                     HomeHeroCard(
-                        title = "Downloads",
-                        description = "Watch your offline content",
+                        title = stringResource(R.string.home_downloads),
+                        description = stringResource(R.string.home_downloads_desc),
                         backgroundUrl = uiState.latestDownloadPoster,
                         accentColor = Color(0xFF00BFFF),
                         onClick = onNavigateToDownloads,
@@ -202,7 +202,7 @@ fun HomeScreen(
                             .alpha(if (uiState.downloadsCount == 0) 0.7f else 1f)
                             .focusRequester(downloadsFocusRequester)
                             .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.DOWNLOADS },
-                        badgeLabel = if (uiState.completedDownloadsCount > 0) "${uiState.completedDownloadsCount} READY" else null
+                        badgeLabel = if (uiState.completedDownloadsCount > 0) "${uiState.completedDownloadsCount} ${stringResource(R.string.home_downloads_ready)}" else null
                     )
                 }
             }
@@ -217,7 +217,7 @@ fun HomeScreen(
                     .padding(HomeSpacing.xl)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Plan ends", color = Color.White.copy(alpha = 0.4f), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.home_plan_ends), color = Color.White.copy(alpha = 0.4f), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(text = date, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
@@ -250,7 +250,7 @@ private fun HomeTopNavBar(
             horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NavTabButton(label = "Home", isActive = true, onClick = {})
+            NavTabButton(label = stringResource(R.string.nav_home), isActive = true, onClick = {})
             NavTabButton(label = stringResource(R.string.nav_live_tv), isActive = false, onClick = onNavigateToLiveTv)
             NavTabButton(label = stringResource(R.string.nav_movies), isActive = false, onClick = onNavigateToMovies)
             NavTabButton(label = stringResource(R.string.nav_series), isActive = false, onClick = onNavigateToSeries)
@@ -608,7 +608,7 @@ private fun TrendingHeroCardContent(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "TRENDING THIS WEEK",
+                            text = stringResource(R.string.home_trending_title),
                             color = accentColor,
                             fontWeight = FontWeight.Black,
                             fontSize = 11.sp,
@@ -634,7 +634,7 @@ private fun TrendingHeroCardContent(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = crossfadeItem?.title ?: "Most popular content",
+                        text = crossfadeItem?.title ?: stringResource(R.string.home_trending_fallback),
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 22.sp,
@@ -689,15 +689,15 @@ fun ExitConfirmationDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings_logout_confirm_title), fontWeight = FontWeight.Bold) },
-        text = { Text("Are you sure you want to exit?") },
+        text = { Text(stringResource(R.string.exit_confirm_msg)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("YES", color = Color(0xFFEF5350), fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.generic_yes), color = Color(0xFFEF5350), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("NO", color = Color.White.copy(alpha = 0.6f))
+                Text(stringResource(R.string.generic_no), color = Color.White.copy(alpha = 0.6f))
             }
         },
         shape = RoundedCornerShape(20.dp),

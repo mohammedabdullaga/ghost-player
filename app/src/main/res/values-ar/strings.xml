@@ -29,9 +29,14 @@
     <string name="login_username">اسم المستخدم</string>
     <string name="login_password">كلمة المرور</string>
     <string name="login_btn">دخول</string>
+    <string name="login_error_invalid">بيانات الاعتماد غير صالحة أو خطأ في الخادم</string>
     <string name="login_qr_title">تسجيل الدخول عبر الهاتف</string>
     <string name="login_qr_msg">امسح الرمز لادخال البيانات بسرعة وسهولة من هاتفك المحمول</string>
     <string name="login_qr_footer">يجب ان يكون الهاتف على نفس شبكة الواي فاي</string>
+    <string name="login_qr_generating">جاري إنشاء رمز QR...</string>
+    <string name="login_secure_vpn">اتصال آمن (VPN)</string>
+    <string name="login_sync_finishing">إنهاء الإعداد...</string>
+    <string name="login_sync_preparing">تحضير المحتوى...</string>
 
     <string name="dashboard_expires">ينتهي في</string>
     <string name="dashboard_live_desc">شاهد القنوات المباشرة من جميع أنحاء العالم</string>
@@ -47,6 +52,136 @@
     <string name="player_resume_btn">استئناف</string>
     <string name="player_buffering">جاري التحميل...</string>
     <string name="player_error_title">خطأ في التشغيل</string>
+
+    <!-- Generic / Shared -->
+    <string name="generic_yes">نعم</string>
+    <string name="generic_no">لا</string>
+    <string name="generic_cancel">إلغاء</string>
+    <string name="generic_remove">إزالة</string>
+    <string name="generic_done">تم</string>
+    <string name="generic_close">إغلاق</string>
+    <string name="generic_create">إنشاء</string>
+    <string name="generic_delete">حذف</string>
+    <string name="generic_resume">استئناف</string>
+    <string name="generic_save_changes">حفظ التغييرات</string>
+    <string name="generic_checking">جاري الفحص...</string>
+    <string name="generic_never">أبداً</string>
+    <string name="generic_unknown">غير معروف</string>
+    <string name="generic_preview">معاينة</string>
+    <string name="generic_movie">فيلم</string>
+    <string name="generic_series">مسلسل</string>
+    <string name="generic_groups">المجموعات</string>
+    <string name="generic_filters">الفلاتر</string>
+    <string name="generic_epg">دليل البرامج</string>
+    <string name="generic_channels">القنوات</string>
+    <string name="generic_live">مباشر</string>
+    <string name="generic_previous">السابق</string>
+    <string name="generic_next">التالي</string>
+    <string name="generic_back">رجوع</string>
+    <string name="generic_status_watching">مشاهدة</string>
+    <string name="generic_status_active">نشط</string>
+    <string name="generic_coming_soon">قريباً</string>
+    <string name="generic_recommended">موصى به</string>
+    <string name="generic_watch_now">شاهد الآن</string>
+
+    <!-- Home -->
+    <string name="home_history_empty">سجلك فارغ</string>
+    <string name="home_trending_title">الأكثر رواجاً هذا الأسبوع</string>
+    <string name="home_trending_fallback">المحتوى الأكثر شعبية</string>
+    <string name="home_continue_watching">متابعة المشاهدة</string>
+    <string name="home_downloads">التنزيلات</string>
+    <string name="home_downloads_desc">شاهد المحتوى الخاص بك بدون إنترنت</string>
+    <string name="home_downloads_ready">جاهز</string>
+    <string name="home_plan_ends">ينتهي الاشتراك</string>
+    <string name="exit_confirm_msg">هل أنت متأكد أنك تريد الخروج؟</string>
+
+    <!-- History / Continue Watching -->
+    <string name="history_title">متابعة المشاهدة</string>
+    <string name="history_empty_filter">لا يوجد سجل في هذه الفئة</string>
+    <string name="history_remove_title">إزالة من السجل</string>
+    <string name="history_remove_msg">هل أنت متأكد أنك تريد إزالة \'%1$s\' من قائمة متابعة المشاهدة؟</string>
+    <string name="filter_all">الكل</string>
+    <string name="filter_movies">أفلام</string>
+    <string name="filter_series">مسلسلات</string>
+    <string name="trending_loading">جاري جلب آخر الاتجاهات...</string>
+    <string name="trending_not_in_library">غير موجود في مكتبتك</string>
+    <string name="trending_empty">لم يتم العثور على عناصر شائعة في مكتبتك</string>
+
+    <!-- Details -->
+    <string name="detail_tab_episodes">الحلقات</string>
+    <string name="detail_tab_related">ذات صلة</string>
+    <string name="detail_no_related_series">لم يتم العثور على مسلسلات ذات صلة</string>
+    <string name="detail_more_like_this">المزيد مثل هذا</string>
+    <string name="metadata_duration">المدة</string>
+    <string name="metadata_director">المخرج</string>
+    <string name="metadata_genre">النوع</string>
+    <string name="metadata_cast">طاقم العمل</string>
+    <string name="metadata_year">السنة</string>
+
+    <!-- Live TV -->
+    <string name="live_reordering">إعادة الترتيب</string>
+    <string name="live_now">مباشر الآن</string>
+    <string name="live_upcoming_guide">الدليل القادم</string>
+    <string name="live_no_epg">لا توجد برامج قادمة</string>
+    <string name="live_select_channel_prompt">اختر قناة لمشاهدة الدليل</string>
+    <string name="live_hide_channel">إخفاء القناة</string>
+    <string name="live_no_epg_data">لا توجد بيانات دليل</string>
+    <string name="fav_remove">إزالة من المفضلة</string>
+    <string name="fav_add">إضافة إلى المفضلة</string>
+    <string name="group_create_title">إنشاء مجموعة جديدة</string>
+    <string name="group_name_label">اسم المجموعة</string>
+    <string name="group_add_to">إضافة إلى المجموعة</string>
+    <string name="group_delete">حذف المجموعة</string>
+    <string name="group_reorder">إعادة ترتيب المجموعات</string>
+    <string name="epg_now">الآن</string>
+
+    <!-- Player -->
+    <string name="player_play_downloaded">تشغيل المحتوى المحمل</string>
+    <string name="player_resume_from">استئناف من %1$s</string>
+    <string name="player_play_now">تشغيل الآن</string>
+    <string name="player_play_downloaded_episode">تشغيل الحلقة المحملة م%1$d ح%2$d</string>
+    <string name="player_resume_episode_from">استئناف م%1$d ح%2$d من %3$s</string>
+    <string name="player_play_episode">تشغيل م%1$d ح%2$d</string>
+    <string name="player_diagnostics">التشخيصات</string>
+    <string name="player_mute">كتم الصوت</string>
+    <string name="player_pip">صورة داخل صورة</string>
+    <string name="player_rewind_10">رجوع 10 ثوانٍ</string>
+    <string name="player_forward_10">تقدم 10 ثوانٍ</string>
+    <string name="player_play_pause">تشغيل/إيقاف</string>
+    <string name="player_diagnostics_title">تشخيصات التشغيل</string>
+    <string name="diag_resolution">الدقة</string>
+    <string name="diag_video_codec">ترميز الفيديو</string>
+    <string name="diag_audio_codec">ترميز الصوت</string>
+    <string name="diag_bitrate">معدل البت</string>
+    <string name="diag_dropped_frames">الإطارات المفقودة</string>
+    <string name="diag_buffer">ذاكرة التخزين</string>
+    <string name="diag_video_decoder">مفكك فيديو</string>
+    <string name="diag_audio_decoder">مفكك صوت</string>
+
+    <!-- Search -->
+    <string name="search_placeholder">ابحث في مكتبتك</string>
+    <string name="search_idle_title">ابحث في مكتبتك</string>
+    <string name="search_idle_desc">ابحث عن الأفلام والمسلسلات والقنوات المباشرة حسب العنوان</string>
+    <string name="search_no_results">لم يتم العثور على نتائج</string>
+    <string name="search_no_results_query">لم يتطابق شيء مع \u201c%1$s\u201d</string>
+
+    <!-- Downloads -->
+    <string name="downloads_title">مكتبة التنزيلات</string>
+    <string name="downloads_empty">لا يوجد تنزيلات في هذه الفئة</string>
+    <string name="downloads_episode_format">م%1$d ح%2$d - %3$s</string>
+    <string name="download_status_pending">في الانتظار</string>
+    <string name="download_status_downloading">جاري التنزيل</string>
+    <string name="download_status_paused">تم الإيقاف مؤقتاً</string>
+    <string name="download_status_completed">تم التنزيل</string>
+    <string name="download_status_failed">فشل التنزيل</string>
+    <string name="download_status_cancelled">ملغى</string>
+
+    <!-- Settings -->
+    <string name="settings_playback_options">خيارات التشغيل</string>
+    <string name="settings_engine_preferences">تفضيلات المحرك</string>
+    <string name="settings_about_app_info">معلومات التطبيق</string>
+    <string name="settings_update_status">حالة التحديث</string>
+    <string name="settings_subtitle_preview_text">نص تجريبي للترجمة</string>
 
     <string name="settings_prevent_standby">منع وضع الاستعداد</string>
     <string name="settings_prevent_standby_subtitle">إبقاء الشاشة قيد التشغيل أثناء التشغيل حتى في حالة عدم النشاط</string>
@@ -71,6 +206,25 @@
     <string name="settings_decoder_auto">تلقائي (مستحسن)</string>
     <string name="settings_decoder_hardware">عتادي (الأسرع)</string>
     <string name="settings_decoder_software">برمجي (متوافق)</string>
+
+    <string name="settings_about_app_name">اسم التطبيق</string>
+    <string name="settings_about_developed_by">تطوير</string>
+    <string name="settings_about_build_version">إصدار البناء</string>
+    <string name="settings_about_latest_release">آخر إصدار</string>
+    <string name="settings_about_update_status">حالة التحديث</string>
+    <string name="settings_about_last_checked">آخر فحص</string>
+    <string name="settings_about_check_updates">التحقق من وجود تحديثات</string>
+    <string name="settings_download_folder">مجلد التنزيل</string>
+    <string name="settings_download_folder_desc">اختر مكان حفظ المحتوى الذي تم تنزيله</string>
+    <string name="settings_speed_test_check">تحقق من سرعة الشبكة الحالية</string>
+    <string name="settings_speed_test_run">بدء الفحص</string>
+    <string name="settings_speed_test_sd">جيد لدقة SD (480p)</string>
+    <string name="settings_speed_test_hd">جيد لدقة HD (720p)</string>
+    <string name="settings_speed_test_fhd">ممتاز لدقة Full HD (1080p)</string>
+    <string name="settings_speed_test_4k">مثالي لبث 4K</string>
+    <string name="settings_speed_test_max">أداء أقصى</string>
+    <string name="settings_account_expires">تاريخ الانتهاء: %1$s</string>
+    <string name="settings_clear_cache">مسح التخزين المؤقت</string>
 
     <string name="settings_subtitle_size_small">صغير</string>
     <string name="settings_subtitle_size_default">تلقائي</string>

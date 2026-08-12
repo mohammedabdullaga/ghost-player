@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.PlaybackHistory
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
@@ -77,7 +78,7 @@ fun ContinueWatchingGridScreen(
     AppBackground {
         Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
-                title = { Text("CONTINUE WATCHING", fontWeight = FontWeight.Black) },
+                title = { Text(stringResource(R.string.history_title), fontWeight = FontWeight.Black) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -98,7 +99,7 @@ fun ContinueWatchingGridScreen(
                 // Sidebar Filters
                 PaneSurface(modifier = Modifier.width(200.dp)) {
                     Column {
-                        PaneHeader(title = "FILTERS")
+                        PaneHeader(title = stringResource(R.string.generic_filters))
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(8.dp),
@@ -106,21 +107,21 @@ fun ContinueWatchingGridScreen(
                         ) {
                             item {
                                 FilterItem(
-                                    label = "ALL",
+                                    label = stringResource(R.string.filter_all),
                                     isSelected = selectedFilter == HistoryFilter.ALL,
                                     onClick = { selectedFilter = HistoryFilter.ALL }
                                 )
                             }
                             item {
                                 FilterItem(
-                                    label = "MOVIES",
+                                    label = stringResource(R.string.filter_movies),
                                     isSelected = selectedFilter == HistoryFilter.MOVIES,
                                     onClick = { selectedFilter = HistoryFilter.MOVIES }
                                 )
                             }
                             item {
                                 FilterItem(
-                                    label = "SERIES",
+                                    label = stringResource(R.string.filter_series),
                                     isSelected = selectedFilter == HistoryFilter.SERIES,
                                     onClick = { selectedFilter = HistoryFilter.SERIES }
                                 )
@@ -133,7 +134,7 @@ fun ContinueWatchingGridScreen(
                 Box(modifier = Modifier.weight(1f)) {
                     if (filteredHistory.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("No history found in this category", color = Color.White.copy(alpha = 0.5f))
+                            Text(stringResource(R.string.history_empty_filter), color = Color.White.copy(alpha = 0.5f))
                         }
                     } else {
                         LazyVerticalGrid(
@@ -165,19 +166,19 @@ fun ContinueWatchingGridScreen(
         if (historyToDelete != null) {
             AlertDialog(
                 onDismissRequest = { historyToDelete = null },
-                title = { Text("Remove from History") },
-                text = { Text("Are you sure you want to remove '${historyToDelete!!.name}' from your Continue Watching list?") },
+                title = { Text(stringResource(R.string.history_remove_title)) },
+                text = { Text(stringResource(R.string.history_remove_msg, historyToDelete!!.name)) },
                 confirmButton = {
                     TextButton(onClick = {
                         viewModel.removeFromHistory(historyToDelete!!)
                         historyToDelete = null
                     }) {
-                        Text("REMOVE", color = Color.Red, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.generic_remove), color = Color.Red, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { historyToDelete = null }) {
-                        Text("CANCEL", color = Color.White.copy(alpha = 0.6f))
+                        Text(stringResource(R.string.generic_cancel), color = Color.White.copy(alpha = 0.6f))
                     }
                 },
                 containerColor = Color(0xFF1A1C1E),

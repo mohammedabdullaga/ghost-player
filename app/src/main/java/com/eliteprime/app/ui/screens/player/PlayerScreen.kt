@@ -20,8 +20,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.eliteprime.app.R
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eliteprime.app.MainActivity
@@ -249,7 +251,7 @@ fun PlayerScreen(
 
             if (showAudioDialog) {
                 PlayerTrackSelectionDialog(
-                    title = "SELECT AUDIO",
+                    title = stringResource(R.string.player_audio).uppercase(),
                     tracks = audioTracks,
                     onTrackSelected = { viewModel.selectAudioTrack(it.id) },
                     onDismissRequest = { showAudioDialog = false }
@@ -257,9 +259,9 @@ fun PlayerScreen(
             }
 
             if (showSubtitleDialog) {
-                val subOptions = listOf(PlayerTrack(id = "none", label = "OFF", isSelected = !subtitleTracks.any { it.isSelected })) + subtitleTracks
+                val subOptions = listOf(PlayerTrack(id = "none", label = stringResource(R.string.generic_done).uppercase(), isSelected = !subtitleTracks.any { it.isSelected })) + subtitleTracks
                 PlayerTrackSelectionDialog(
-                    title = "SELECT SUBTITLES",
+                    title = stringResource(R.string.player_subs).uppercase(),
                     tracks = subOptions,
                     onTrackSelected = { 
                         if (it.id == "none") viewModel.selectSubtitleTrack(null)

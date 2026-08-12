@@ -1,7 +1,9 @@
 package com.eliteprime.app.ui.screens.login
 
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eliteprime.app.R
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.repository.XtreamRepository
@@ -19,7 +21,8 @@ class LoginViewModel @Inject constructor(
     private val xtreamRepository: XtreamRepository,
     private val configRepository: ConfigRepository,
     private val preferenceRepository: PreferenceRepository,
-    private val pairingManager: ProviderQrPairingManager
+    private val pairingManager: ProviderQrPairingManager,
+    private val application: Application
 ) : ViewModel() {
 
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
@@ -70,7 +73,7 @@ class LoginViewModel @Inject constructor(
             if (success) {
                 startSync()
             } else {
-                _loginState.value = LoginState.Error("Invalid credentials or server error")
+                _loginState.value = LoginState.Error(application.getString(R.string.login_error_invalid))
             }
         }
     }

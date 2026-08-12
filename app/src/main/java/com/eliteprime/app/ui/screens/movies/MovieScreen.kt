@@ -24,8 +24,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.eliteprime.app.R
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -135,7 +137,7 @@ fun MovieScreen(
             // Top Nav Bar (Optional on TV if Sidebar is used, but kept for Mobile/Tablet)
             VodTopNavBar(
                 currentTime = currentTime.value,
-                title = "MOVIES",
+                title = stringResource(R.string.nav_movies).uppercase(),
                 onBack = onBack,
                 onNavigateToSearch = onNavigateToSearch,
                 onNavigateToLiveTv = onNavigateToLiveTv,
@@ -151,7 +153,7 @@ fun MovieScreen(
                 // --- Pane 1: Categories ---
                 VodPaneSurface(modifier = Modifier.weight(0.3f)) {
                     Column {
-                        VodPaneHeader(title = "GROUPS")
+                        VodPaneHeader(title = stringResource(R.string.generic_groups))
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
@@ -170,7 +172,7 @@ fun MovieScreen(
                 // --- Pane 2: Content Grid ---
                 VodPaneSurface(modifier = Modifier.weight(0.7f)) {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        VodPaneHeader(title = uiState.selectedCategory?.categoryName ?: "MOVIES")
+                        VodPaneHeader(title = uiState.selectedCategory?.categoryName ?: stringResource(R.string.nav_movies).uppercase())
                         LazyVerticalGrid(
                             state = movieGridState,
                             columns = GridCells.Fixed(4),
@@ -227,9 +229,9 @@ private fun VodTopNavBar(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            NavTabButton(label = "Live TV", isActive = false, onClick = onNavigateToLiveTv)
-            NavTabButton(label = "Movies", isActive = true, onClick = {})
-            NavTabButton(label = "Series", isActive = false, onClick = onNavigateToSeries)
+            NavTabButton(label = stringResource(R.string.nav_live_tv), isActive = false, onClick = onNavigateToLiveTv)
+            NavTabButton(label = stringResource(R.string.nav_movies), isActive = true, onClick = {})
+            NavTabButton(label = stringResource(R.string.nav_series), isActive = false, onClick = onNavigateToSeries)
 
             VodRoundIconButton(
                 icon = Icons.Default.Search, 

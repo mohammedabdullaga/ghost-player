@@ -29,9 +29,14 @@
     <string name="login_username">Username</string>
     <string name="login_password">Password</string>
     <string name="login_btn">LOGIN</string>
+    <string name="login_error_invalid">Invalid credentials or server error</string>
     <string name="login_qr_title">Login via Phone</string>
     <string name="login_qr_msg">Scan the code to enter data quickly and easily from your mobile phone</string>
     <string name="login_qr_footer">Phone must be on the same Wi-Fi network</string>
+    <string name="login_qr_generating">Generating QR Code...</string>
+    <string name="login_secure_vpn">Secure Connection (VPN)</string>
+    <string name="login_sync_finishing">FINISHING SETUP...</string>
+    <string name="login_sync_preparing">PREPARING CONTENT...</string>
 
     <string name="dashboard_expires">EXPIRES ON</string>
     <string name="dashboard_live_desc">Watch live channels from around the world</string>
@@ -47,6 +52,136 @@
     <string name="player_resume_btn">Resume</string>
     <string name="player_buffering">Buffering...</string>
     <string name="player_error_title">Playback Error</string>
+
+    <!-- Generic / Shared -->
+    <string name="generic_yes">YES</string>
+    <string name="generic_no">NO</string>
+    <string name="generic_cancel">CANCEL</string>
+    <string name="generic_remove">REMOVE</string>
+    <string name="generic_done">DONE</string>
+    <string name="generic_close">CLOSE</string>
+    <string name="generic_create">CREATE</string>
+    <string name="generic_delete">DELETE</string>
+    <string name="generic_resume">Resume</string>
+    <string name="generic_save_changes">SAVE CHANGES</string>
+    <string name="generic_checking">Checking...</string>
+    <string name="generic_never">Never</string>
+    <string name="generic_unknown">Unknown</string>
+    <string name="generic_preview">PREVIEW</string>
+    <string name="generic_movie">MOVIE</string>
+    <string name="generic_series">SERIES</string>
+    <string name="generic_groups">GROUPS</string>
+    <string name="generic_filters">FILTERS</string>
+    <string name="generic_epg">EPG</string>
+    <string name="generic_channels">CHANNELS</string>
+    <string name="generic_live">LIVE</string>
+    <string name="generic_previous">Previous</string>
+    <string name="generic_next">Next</string>
+    <string name="generic_back">Back</string>
+    <string name="generic_status_watching">WATCHING</string>
+    <string name="generic_status_active">ACTIVE</string>
+    <string name="generic_coming_soon">Coming Soon</string>
+    <string name="generic_recommended">Recommended</string>
+    <string name="generic_watch_now">WATCH NOW</string>
+
+    <!-- Home -->
+    <string name="home_history_empty">Your history is empty</string>
+    <string name="home_trending_title">TRENDING THIS WEEK</string>
+    <string name="home_trending_fallback">Most popular content</string>
+    <string name="home_continue_watching">Continue watching</string>
+    <string name="home_downloads">Downloads</string>
+    <string name="home_downloads_desc">Watch your offline content</string>
+    <string name="home_downloads_ready">READY</string>
+    <string name="home_plan_ends">Plan ends</string>
+    <string name="exit_confirm_msg">Are you sure you want to exit?</string>
+
+    <!-- History / Continue Watching -->
+    <string name="history_title">CONTINUE WATCHING</string>
+    <string name="history_empty_filter">No history found in this category</string>
+    <string name="history_remove_title">Remove from History</string>
+    <string name="history_remove_msg">Are you sure you want to remove \'%1$s\' from your Continue Watching list?</string>
+    <string name="filter_all">ALL</string>
+    <string name="filter_movies">MOVIES</string>
+    <string name="filter_series">SERIES</string>
+    <string name="trending_loading">Fetching latest trends...</string>
+    <string name="trending_not_in_library">NOT IN YOUR LIBRARY</string>
+    <string name="trending_empty">No trending items found in your library</string>
+
+    <!-- Details -->
+    <string name="detail_tab_episodes">EPISODES</string>
+    <string name="detail_tab_related">RELATED</string>
+    <string name="detail_no_related_series">No related series found</string>
+    <string name="detail_more_like_this">MORE LIKE THIS</string>
+    <string name="metadata_duration">DURATION</string>
+    <string name="metadata_director">DIRECTOR</string>
+    <string name="metadata_genre">GENRE</string>
+    <string name="metadata_cast">CAST</string>
+    <string name="metadata_year">YEAR</string>
+
+    <!-- Live TV -->
+    <string name="live_reordering">REORDERING</string>
+    <string name="live_now">LIVE NOW</string>
+    <string name="live_upcoming_guide">UPCOMING GUIDE</string>
+    <string name="live_no_epg">No upcoming programs found</string>
+    <string name="live_select_channel_prompt">Select a channel to see guide</string>
+    <string name="live_hide_channel">Hide Channel</string>
+    <string name="live_no_epg_data">No EPG Data</string>
+    <string name="fav_remove">Remove from Favorites</string>
+    <string name="fav_add">Add to Favorites</string>
+    <string name="group_create_title">Create New Group</string>
+    <string name="group_name_label">Group Name</string>
+    <string name="group_add_to">ADD TO GROUP</string>
+    <string name="group_delete">Delete Group</string>
+    <string name="group_reorder">Reorder Groups</string>
+    <string name="epg_now">NOW</string>
+
+    <!-- Player -->
+    <string name="player_play_downloaded">PLAY DOWNLOADED</string>
+    <string name="player_resume_from">RESUME FROM %1$s</string>
+    <string name="player_play_now">PLAY NOW</string>
+    <string name="player_play_downloaded_episode">PLAY DOWNLOADED S%1$d E%2$d</string>
+    <string name="player_resume_episode_from">RESUME S%1$d E%2$d FROM %3$s</string>
+    <string name="player_play_episode">PLAY S%1$d E%2$d</string>
+    <string name="player_diagnostics">Diagnostics</string>
+    <string name="player_mute">Mute</string>
+    <string name="player_pip">PiP</string>
+    <string name="player_rewind_10">Rewind 10s</string>
+    <string name="player_forward_10">Forward 10s</string>
+    <string name="player_play_pause">Play/Pause</string>
+    <string name="player_diagnostics_title">PLAYBACK DIAGNOSTICS</string>
+    <string name="diag_resolution">Resolution</string>
+    <string name="diag_video_codec">Video Codec</string>
+    <string name="diag_audio_codec">Audio Codec</string>
+    <string name="diag_bitrate">Bitrate</string>
+    <string name="diag_dropped_frames">Dropped Frames</string>
+    <string name="diag_buffer">Buffer</string>
+    <string name="diag_video_decoder">Video Decoder</string>
+    <string name="diag_audio_decoder">Audio Decoder</string>
+
+    <!-- Search -->
+    <string name="search_placeholder">Search your library / ابحث في مكتبتك</string>
+    <string name="search_idle_title">Search your library</string>
+    <string name="search_idle_desc">Find movies, series, and live channels by title</string>
+    <string name="search_no_results">No results found</string>
+    <string name="search_no_results_query">Nothing matched \u201c%1$s\u201d</string>
+
+    <!-- Downloads -->
+    <string name="downloads_title">DOWNLOADS LIBRARY</string>
+    <string name="downloads_empty">No downloads in this category</string>
+    <string name="downloads_episode_format">S%1$d E%2$d - %3$s</string>
+    <string name="download_status_pending">Pending</string>
+    <string name="download_status_downloading">Downloading</string>
+    <string name="download_status_paused">Paused</string>
+    <string name="download_status_completed">Completed</string>
+    <string name="download_status_failed">Failed</string>
+    <string name="download_status_cancelled">Cancelled</string>
+
+    <!-- Settings -->
+    <string name="settings_playback_options">PLAYBACK OPTIONS</string>
+    <string name="settings_engine_preferences">ENGINE PREFERENCES</string>
+    <string name="settings_about_app_info">APP INFORMATION</string>
+    <string name="settings_update_status">UPDATE STATUS</string>
+    <string name="settings_subtitle_preview_text">Sample Subtitle Text</string>
 
     <string name="settings_prevent_standby">Prevent Standby</string>
     <string name="settings_prevent_standby_subtitle">Keep the screen on during playback even when idle</string>
@@ -71,6 +206,25 @@
     <string name="settings_decoder_auto">Auto (Recommended)</string>
     <string name="settings_decoder_hardware">Hardware (Fastest)</string>
     <string name="settings_decoder_software">Software (Compatible)</string>
+
+    <string name="settings_about_app_name">App Name</string>
+    <string name="settings_about_developed_by">Developed by</string>
+    <string name="settings_about_build_version">Build Version</string>
+    <string name="settings_about_latest_release">Latest Release</string>
+    <string name="settings_about_update_status">Update Status</string>
+    <string name="settings_about_last_checked">Last Checked</string>
+    <string name="settings_about_check_updates">Check for Updates</string>
+    <string name="settings_download_folder">DOWNLOAD FOLDER</string>
+    <string name="settings_download_folder_desc">Select where to save downloaded content</string>
+    <string name="settings_speed_test_check">Check your current network speed</string>
+    <string name="settings_speed_test_run">RUN TEST</string>
+    <string name="settings_speed_test_sd">Good for SD (480p)</string>
+    <string name="settings_speed_test_hd">Good for HD (720p)</string>
+    <string name="settings_speed_test_fhd">Excellent for Full HD (1080p)</string>
+    <string name="settings_speed_test_4k">Perfect for 4K streaming</string>
+    <string name="settings_speed_test_max">Maximum Performance</string>
+    <string name="settings_account_expires">EXPIRES ON: %1$s</string>
+    <string name="settings_clear_cache">CLEAR CACHE</string>
 
     <string name="settings_subtitle_size_small">Small</string>
     <string name="settings_subtitle_size_default">Default</string>

@@ -71,12 +71,14 @@ fun LoginScreen(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 32.dp, vertical = 24.dp)
-                ) {
-                    ArenaLiveLogo(textSize = 26.sp)
+                if (isTv) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 32.dp, vertical = 24.dp)
+                    ) {
+                        ArenaLiveLogo(textSize = 26.sp)
+                    }
                 }
             }
         ) { paddingValues ->
@@ -226,7 +228,7 @@ private fun TvLoginLayout(
                     )
                 } ?: run {
                     CircularProgressIndicator(color = ArenaOrange)
-                    Text("جاري إنشاء رمز QR...", color = Color.White.copy(alpha = 0.5f), modifier = Modifier.padding(top = 16.dp))
+                    Text(stringResource(R.string.login_qr_generating), color = Color.White.copy(alpha = 0.5f), modifier = Modifier.padding(top = 16.dp))
                 }
             }
         }
@@ -249,20 +251,27 @@ private fun MobileLoginLayout(
 ) {
     Column(
         modifier = Modifier
-            .widthIn(max = 420.dp)
+            .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .imePadding() // Pushes only the content inside the scrollable column
+            .imePadding()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Top
     ) {
+        Spacer(modifier = Modifier.height(48.dp))
+        
+        ArenaLiveLogo(textSize = 28.sp)
+        
+        Spacer(modifier = Modifier.height(48.dp))
+
         Surface(
+            modifier = Modifier.widthIn(max = 400.dp),
             color = Color.Black.copy(alpha = 0.65f),
             shape = RoundedCornerShape(28.dp),
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
         ) {
             Column(
-                modifier = Modifier.padding(32.dp),
+                modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (state is LoginState.Loading) {
@@ -287,6 +296,8 @@ private fun MobileLoginLayout(
             Spacer(modifier = Modifier.height(16.dp))
             ErrorBanner(state.message)
         }
+        
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
@@ -383,7 +394,7 @@ private fun LoginForm(
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
-                    text = "Secure Connection (VPN)",
+                    text = stringResource(R.string.login_secure_vpn),
                     color = Color.White,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
@@ -469,7 +480,7 @@ private fun SyncProgressView(progress: SyncProgress) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = if (progress.countdown >= 0) "FINISHING SETUP..." else "PREPARING CONTENT...",
+            text = if (progress.countdown >= 0) stringResource(R.string.login_sync_finishing) else stringResource(R.string.login_sync_preparing),
             color = Color.White,
             fontWeight = FontWeight.Black,
             fontSize = 12.sp,
@@ -484,11 +495,11 @@ private fun SyncProgressView(progress: SyncProgress) {
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SyncStatItem(label = "LIVE TV", count = progress.liveCount)
+            SyncStatItem(label = stringResource(R.string.nav_live_tv), count = progress.liveCount)
             Box(modifier = Modifier.size(1.dp, 20.dp).background(Color.White.copy(alpha = 0.08f)))
-            SyncStatItem(label = "MOVIES", count = progress.movieCount)
+            SyncStatItem(label = stringResource(R.string.nav_movies), count = progress.movieCount)
             Box(modifier = Modifier.size(1.dp, 20.dp).background(Color.White.copy(alpha = 0.08f)))
-            SyncStatItem(label = "SERIES", count = progress.seriesCount)
+            SyncStatItem(label = stringResource(R.string.nav_series), count = progress.seriesCount)
         }
     }
 }

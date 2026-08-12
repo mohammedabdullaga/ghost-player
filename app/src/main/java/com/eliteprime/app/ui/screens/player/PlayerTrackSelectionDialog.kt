@@ -15,10 +15,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.eliteprime.app.R
 import com.eliteprime.app.player.PlayerTrack
 import com.eliteprime.app.ui.theme.AppColors
 
@@ -68,7 +70,7 @@ fun PlayerTrackSelectionDialog(
                     onClick = onDismissRequest,
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text("CLOSE", color = AppColors.ArenaOrange, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.generic_close).uppercase(), color = AppColors.ArenaOrange, fontWeight = FontWeight.Bold)
                 }
             }
         }

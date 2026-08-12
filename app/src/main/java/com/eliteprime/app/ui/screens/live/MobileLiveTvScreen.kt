@@ -19,8 +19,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.FocusState
+import com.eliteprime.app.R
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -173,11 +175,11 @@ fun MobileLiveTvScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(text = if (uiState.isCategoryReorderMode) "REORDERING" else "GROUPS", color = LivePalette.textSecondary, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
+                            Text(text = if (uiState.isCategoryReorderMode) stringResource(R.string.live_reordering) else stringResource(R.string.generic_groups), color = LivePalette.textSecondary, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
                             
                             if (uiState.isCategoryReorderMode) {
                                 TextButton(onClick = { viewModel.saveCategoryOrder() }) {
-                                    Text("DONE", color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                                    Text(stringResource(R.string.generic_done), color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 11.sp)
                                 }
                             } else {
                                 if (isTv) {
@@ -234,7 +236,7 @@ fun MobileLiveTvScreen(
                 // --- Pane 2: Channel List ---
                 PaneSurface(modifier = Modifier.weight(0.32f)) {
                     Column {
-                        PaneHeader(title = uiState.selectedCategory?.categoryName ?: "CHANNELS")
+                        PaneHeader(title = uiState.selectedCategory?.categoryName ?: stringResource(R.string.generic_channels))
                         LazyColumn(
                             state = channelListState,
                             modifier = Modifier.fillMaxSize(),
@@ -315,7 +317,7 @@ fun MobileLiveTvScreen(
                         ) {
                             if (previewChannel != null) {
                                 Text(
-                                    text = "LIVE NOW",
+                                    text = stringResource(R.string.live_now),
                                     color = AppColors.ArenaOrange,
                                     fontWeight = FontWeight.Black,
                                     fontSize = 10.sp,
@@ -333,7 +335,7 @@ fun MobileLiveTvScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
                                 
                                 Text(
-                                    text = "UPCOMING GUIDE",
+                                    text = stringResource(R.string.live_upcoming_guide),
                                     color = Color.White.copy(alpha = 0.4f),
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 11.sp,
@@ -351,7 +353,7 @@ fun MobileLiveTvScreen(
                                     if (epgList.isEmpty()) {
                                         item {
                                             Text(
-                                                "No upcoming programs found",
+                                                stringResource(R.string.live_no_epg),
                                                 color = LivePalette.textSecondary,
                                                 fontSize = 13.sp,
                                                 modifier = Modifier.padding(vertical = 8.dp)
@@ -367,7 +369,7 @@ fun MobileLiveTvScreen(
                             } else {
                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Text(
-                                        "Select a channel to see guide",
+                                        stringResource(R.string.live_select_channel_prompt),
                                         color = LivePalette.textTertiary,
                                         fontSize = 13.sp
                                     )
@@ -384,12 +386,12 @@ fun MobileLiveTvScreen(
         if (showAddGroupDialog) {
             AlertDialog(
                 onDismissRequest = { showAddGroupDialog = false },
-                title = { Text("Create New Group") },
+                title = { Text(stringResource(R.string.group_create_title)) },
                 text = {
                     OutlinedTextField(
                         value = newGroupName,
                         onValueChange = { newGroupName = it },
-                        placeholder = { Text("Group Name") },
+                        placeholder = { Text(stringResource(R.string.group_name_label)) },
                         singleLine = true
                     )
                 },
@@ -398,10 +400,10 @@ fun MobileLiveTvScreen(
                         viewModel.addCustomGroup(newGroupName)
                         showAddGroupDialog = false
                         newGroupName = ""
-                    }) { Text("CREATE", color = AppColors.ArenaOrange) }
+                    }) { Text(stringResource(R.string.generic_create), color = AppColors.ArenaOrange) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showAddGroupDialog = false }) { Text("CANCEL") }
+                    TextButton(onClick = { showAddGroupDialog = false }) { Text(stringResource(R.string.generic_cancel)) }
                 }
             )
         }
@@ -413,7 +415,7 @@ fun MobileLiveTvScreen(
                 text = {
                     Column {
                         ListItem(
-                            headlineContent = { Text(if (channel.isFavorite) "Remove from Favorites" else "Add to Favorites") },
+                            headlineContent = { Text(if (channel.isFavorite) stringResource(R.string.fav_remove) else stringResource(R.string.fav_add)) },
                             leadingContent = { Icon(if (channel.isFavorite) Icons.Default.Star else Icons.Default.StarBorder, null, tint = AppColors.ArenaOrange) },
                             modifier = Modifier.clickable { 
                                 viewModel.toggleFavorite(channel)
@@ -421,7 +423,7 @@ fun MobileLiveTvScreen(
                             }
                         )
                         ListItem(
-                            headlineContent = { Text("Hide Channel") },
+                            headlineContent = { Text(stringResource(R.string.live_hide_channel)) },
                             leadingContent = { Icon(Icons.Default.VisibilityOff, null) },
                             modifier = Modifier.clickable { 
                                 viewModel.hideChannel(channel)
@@ -432,7 +434,7 @@ fun MobileLiveTvScreen(
                         val groups = uiState.categories.filter { it.id >= 1000000 }
                         if (groups.isNotEmpty()) {
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = LivePalette.hairline)
-                            Text("ADD TO GROUP", style = MaterialTheme.typography.labelSmall, color = AppColors.ArenaOrange, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                            Text(stringResource(R.string.group_add_to), style = MaterialTheme.typography.labelSmall, color = AppColors.ArenaOrange, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                             groups.forEach { group ->
                                 ListItem(
                                     headlineContent = { Text(group.categoryName) },
@@ -446,7 +448,7 @@ fun MobileLiveTvScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { selectedChannelForOptions = null }) { Text("CLOSE") }
+                    TextButton(onClick = { selectedChannelForOptions = null }) { Text(stringResource(R.string.generic_close)) }
                 }
             )
         }
@@ -464,7 +466,7 @@ fun MobileLiveTvScreen(
                 text = {
                     Column {
                         ListItem(
-                            headlineContent = { Text("Add New Group") },
+                            headlineContent = { Text(stringResource(R.string.group_create_title)) },
                             leadingContent = { Icon(Icons.Default.Add, null, tint = AppColors.ArenaOrange) },
                             modifier = Modifier.clickable(enabled = canInteract) { 
                                 showAddGroupDialog = true
@@ -473,7 +475,7 @@ fun MobileLiveTvScreen(
                         )
                         if (category.id >= 1000000) {
                             ListItem(
-                                headlineContent = { Text("Delete Group", color = Color.Red) },
+                                headlineContent = { Text(stringResource(R.string.group_delete), color = Color.Red) },
                                 leadingContent = { Icon(Icons.Default.Delete, null, tint = Color.Red) },
                                 modifier = Modifier.clickable(enabled = canInteract) { 
                                     viewModel.deleteCustomGroup(category)
@@ -482,7 +484,7 @@ fun MobileLiveTvScreen(
                             )
                         }
                         ListItem(
-                            headlineContent = { Text("Reorder Groups") },
+                            headlineContent = { Text(stringResource(R.string.group_reorder)) },
                             leadingContent = { Icon(Icons.Default.Reorder, null) },
                             modifier = Modifier.clickable(enabled = canInteract) { 
                                 viewModel.enterCategoryReorderMode()
@@ -492,7 +494,7 @@ fun MobileLiveTvScreen(
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { if (canInteract) selectedCategoryForOptions = null }) { Text("CLOSE") }
+                    TextButton(onClick = { if (canInteract) selectedCategoryForOptions = null }) { Text(stringResource(R.string.generic_close)) }
                 },
                 containerColor = Color(0xFF1A1C1E),
                 titleContentColor = Color.White,
@@ -679,7 +681,7 @@ private fun ChannelRowContent(channel: LiveStream, isActive: Boolean) {
 
         Column(modifier = Modifier.weight(1f)) {
             Text(channel.name, color = if (isActive) Color.White else Color.White.copy(alpha = 0.9f), fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("No EPG Data", color = if (isActive) Color.White.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.4f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.live_no_epg_data), color = if (isActive) Color.White.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.4f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -705,7 +707,7 @@ private fun EpgRow(program: EPGProgram, isCurrent: Boolean) {
                 fontSize = 12.sp
             )
             if (isCurrent) {
-                Text("NOW", color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 8.sp)
+                Text(stringResource(R.string.epg_now), color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 8.sp)
             }
         }
         

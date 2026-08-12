@@ -96,7 +96,7 @@ fun TrendingScreen(
             topBar = {
                 Column(modifier = Modifier.background(Color.Black.copy(alpha = 0.4f))) {
                     TopAppBar(
-                        title = { Text("TRENDING THIS WEEK", fontWeight = FontWeight.Black, fontSize = 18.sp) },
+                        title = { Text(stringResource(R.string.home_trending_title), fontWeight = FontWeight.Black, fontSize = 18.sp) },
                         navigationIcon = {
                             IconButton(onClick = onBack) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -115,12 +115,12 @@ fun TrendingScreen(
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         TrendingTabButton(
-                            label = "MOVIES",
+                            label = stringResource(R.string.filter_movies),
                             isSelected = selectedTab == TrendingTab.MOVIES,
                             onClick = { selectedTab = TrendingTab.MOVIES }
                         )
                         TrendingTabButton(
-                            label = "SERIES",
+                            label = stringResource(R.string.filter_series),
                             isSelected = selectedTab == TrendingTab.SERIES,
                             onClick = { selectedTab = TrendingTab.SERIES }
                         )
@@ -138,7 +138,7 @@ fun TrendingScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(color = AppColors.ArenaOrange)
                         Spacer(Modifier.height(16.dp))
-                        Text("Fetching latest trends...", color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                        Text(stringResource(R.string.trending_loading), color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
                     }
                 } else {
                     val currentItems = if (selectedTab == TrendingTab.MOVIES) uiState.trendingMovies else uiState.trendingSeries
@@ -391,7 +391,7 @@ private fun TrendingCard(
                             is Series -> match.genre ?: ""
                             else -> ""
                         }.takeIf { it.isNotBlank() } 
-                        ?: "Recommended"
+                        ?: stringResource(R.string.generic_recommended)
 
                     Surface(
                         color = AppColors.ArenaOrange.copy(alpha = 0.16f),
@@ -449,7 +449,7 @@ private fun TrendingCard(
                     Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (item.localMatch != null) "WATCH NOW" else "NOT IN YOUR LIBRARY",
+                        text = if (item.localMatch != null) stringResource(R.string.generic_watch_now) else stringResource(R.string.trending_not_in_library),
                         fontWeight = FontWeight.Black,
                         fontSize = 13.sp
                     )
@@ -469,7 +469,7 @@ private fun EmptyTrendingView() {
         Icon(Icons.Default.Movie, null, tint = Color.White.copy(alpha = 0.1f), modifier = Modifier.size(80.dp))
         Spacer(Modifier.height(16.dp))
         Text(
-            "No trending items found in your library",
+            stringResource(R.string.trending_empty),
             color = Color.White.copy(alpha = 0.5f),
             fontWeight = FontWeight.Bold
         )

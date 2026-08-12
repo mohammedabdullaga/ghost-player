@@ -117,6 +117,12 @@ class PreferenceRepository @Inject constructor(
         _decoderMode.value = mode
     }
 
+    fun getLastUpdateCheckTimestamp(): Long = prefs.getLong("last_update_check_timestamp", 0L)
+
+    fun setLastUpdateCheckTimestamp(timestamp: Long) {
+        prefs.edit().putLong("last_update_check_timestamp", timestamp).apply()
+    }
+
     fun applySavedLocale() {
         _language.value = getCurrentLanguage()
     }

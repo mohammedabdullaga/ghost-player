@@ -254,10 +254,12 @@ fun SettingsScreen(
                                 isTv = isTv
                             )
                         }
-                        else -> {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Coming Soon", color = Color.White.copy(alpha = 0.4f))
-                            }
+                        SettingCategory.ABOUT -> {
+                            AboutSettingsContent(
+                                uiState = uiState,
+                                onCheckUpdate = { viewModel.checkForUpdates() },
+                                isTv = isTv
+                            )
                         }
                     }
                 }
@@ -405,7 +407,7 @@ private fun NetworkSettingsContent(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
-                                Text("Check your current network speed", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(stringResource(R.string.settings_speed_test_check), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 if (speedResult != null) {
                                     Text(
                                         text = "${"%.2f".format(speedResult.megabitsPerSecond)} Mbps",
@@ -425,7 +427,7 @@ private fun NetworkSettingsContent(
                                     colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
                                     shape = RoundedCornerShape(STRadius.sm)
                                 ) {
-                                    Text("RUN TEST", fontWeight = FontWeight.Black, fontSize = 13.sp)
+                                    Text(stringResource(R.string.settings_speed_test_run), fontWeight = FontWeight.Black, fontSize = 13.sp)
                                 }
                             }
                         }
@@ -444,11 +446,11 @@ private fun NetworkSettingsContent(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     val recommendation = when (speedResult.recommendedMaxVideoHeight) {
-                                        480 -> "Good for SD (480p)"
-                                        720 -> "Good for HD (720p)"
-                                        1080 -> "Excellent for Full HD (1080p)"
-                                        2160 -> "Perfect for 4K streaming"
-                                        else -> "Maximum Performance"
+                                        480 -> stringResource(R.string.settings_speed_test_sd)
+                                        720 -> stringResource(R.string.settings_speed_test_hd)
+                                        1080 -> stringResource(R.string.settings_speed_test_fhd)
+                                        2160 -> stringResource(R.string.settings_speed_test_4k)
+                                        else -> stringResource(R.string.settings_speed_test_max)
                                     }
 
                                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(STSpacing.xs)) {
@@ -529,7 +531,7 @@ private fun GeneralSettingsContent(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = "DOWNLOAD FOLDER",
+                    text = stringResource(R.string.settings_download_folder),
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
@@ -561,7 +563,7 @@ private fun GeneralSettingsContent(
                                 fontSize = 13.sp
                             )
                             Text(
-                                text = "Select where to save downloaded content",
+                                text = stringResource(R.string.settings_download_folder_desc),
                                 color = Color.White.copy(alpha = 0.5f),
                                 fontSize = 11.sp
                             )
@@ -642,73 +644,73 @@ private fun PlaybackSettingsContent(
         verticalArrangement = Arrangement.spacedBy(STSpacing.lg)
     ) {
         // --- Core Playback Toggles ---
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
-                Text(
-                    text = "PLAYBACK OPTIONS",
-                    color = Color.White.copy(alpha = 0.6f),
-                    style = EyebrowStyle
-                )
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                            Text(
+                                text = stringResource(R.string.settings_playback_options),
+                                color = Color.White.copy(alpha = 0.6f),
+                                style = EyebrowStyle
+                            )
+                            
+                            SettingToggleItem(
+                                title = stringResource(R.string.settings_prevent_standby),
+                                subtitle = stringResource(R.string.settings_prevent_standby_subtitle),
+                                icon = Icons.Default.BrightnessHigh,
+                                checked = uiState.preventStandby,
+                                onCheckedChange = { viewModel.setPreventStandby(it) }
+                            )
 
-                SettingToggleItem(
-                    title = stringResource(R.string.settings_prevent_standby),
-                    subtitle = stringResource(R.string.settings_prevent_standby_subtitle),
-                    icon = Icons.Default.BrightnessHigh,
-                    checked = uiState.preventStandby,
-                    onCheckedChange = { viewModel.setPreventStandby(it) }
-                )
+                            SettingToggleItem(
+                                title = stringResource(R.string.settings_auto_play_next_episode),
+                                subtitle = stringResource(R.string.settings_auto_play_next_episode_subtitle),
+                                icon = Icons.Default.SkipNext,
+                                checked = uiState.autoPlayNextEpisode,
+                                onCheckedChange = { viewModel.setAutoPlayNextEpisode(it) }
+                            )
 
-                SettingToggleItem(
-                    title = stringResource(R.string.settings_auto_play_next_episode),
-                    subtitle = stringResource(R.string.settings_auto_play_next_episode_subtitle),
-                    icon = Icons.Default.SkipNext,
-                    checked = uiState.autoPlayNextEpisode,
-                    onCheckedChange = { viewModel.setAutoPlayNextEpisode(it) }
-                )
+                            SettingToggleItem(
+                                title = stringResource(R.string.settings_zap_auto_revert),
+                                subtitle = stringResource(R.string.settings_zap_auto_revert_subtitle),
+                                icon = Icons.Default.Undo,
+                                checked = uiState.zapAutoRevert,
+                                onCheckedChange = { viewModel.setZapAutoRevert(it) }
+                            )
+                        }
+                    }
 
-                SettingToggleItem(
-                    title = stringResource(R.string.settings_zap_auto_revert),
-                    subtitle = stringResource(R.string.settings_zap_auto_revert_subtitle),
-                    icon = Icons.Default.Undo,
-                    checked = uiState.zapAutoRevert,
-                    onCheckedChange = { viewModel.setZapAutoRevert(it) }
-                )
-            }
-        }
+                    // --- Engine Preferences ---
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                            Text(
+                                text = stringResource(R.string.settings_engine_preferences),
+                                color = Color.White.copy(alpha = 0.6f),
+                                style = EyebrowStyle
+                            )
 
-        // --- Engine Preferences ---
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
-                Text(
-                    text = "ENGINE PREFERENCES",
-                    color = Color.White.copy(alpha = 0.6f),
-                    style = EyebrowStyle
-                )
+                            SettingClickableItem(
+                                title = stringResource(R.string.settings_live_buffer_size),
+                                subtitle = formatLiveBufferLabel(uiState.liveBufferSize, context),
+                                icon = Icons.Default.Dns,
+                                onClick = { showBufferDialog = true }
+                            )
 
-                SettingClickableItem(
-                    title = stringResource(R.string.settings_live_buffer_size),
-                    subtitle = formatLiveBufferLabel(uiState.liveBufferSize, context),
-                    icon = Icons.Default.Dns,
-                    onClick = { showBufferDialog = true }
-                )
+                            SettingClickableItem(
+                                title = stringResource(R.string.settings_decoder_mode),
+                                subtitle = formatDecoderModeLabel(uiState.decoderMode, context),
+                                icon = Icons.Default.Hardware,
+                                onClick = { showDecoderDialog = true }
+                            )
+                        }
+                    }
 
-                SettingClickableItem(
-                    title = stringResource(R.string.settings_decoder_mode),
-                    subtitle = formatDecoderModeLabel(uiState.decoderMode, context),
-                    icon = Icons.Default.Hardware,
-                    onClick = { showDecoderDialog = true }
-                )
-            }
-        }
-
-        // --- Subtitle Styling (Merged here) ---
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
-                Text(
-                    text = "SUBTITLE SIZE",
-                    color = Color.White.copy(alpha = 0.6f),
-                    style = EyebrowStyle
-                )
+                    // --- Subtitle Styling (Merged here) ---
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                            Text(
+                                text = stringResource(R.string.settings_subtitle_size),
+                                color = Color.White.copy(alpha = 0.6f),
+                                style = EyebrowStyle
+                            )
                 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -730,7 +732,7 @@ private fun PlaybackSettingsContent(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = "SUBTITLE COLOR",
+                    text = stringResource(R.string.settings_subtitle_text_color),
                     color = Color.White.copy(alpha = 0.6f),
                     style = EyebrowStyle
                 )
@@ -755,7 +757,7 @@ private fun PlaybackSettingsContent(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = "SUBTITLE BACKGROUND",
+                    text = stringResource(R.string.settings_subtitle_background),
                     color = Color.White.copy(alpha = 0.6f),
                     style = EyebrowStyle
                 )
@@ -781,7 +783,7 @@ private fun PlaybackSettingsContent(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = "PREVIEW",
+                    text = stringResource(R.string.generic_preview),
                     color = Color.White.copy(alpha = 0.6f),
                     style = EyebrowStyle
                 )
@@ -803,7 +805,7 @@ private fun PlaybackSettingsContent(
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
-                                text = "Sample Subtitle Text",
+                                text = stringResource(R.string.settings_subtitle_preview_text),
                                 color = Color(uiState.subtitleStyle.foregroundColorArgb),
                                 fontSize = (16 * uiState.subtitleStyle.textScale).sp,
                                 fontWeight = FontWeight.Medium,
@@ -930,7 +932,7 @@ private fun SettingsSelectionDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("CANCEL", color = Color.White.copy(alpha = 0.6f))
+                Text(stringResource(R.string.generic_cancel), color = Color.White.copy(alpha = 0.6f))
             }
         },
         containerColor = Color(0xFF1A1C1E),
@@ -1231,7 +1233,7 @@ private fun AccountSettingsCard(
 
                     val expirationDate = account.expiryDate?.let {
                         SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date(it))
-                    } ?: "Unknown"
+                    } ?: stringResource(R.string.generic_unknown)
 
                     Surface(
                         color = Color.White.copy(alpha = 0.08f),
@@ -1244,12 +1246,12 @@ private fun AccountSettingsCard(
                             horizontalArrangement = Arrangement.spacedBy(STSpacing.xs)
                         ) {
                             Icon(Icons.Default.Event, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(15.dp))
-                            Text("EXPIRES ON: $expirationDate", color = Color.White.copy(alpha = 0.9f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.settings_account_expires, expirationDate), color = Color.White.copy(alpha = 0.9f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
 
-                StatusPill(label = "ACTIVE", containerColor = AppColors.ArenaOrange, horizontalPadding = 10.dp, verticalPadding = 4.dp)
+                StatusPill(label = stringResource(R.string.generic_status_active), containerColor = AppColors.ArenaOrange, horizontalPadding = 10.dp, verticalPadding = 4.dp)
             }
 
             // 2. Metrics
@@ -1258,7 +1260,7 @@ private fun AccountSettingsCard(
                 horizontalArrangement = Arrangement.spacedBy(STSpacing.sm)
             ) {
                 SubscriptionMetricCard(
-                    title = "Live TV",
+                    title = stringResource(R.string.nav_live_tv),
                     count = liveCount,
                     icon = Icons.Default.PlayArrow,
                     accentColor = Color(0xFF4CAF50),
@@ -1266,7 +1268,7 @@ private fun AccountSettingsCard(
                     modifier = Modifier.weight(1f)
                 )
                 SubscriptionMetricCard(
-                    title = "Movies",
+                    title = stringResource(R.string.nav_movies),
                     count = movieCount,
                     icon = Icons.Default.Movie,
                     accentColor = Color(0xFF2196F3),
@@ -1274,7 +1276,7 @@ private fun AccountSettingsCard(
                     modifier = Modifier.weight(1f)
                 )
                 SubscriptionMetricCard(
-                    title = "Series",
+                    title = stringResource(R.string.nav_series),
                     count = seriesCount,
                     icon = Icons.Default.Tv,
                     accentColor = Color(0xFFE91E63),
@@ -1282,7 +1284,7 @@ private fun AccountSettingsCard(
                     modifier = Modifier.weight(1f)
                 )
                 SubscriptionMetricCard(
-                    title = "EPG",
+                    title = stringResource(R.string.generic_epg),
                     count = epgCount,
                     icon = Icons.Default.Book,
                     accentColor = Color(0xFFFFC107),
@@ -1311,7 +1313,7 @@ private fun AccountSettingsCard(
                 )
 
                 SettingsActionButton(
-                    label = "CLEAR CACHE",
+                    label = stringResource(R.string.settings_clear_cache),
                     onClick = onClearCache,
                     isTv = isTv,
                     modifier = Modifier.weight(1f).height(44.dp)
@@ -1485,6 +1487,108 @@ private fun LogoutButtonContent(color: Color, isFocused: Boolean) {
 }
 
 @Composable
+private fun AboutSettingsContent(
+    uiState: SettingsUiState,
+    onCheckUpdate: () -> Unit,
+    isTv: Boolean
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(STSpacing.md),
+        verticalArrangement = Arrangement.spacedBy(STSpacing.lg)
+    ) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                Text(
+                    text = stringResource(R.string.settings_about_app_info),
+                    color = Color.White.copy(alpha = 0.6f),
+                    style = EyebrowStyle
+                )
+                
+                Surface(
+                    color = Color.White.copy(alpha = 0.05f),
+                    shape = RoundedCornerShape(STRadius.lg),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                ) {
+                    Column(modifier = Modifier.padding(STSpacing.md), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        AboutInfoRow(label = stringResource(R.string.settings_about_app_name), value = "ArenaLive")
+                        AboutInfoRow(label = stringResource(R.string.settings_about_developed_by), value = "Elit Bahrain")
+                        AboutInfoRow(label = stringResource(R.string.settings_about_build_version), value = "1.0.0")
+                    }
+                }
+            }
+        }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                Text(
+                    text = stringResource(R.string.settings_update_status),
+                    color = Color.White.copy(alpha = 0.6f),
+                    style = EyebrowStyle
+                )
+                
+                Surface(
+                    color = Color.White.copy(alpha = 0.05f),
+                    shape = RoundedCornerShape(STRadius.lg),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                ) {
+                    Column(modifier = Modifier.padding(STSpacing.md), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        AboutInfoRow(label = stringResource(R.string.settings_about_latest_release), value = uiState.latestVersion ?: stringResource(R.string.generic_unknown))
+                        AboutInfoRow(
+                            label = stringResource(R.string.settings_about_update_status), 
+                            value = uiState.updateStatus,
+                            valueColor = if (uiState.updateStatus.contains("available", ignoreCase = true)) AppColors.ArenaOrange else Color.Green.copy(alpha = 0.8f)
+                        )
+                        
+                        val lastChecked = if (uiState.lastUpdateCheckTimestamp > 0) {
+                            SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(uiState.lastUpdateCheckTimestamp))
+                        } else stringResource(R.string.generic_never)
+                        
+                        AboutInfoRow(label = stringResource(R.string.settings_about_last_checked), value = lastChecked)
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        SettingsActionButton(
+                            label = if (uiState.isCheckingForUpdates) stringResource(R.string.generic_checking) else stringResource(R.string.settings_about_check_updates),
+                            onClick = onCheckUpdate,
+                            isPrimary = true,
+                            isTv = isTv,
+                            modifier = Modifier.fillMaxWidth().height(44.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutInfoRow(
+    label: String,
+    value: String,
+    valueColor: Color = Color.White
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            color = Color.White.copy(alpha = 0.5f),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium
+        )
+        Text(
+            text = value,
+            color = valueColor,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
 private fun EditAccountDialog(
     account: XtreamAccount,
     onDismiss: () -> Unit,
@@ -1514,7 +1618,7 @@ private fun EditAccountDialog(
                 OutlinedTextField(
                     value = username, 
                     onValueChange = { username = it }, 
-                    label = { Text("Username") }, 
+                    label = { Text(stringResource(R.string.login_username)) }, 
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
@@ -1532,7 +1636,7 @@ private fun EditAccountDialog(
                 OutlinedTextField(
                     value = password, 
                     onValueChange = { password = it }, 
-                    label = { Text("Password") }, 
+                    label = { Text(stringResource(R.string.login_password)) }, 
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
@@ -1564,7 +1668,7 @@ private fun EditAccountDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("SAVE CHANGES", fontWeight = FontWeight.Black)
+                Text(stringResource(R.string.generic_save_changes), fontWeight = FontWeight.Black)
             }
         },
         dismissButton = {

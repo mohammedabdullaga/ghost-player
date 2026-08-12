@@ -134,25 +134,25 @@ fun SearchScreen(
                         Spacer(modifier = Modifier.height(SearchSpacing.sm))
                         Row(horizontalArrangement = Arrangement.spacedBy(SearchSpacing.xs)) {
                             SubFilterChip(
-                                label = "ALL",
+                                label = stringResource(R.string.filter_all),
                                 icon = Icons.Default.Search,
                                 isActive = selectedFilter == SearchResultType.ALL,
                                 onClick = { selectedFilter = SearchResultType.ALL }
                             )
                             SubFilterChip(
-                                label = "MOVIES",
+                                label = stringResource(R.string.filter_movies),
                                 icon = Icons.Default.Movie,
                                 isActive = selectedFilter == SearchResultType.MOVIES,
                                 onClick = { selectedFilter = SearchResultType.MOVIES }
                             )
                             SubFilterChip(
-                                label = "SERIES",
+                                label = stringResource(R.string.filter_series),
                                 icon = Icons.Default.VideoLibrary,
                                 isActive = selectedFilter == SearchResultType.SERIES,
                                 onClick = { selectedFilter = SearchResultType.SERIES }
                             )
                             SubFilterChip(
-                                label = "LIVE TV",
+                                label = stringResource(R.string.generic_live),
                                 icon = Icons.Default.Tv,
                                 isActive = selectedFilter == SearchResultType.LIVE_TV,
                                 onClick = { selectedFilter = SearchResultType.LIVE_TV }
@@ -176,7 +176,7 @@ fun SearchScreen(
                         uiState.movies.isEmpty() && uiState.series.isEmpty() && uiState.channels.isEmpty() -> item { Box(modifier = Modifier.fillParentMaxHeight(), contentAlignment = Alignment.Center) { NoResultsState(query) } }
                         else -> {
                             if ((selectedFilter == SearchResultType.ALL || selectedFilter == SearchResultType.MOVIES) && uiState.movies.isNotEmpty()) {
-                                item { Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)) { ResultsSectionLabel("Movies", uiState.movies.size) } }
+                                item { Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)) { ResultsSectionLabel(stringResource(R.string.nav_movies), uiState.movies.size) } }
                                 item {
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 32.dp, vertical = 16.dp),
@@ -192,7 +192,7 @@ fun SearchScreen(
                             }
 
                             if ((selectedFilter == SearchResultType.ALL || selectedFilter == SearchResultType.SERIES) && uiState.series.isNotEmpty()) {
-                                item { Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)) { ResultsSectionLabel("Series", uiState.series.size) } }
+                                item { Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)) { ResultsSectionLabel(stringResource(R.string.nav_series), uiState.series.size) } }
                                 item {
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 32.dp, vertical = 16.dp),
@@ -208,7 +208,7 @@ fun SearchScreen(
                             }
 
                             if ((selectedFilter == SearchResultType.ALL || selectedFilter == SearchResultType.LIVE_TV) && uiState.channels.isNotEmpty()) {
-                                item { Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)) { ResultsSectionLabel("Live TV", uiState.channels.size) } }
+                                item { Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)) { ResultsSectionLabel(stringResource(R.string.nav_live_tv), uiState.channels.size) } }
                                 items(uiState.channels) { channel ->
                                     Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp)) {
                                         ChannelRow(channel = channel, isSelected = false, onClick = { onChannelClick(channel) })
@@ -279,7 +279,7 @@ private fun SearchInputField(
         value = query,
         onValueChange = onQueryChange,
         modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-        placeholder = { Text("Search your library / ابحث في مكتبتك", color = SearchPalette.textTertiary) },
+        placeholder = { Text(stringResource(R.string.search_placeholder), color = SearchPalette.textTertiary) },
         singleLine = true,
         shape = RoundedCornerShape(SearchRadius.pill),
         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = SearchPalette.textTertiary) },
@@ -313,10 +313,10 @@ private fun IdleState() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Default.Search, contentDescription = null, tint = SearchPalette.textTertiary, modifier = Modifier.size(44.dp))
             Spacer(modifier = Modifier.height(SearchSpacing.sm))
-            Text("Search your library", color = SearchPalette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(stringResource(R.string.search_idle_title), color = SearchPalette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                "Find movies, series, and live channels by title",
+                stringResource(R.string.search_idle_desc),
                 color = SearchPalette.textTertiary,
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center,
@@ -339,9 +339,9 @@ private fun NoResultsState(query: String) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Default.SearchOff, contentDescription = null, tint = SearchPalette.textTertiary, modifier = Modifier.size(44.dp))
             Spacer(modifier = Modifier.height(SearchSpacing.sm))
-            Text("No results found", color = SearchPalette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(stringResource(R.string.search_no_results), color = SearchPalette.textPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
             Spacer(modifier = Modifier.height(4.dp))
-            Text("Nothing matched \u201c$query\u201d", color = SearchPalette.textTertiary, fontSize = 12.sp)
+            Text(stringResource(R.string.search_no_results_query, query), color = SearchPalette.textTertiary, fontSize = 12.sp)
         }
     }
 }

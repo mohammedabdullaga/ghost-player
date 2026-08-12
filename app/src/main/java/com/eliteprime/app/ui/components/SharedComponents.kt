@@ -279,7 +279,7 @@ private fun ChannelRowContent(channel: LiveStream, isActive: Boolean) {
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(channel.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text("No EPG Data", color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.live_no_epg_data), color = Color.White.copy(alpha = 0.4f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -491,7 +491,7 @@ fun MobileBackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White, modifier = Modifier.size(16.dp))
-            Text("Back", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(stringResource(R.string.generic_back), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
         }
     }
 }
@@ -549,7 +549,7 @@ fun ContinueWatchingRow(
 
     Column(modifier = modifier.fillMaxWidth().padding(vertical = 16.dp)) {
         Text(
-            text = "CONTINUE WATCHING",
+            text = stringResource(R.string.history_title),
             style = EyebrowStyle,
             color = Color.White.copy(alpha = 0.6f),
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)

@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -36,6 +37,7 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
+import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.domain.model.DownloadItem
 import com.eliteprime.app.domain.model.DownloadStatus
@@ -120,7 +122,7 @@ fun MovieDetailsScreen(
                         InfoCard {
                             // 1. Genre (Eyebrow)
                             Text(
-                                text = movie.genre?.uppercase() ?: "MOVIE", 
+                                text = movie.genre?.uppercase() ?: stringResource(R.string.generic_movie), 
                                 style = EyebrowStyle, 
                                 color = AppColors.ArenaOrange
                             )
@@ -174,10 +176,10 @@ fun MovieDetailsScreen(
                             // 6. Metadata Grid (Technical Details)
                             MetadataGrid(
                                 listOfNotNull(
-                                    movie.duration?.takeIf { it.isNotBlank() }?.let { "DURATION" to it },
-                                    movie.director?.takeIf { it.isNotBlank() }?.let { "DIRECTOR" to it },
-                                    movie.genre?.takeIf { it.isNotBlank() }?.let { "GENRE" to it },
-                                    movie.cast?.takeIf { it.isNotBlank() }?.let { "CAST" to it }
+                                    movie.duration?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.metadata_duration) to it },
+                                    movie.director?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.metadata_director) to it },
+                                    movie.genre?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.metadata_genre) to it },
+                                    movie.cast?.takeIf { it.isNotBlank() }?.let { stringResource(R.string.metadata_cast) to it }
                                 )
                             )
                         }
@@ -187,7 +189,7 @@ fun MovieDetailsScreen(
                         item {
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                text = "MORE LIKE THIS",
+                                text = stringResource(R.string.detail_more_like_this),
                                 color = DetailSurface.textPrimary,
                                 style = EyebrowStyle
                             )
@@ -389,9 +391,9 @@ private fun PrimaryActionRow(
                     Spacer(Modifier.width(DetailSpacing.xs))
                     Text(
                         text = when {
-                            isDownloaded -> "PLAY DOWNLOADED"
-                            watchProgress > 10000 -> "RESUME FROM ${formatPositionMs(watchProgress)}"
-                            else -> "PLAY NOW"
+                            isDownloaded -> stringResource(R.string.player_play_downloaded)
+                            watchProgress > 10000 -> stringResource(R.string.player_resume_from, formatPositionMs(watchProgress))
+                            else -> stringResource(R.string.player_play_now)
                         },
                         fontWeight = FontWeight.Black, 
                         fontSize = 14.sp, 

@@ -13,9 +13,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.eliteprime.app.R
 import com.eliteprime.app.player.PlayerStats
 import com.eliteprime.app.ui.theme.AppColors
 
@@ -32,7 +34,7 @@ fun DiagnosticsOverlay(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "PLAYBACK DIAGNOSTICS",
+                text = stringResource(R.string.player_diagnostics_title),
                 color = AppColors.ArenaOrange,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Black,
@@ -41,17 +43,17 @@ fun DiagnosticsOverlay(
             
             Spacer(modifier = Modifier.height(4.dp))
             
-            DiagnosticRow("Resolution", "${stats.width}x${stats.height}")
-            DiagnosticRow("Video Codec", stats.videoCodec)
-            DiagnosticRow("Audio Codec", stats.audioCodec)
-            DiagnosticRow("Bitrate", "${stats.videoBitrate / 1000} kbps")
-            DiagnosticRow("Dropped Frames", stats.droppedFrames.toString())
-            DiagnosticRow("Buffer", "${stats.bufferedDurationMs} ms")
+            DiagnosticRow(stringResource(R.string.diag_resolution), "${stats.width}x${stats.height}")
+            DiagnosticRow(stringResource(R.string.diag_video_codec), stats.videoCodec)
+            DiagnosticRow(stringResource(R.string.diag_audio_codec), stats.audioCodec)
+            DiagnosticRow(stringResource(R.string.diag_bitrate), "${stats.videoBitrate / 1000} kbps")
+            DiagnosticRow(stringResource(R.string.diag_dropped_frames), stats.droppedFrames.toString())
+            DiagnosticRow(stringResource(R.string.diag_buffer), "${stats.bufferedDurationMs} ms")
             
             Divider(color = Color.White.copy(alpha = 0.08f), modifier = Modifier.padding(vertical = 4.dp))
             
-            DiagnosticRow("Video Decoder", stats.videoDecoderName)
-            DiagnosticRow("Audio Decoder", stats.audioDecoderName)
+            DiagnosticRow(stringResource(R.string.diag_video_decoder), stats.videoDecoderName)
+            DiagnosticRow(stringResource(R.string.diag_audio_decoder), stats.audioDecoderName)
         }
     }
 }
