@@ -84,6 +84,9 @@ class PlayerViewModel @Inject constructor(
     private val _hasPreviousEpisode = MutableStateFlow(false)
     val hasPreviousEpisode = _hasPreviousEpisode.asStateFlow()
 
+    val preventStandby = preferenceRepository.preventStandby
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     private var currentEpisodes: List<Episode> = emptyList()
     private var currentChannels: List<LiveStream> = emptyList()
     private var activeStreamId: Long = streamId
@@ -486,7 +489,9 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             playbackState.collectLatest { state ->
                 if (state == PlaybackState.ENDED && type == "series" && _hasNextEpisode.value) {
-                    playNextEpisode()
+                    if (preferenceRepository.autoPlayNextEpisode.value) {
+                        playNextEpisode()
+                    }
                 }
             }
         }

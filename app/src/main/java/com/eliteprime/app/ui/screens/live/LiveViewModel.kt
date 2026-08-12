@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.remote.XtreamUrlFactory
+import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.domain.model.StreamInfo
 import com.eliteprime.app.domain.model.StreamType
@@ -17,6 +18,8 @@ import io.objectbox.query.QueryBuilder.StringOrder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -28,7 +31,8 @@ class LiveViewModel @Inject constructor(
     private val boxStore: BoxStore,
     val playerEngine: PlayerEngine,
     val globalPlayerState: GlobalPlayerState,
-    private val xtreamRepository: XtreamRepository
+    private val xtreamRepository: XtreamRepository,
+    private val preferenceRepository: PreferenceRepository
 ) : ViewModel() {
 
     companion object {
@@ -146,10 +150,27 @@ class LiveViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
+    private var lastStableChannel: LiveStream? = null
+    private var zapRevertJob: Job? = null
+
     fun previewChannel(channel: LiveStream) {
         if (_previewChannel.value?.id == channel.id && playerEngine.isPlaying.value) return
+        
         _previewChannel.value = channel
         
+        // Handle Zap Auto Revert
+        zapRevertJob?.cancel()
+        if (preferenceRepository.zapAutoRevert.value) {
+            zapRevertJob = viewModelScope.launch {
+                delay(5000)
+                // If the user hasn't confirmed this channel (which would set lastStableChannel)
+                // revert to the last stable one
+                if (lastStableChannel != null && lastStableChannel!!.id != channel.id) {
+                    previewChannel(lastStableChannel!!)
+                }
+            }
+        }
+
         viewModelScope.launch {
             xtreamRepository.fetchEpgForChannel(channel)
             val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst()
@@ -165,6 +186,11 @@ class LiveViewModel @Inject constructor(
                 playerEngine.play()
             }
         }
+    }
+
+    fun confirmChannel(channel: LiveStream) {
+        zapRevertJob?.cancel()
+        lastStableChannel = channel
     }
 
     fun toggleFavorite(channel: LiveStream) {

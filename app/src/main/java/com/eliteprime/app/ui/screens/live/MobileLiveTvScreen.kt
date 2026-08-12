@@ -249,6 +249,7 @@ fun MobileLiveTvScreen(
                                     onFocusChanged = { if (it.isFocused) lastFocusedChannelId = channel.id },
                                     onClick = { 
                                         if (previewChannel?.id == channel.id) {
+                                            viewModel.confirmChannel(channel)
                                             onPlayChannel(channel)
                                         } else {
                                             viewModel.previewChannel(channel)
@@ -289,6 +290,7 @@ fun MobileLiveTvScreen(
                                             .fillMaxSize()
                                             .background(Color.Transparent)
                                             .clickable { 
+                                                viewModel.confirmChannel(previewChannel!!)
                                                 viewModel.globalPlayerState.enterFullScreen(viewModel.playerEngine)
                                                 onPlayChannel(previewChannel!!) 
                                             }

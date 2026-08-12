@@ -77,7 +77,6 @@ private enum class SettingCategory(val labelRes: Int, val icon: ImageVector) {
     GENERAL(R.string.settings_general, Icons.Default.Settings),
     NETWORK(R.string.settings_network, Icons.Default.NetworkCheck),
     PLAYBACK(R.string.settings_playback, Icons.Default.PlayCircle),
-    SUBTITLES(R.string.player_subs, Icons.Default.Subtitles),
     ABOUT(R.string.settings_about, Icons.Default.Info),
 }
 
@@ -248,10 +247,10 @@ fun SettingsScreen(
                                 isTv = isTv
                             )
                         }
-                        SettingCategory.SUBTITLES -> {
-                            SubtitleSettingsContent(
-                                currentStyle = uiState.subtitleStyle,
-                                onStyleChange = { viewModel.setSubtitleStyle(it) },
+                        SettingCategory.PLAYBACK -> {
+                            PlaybackSettingsContent(
+                                uiState = uiState,
+                                viewModel = viewModel,
                                 isTv = isTv
                             )
                         }
@@ -628,17 +627,81 @@ private fun LanguageChip(
 }
 
 @Composable
-private fun SubtitleSettingsContent(
-    currentStyle: PlayerSubtitleStyle,
-    onStyleChange: (PlayerSubtitleStyle) -> Unit,
+private fun PlaybackSettingsContent(
+    uiState: SettingsUiState,
+    viewModel: SettingsViewModel,
     isTv: Boolean
 ) {
+    val context = LocalContext.current
+    var showBufferDialog by remember { mutableStateOf(false) }
+    var showDecoderDialog by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(STSpacing.md),
         verticalArrangement = Arrangement.spacedBy(STSpacing.lg)
     ) {
-        // Size
+        // --- Core Playback Toggles ---
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                Text(
+                    text = "PLAYBACK OPTIONS",
+                    color = Color.White.copy(alpha = 0.6f),
+                    style = EyebrowStyle
+                )
+
+                SettingToggleItem(
+                    title = stringResource(R.string.settings_prevent_standby),
+                    subtitle = stringResource(R.string.settings_prevent_standby_subtitle),
+                    icon = Icons.Default.BrightnessHigh,
+                    checked = uiState.preventStandby,
+                    onCheckedChange = { viewModel.setPreventStandby(it) }
+                )
+
+                SettingToggleItem(
+                    title = stringResource(R.string.settings_auto_play_next_episode),
+                    subtitle = stringResource(R.string.settings_auto_play_next_episode_subtitle),
+                    icon = Icons.Default.SkipNext,
+                    checked = uiState.autoPlayNextEpisode,
+                    onCheckedChange = { viewModel.setAutoPlayNextEpisode(it) }
+                )
+
+                SettingToggleItem(
+                    title = stringResource(R.string.settings_zap_auto_revert),
+                    subtitle = stringResource(R.string.settings_zap_auto_revert_subtitle),
+                    icon = Icons.Default.Undo,
+                    checked = uiState.zapAutoRevert,
+                    onCheckedChange = { viewModel.setZapAutoRevert(it) }
+                )
+            }
+        }
+
+        // --- Engine Preferences ---
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                Text(
+                    text = "ENGINE PREFERENCES",
+                    color = Color.White.copy(alpha = 0.6f),
+                    style = EyebrowStyle
+                )
+
+                SettingClickableItem(
+                    title = stringResource(R.string.settings_live_buffer_size),
+                    subtitle = formatLiveBufferLabel(uiState.liveBufferSize, context),
+                    icon = Icons.Default.Dns,
+                    onClick = { showBufferDialog = true }
+                )
+
+                SettingClickableItem(
+                    title = stringResource(R.string.settings_decoder_mode),
+                    subtitle = formatDecoderModeLabel(uiState.decoderMode, context),
+                    icon = Icons.Default.Hardware,
+                    onClick = { showDecoderDialog = true }
+                )
+            }
+        }
+
+        // --- Subtitle Styling (Merged here) ---
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
@@ -652,23 +715,22 @@ private fun SubtitleSettingsContent(
                     horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
                 ) {
                     subtitleSizeOptions().forEach { option ->
-                        val isActive = currentStyle.textScale == option.scale
+                        val isActive = uiState.subtitleStyle.textScale == option.scale
                         SubFilterChip(
                             label = stringResource(option.labelResId),
                             icon = Icons.Default.FormatSize,
                             isActive = isActive,
-                            onClick = { onStyleChange(currentStyle.copy(textScale = option.scale)) }
+                            onClick = { viewModel.setSubtitleStyle(uiState.subtitleStyle.copy(textScale = option.scale)) }
                         )
                     }
                 }
             }
         }
 
-        // Text Color
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = "TEXT COLOR",
+                    text = "SUBTITLE COLOR",
                     color = Color.White.copy(alpha = 0.6f),
                     style = EyebrowStyle
                 )
@@ -678,23 +740,22 @@ private fun SubtitleSettingsContent(
                     horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
                 ) {
                     subtitleTextColorOptions().forEach { option ->
-                        val isActive = currentStyle.foregroundColorArgb == option.colorArgb
+                        val isActive = uiState.subtitleStyle.foregroundColorArgb == option.colorArgb
                         SubtitleColorChip(
                             label = stringResource(option.labelResId),
                             color = Color(option.colorArgb),
                             isActive = isActive,
-                            onClick = { onStyleChange(currentStyle.copy(foregroundColorArgb = option.colorArgb)) }
+                            onClick = { viewModel.setSubtitleStyle(uiState.subtitleStyle.copy(foregroundColorArgb = option.colorArgb)) }
                         )
                     }
                 }
             }
         }
 
-        // Background Color
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = "BACKGROUND",
+                    text = "SUBTITLE BACKGROUND",
                     color = Color.White.copy(alpha = 0.6f),
                     style = EyebrowStyle
                 )
@@ -704,12 +765,12 @@ private fun SubtitleSettingsContent(
                     horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
                 ) {
                     subtitleBackgroundColorOptions().forEach { option ->
-                        val isActive = currentStyle.backgroundColorArgb == option.colorArgb
+                        val isActive = uiState.subtitleStyle.backgroundColorArgb == option.colorArgb
                         SubtitleColorChip(
                             label = stringResource(option.labelResId),
                             color = Color(option.colorArgb),
                             isActive = isActive,
-                            onClick = { onStyleChange(currentStyle.copy(backgroundColorArgb = option.colorArgb)) }
+                            onClick = { viewModel.setSubtitleStyle(uiState.subtitleStyle.copy(backgroundColorArgb = option.colorArgb)) }
                         )
                     }
                 }
@@ -738,13 +799,13 @@ private fun SubtitleSettingsContent(
                         ).alpha(0.4f))
 
                         Surface(
-                            color = Color(currentStyle.backgroundColorArgb),
+                            color = Color(uiState.subtitleStyle.backgroundColorArgb),
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
                                 text = "Sample Subtitle Text",
-                                color = Color(currentStyle.foregroundColorArgb),
-                                fontSize = (16 * currentStyle.textScale).sp,
+                                color = Color(uiState.subtitleStyle.foregroundColorArgb),
+                                fontSize = (16 * uiState.subtitleStyle.textScale).sp,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
@@ -752,6 +813,225 @@ private fun SubtitleSettingsContent(
                     }
                 }
             }
+        }
+    }
+
+    if (showBufferDialog) {
+        val options = listOf(0, 5000, 10000, 20000, 30000)
+        SettingsSelectionDialog(
+            title = stringResource(R.string.settings_select_buffer_size),
+            onDismiss = { showBufferDialog = false }
+        ) {
+            options.forEach { size ->
+                RadioOptionRow(
+                    label = formatLiveBufferLabel(size, context),
+                    isSelected = uiState.liveBufferSize == size,
+                    onClick = {
+                        viewModel.setLiveBufferSize(size)
+                        showBufferDialog = false
+                    }
+                )
+            }
+        }
+    }
+
+    if (showDecoderDialog) {
+        val options = listOf("AUTO", "HARDWARE", "SOFTWARE")
+        SettingsSelectionDialog(
+            title = stringResource(R.string.settings_select_decoder_mode),
+            onDismiss = { showDecoderDialog = false }
+        ) {
+            options.forEach { mode ->
+                RadioOptionRow(
+                    label = formatDecoderModeLabel(mode, context),
+                    isSelected = uiState.decoderMode == mode,
+                    onClick = {
+                        viewModel.setDecoderMode(mode)
+                        showDecoderDialog = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingClickableItem(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        color = Color.White.copy(alpha = 0.05f),
+        shape = RoundedCornerShape(STRadius.lg),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+    ) {
+        Row(
+            modifier = Modifier.padding(STSpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(Color.White.copy(alpha = 0.05f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    null,
+                    tint = Color.White.copy(alpha = 0.4f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = subtitle,
+                    color = AppColors.ArenaOrange,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.3f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsSelectionDialog(
+    title: String,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title, fontWeight = FontWeight.Black, fontSize = 18.sp) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                content = content
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("CANCEL", color = Color.White.copy(alpha = 0.6f))
+            }
+        },
+        containerColor = Color(0xFF1A1C1E),
+        titleContentColor = Color.White,
+        textContentColor = Color.White,
+        shape = RoundedCornerShape(24.dp)
+    )
+}
+
+@Composable
+private fun RadioOptionRow(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.1f) else Color.Transparent,
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = label,
+                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.7f),
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                fontSize = 15.sp
+            )
+            RadioButton(
+                selected = isSelected,
+                onClick = null,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = AppColors.ArenaOrange,
+                    unselectedColor = Color.White.copy(alpha = 0.2f)
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingToggleItem(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Surface(
+        onClick = { onCheckedChange(!checked) },
+        color = Color.White.copy(alpha = 0.05f),
+        shape = RoundedCornerShape(STRadius.lg),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+    ) {
+        Row(
+            modifier = Modifier.padding(STSpacing.md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(STSpacing.md)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(if (checked) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    icon,
+                    null,
+                    tint = if (checked) AppColors.ArenaOrange else Color.White.copy(alpha = 0.4f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = subtitle,
+                    color = Color.White.copy(alpha = 0.5f),
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp
+                )
+            }
+
+            Switch(
+                checked = checked,
+                onCheckedChange = null,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = AppColors.ArenaOrange,
+                    uncheckedThumbColor = Color.White.copy(alpha = 0.4f),
+                    uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
+                )
+            )
         }
     }
 }

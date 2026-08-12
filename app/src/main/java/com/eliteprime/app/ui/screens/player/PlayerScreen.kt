@@ -54,6 +54,7 @@ fun PlayerScreen(
     val hasNextEpisode by viewModel.hasNextEpisode.collectAsStateWithLifecycle()
     val hasPreviousEpisode by viewModel.hasPreviousEpisode.collectAsStateWithLifecycle()
     val seekAccumulator by viewModel.seekAccumulator.collectAsStateWithLifecycle()
+    val preventStandby by viewModel.preventStandby.collectAsStateWithLifecycle()
 
     val isInPip by (activity as? MainActivity)?.pictureInPictureModeFlow?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
     val videoFormat by viewModel.videoFormat.collectAsStateWithLifecycle()
@@ -87,8 +88,12 @@ fun PlayerScreen(
         }
     }
 
-    DisposableEffect(Unit) {
-        activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    DisposableEffect(preventStandby) {
+        if (preventStandby) {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
         viewModel.claimFullScreen()
         onDispose {
             activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)

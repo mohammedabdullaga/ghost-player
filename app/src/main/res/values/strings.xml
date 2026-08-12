@@ -48,6 +48,30 @@
     <string name="player_buffering">Buffering...</string>
     <string name="player_error_title">Playback Error</string>
 
+    <string name="settings_prevent_standby">Prevent Standby</string>
+    <string name="settings_prevent_standby_subtitle">Keep the screen on during playback even when idle</string>
+    <string name="settings_auto_play_next_episode">Auto Play Next Episode</string>
+    <string name="settings_auto_play_next_episode_subtitle">Automatically start the next episode when the current one ends</string>
+    <string name="settings_zap_auto_revert">Zap Auto Revert</string>
+    <string name="settings_zap_auto_revert_subtitle">Automatically return to previous channel after 5 seconds of inactivity</string>
+    <string name="settings_subtitle_size">Subtitle Size</string>
+    <string name="settings_subtitle_text_color">Text Color</string>
+    <string name="settings_subtitle_background">Background</string>
+
+    <string name="settings_live_buffer_size">Live Buffer Size</string>
+    <string name="settings_select_buffer_size">Select Live Buffer</string>
+    <string name="settings_buffer_auto">Auto (Default)</string>
+    <string name="settings_buffer_5s">5 Seconds</string>
+    <string name="settings_buffer_10s">10 Seconds</string>
+    <string name="settings_buffer_20s">20 Seconds</string>
+    <string name="settings_buffer_30s">30 Seconds (Stable)</string>
+
+    <string name="settings_decoder_mode">Decoder Mode</string>
+    <string name="settings_select_decoder_mode">Select Decoder</string>
+    <string name="settings_decoder_auto">Auto (Recommended)</string>
+    <string name="settings_decoder_hardware">Hardware (Fastest)</string>
+    <string name="settings_decoder_software">Software (Compatible)</string>
+
     <string name="settings_subtitle_size_small">Small</string>
     <string name="settings_subtitle_size_default">Default</string>
     <string name="settings_subtitle_size_large">Large</string>

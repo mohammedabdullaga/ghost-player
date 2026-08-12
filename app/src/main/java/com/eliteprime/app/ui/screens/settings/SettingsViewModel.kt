@@ -41,7 +41,12 @@ data class SettingsUiState(
     val isSpeedTesting: Boolean = false,
     val speedTestResult: InternetSpeedTestSnapshot? = null,
     val speedTestError: String? = null,
-    val subtitleStyle: PlayerSubtitleStyle = PlayerSubtitleStyle()
+    val subtitleStyle: PlayerSubtitleStyle = PlayerSubtitleStyle(),
+    val autoPlayNextEpisode: Boolean = true,
+    val zapAutoRevert: Boolean = false,
+    val preventStandby: Boolean = true,
+    val liveBufferSize: Int = 0,
+    val decoderMode: String = "AUTO"
 )
 
 @HiltViewModel
@@ -87,7 +92,12 @@ class SettingsViewModel @Inject constructor(
         _isSpeedTesting,
         _speedTestSnapshot,
         _speedTestError,
-        preferenceRepository.subtitleStyle
+        preferenceRepository.subtitleStyle,
+        preferenceRepository.autoPlayNextEpisode,
+        preferenceRepository.zapAutoRevert,
+        preferenceRepository.preventStandby,
+        preferenceRepository.liveBufferSize,
+        preferenceRepository.decoderMode
     ) { params ->
         SettingsUiState(
             account = params[0] as? XtreamAccount,
@@ -102,7 +112,12 @@ class SettingsViewModel @Inject constructor(
             isSpeedTesting = params[9] as Boolean,
             speedTestResult = params[10] as? InternetSpeedTestSnapshot,
             speedTestError = params[11] as? String,
-            subtitleStyle = params[12] as PlayerSubtitleStyle
+            subtitleStyle = params[12] as PlayerSubtitleStyle,
+            autoPlayNextEpisode = params[13] as Boolean,
+            zapAutoRevert = params[14] as Boolean,
+            preventStandby = params[15] as Boolean,
+            liveBufferSize = params[16] as Int,
+            decoderMode = params[17] as String
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
@@ -152,6 +167,26 @@ class SettingsViewModel @Inject constructor(
 
     fun setSubtitleStyle(style: PlayerSubtitleStyle) {
         preferenceRepository.setSubtitleStyle(style)
+    }
+
+    fun setAutoPlayNextEpisode(enabled: Boolean) {
+        preferenceRepository.setAutoPlayNextEpisode(enabled)
+    }
+
+    fun setZapAutoRevert(enabled: Boolean) {
+        preferenceRepository.setZapAutoRevert(enabled)
+    }
+
+    fun setPreventStandby(enabled: Boolean) {
+        preferenceRepository.setPreventStandby(enabled)
+    }
+
+    fun setLiveBufferSize(sizeMs: Int) {
+        preferenceRepository.setLiveBufferSize(sizeMs)
+    }
+
+    fun setDecoderMode(mode: String) {
+        preferenceRepository.setDecoderMode(mode)
     }
 
     fun updateStorageConfig(uri: Uri) {

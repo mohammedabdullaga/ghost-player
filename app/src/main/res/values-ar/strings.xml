@@ -48,6 +48,30 @@
     <string name="player_buffering">جاري التحميل...</string>
     <string name="player_error_title">خطأ في التشغيل</string>
 
+    <string name="settings_prevent_standby">منع وضع الاستعداد</string>
+    <string name="settings_prevent_standby_subtitle">إبقاء الشاشة قيد التشغيل أثناء التشغيل حتى في حالة عدم النشاط</string>
+    <string name="settings_auto_play_next_episode">تشغيل الحلقة التالية تلقائياً</string>
+    <string name="settings_auto_play_next_episode_subtitle">ابدأ الحلقة التالية تلقائياً عند انتهاء الحلقة الحالية</string>
+    <string name="settings_zap_auto_revert">الرجوع التلقائي للقناة</string>
+    <string name="settings_zap_auto_revert_subtitle">الرجوع تلقائياً للقناة السابقة بعد 5 ثوانٍ من عدم النشاط</string>
+    <string name="settings_subtitle_size">حجم الترجمة</string>
+    <string name="settings_subtitle_text_color">لون النص</string>
+    <string name="settings_subtitle_background">الخلفية</string>
+
+    <string name="settings_live_buffer_size">حجم ذاكرة التخزين المؤقت للبث</string>
+    <string name="settings_select_buffer_size">اختر حجم التخزين المؤقت</string>
+    <string name="settings_buffer_auto">تلقائي (افتراضي)</string>
+    <string name="settings_buffer_5s">5 ثوانٍ</string>
+    <string name="settings_buffer_10s">10 ثوانٍ</string>
+    <string name="settings_buffer_20s">20 ثانية</string>
+    <string name="settings_buffer_30s">30 ثانية (مستقر)</string>
+
+    <string name="settings_decoder_mode">وضع فك التشفير</string>
+    <string name="settings_select_decoder_mode">اختر نوع فك التشفير</string>
+    <string name="settings_decoder_auto">تلقائي (مستحسن)</string>
+    <string name="settings_decoder_hardware">عتادي (الأسرع)</string>
+    <string name="settings_decoder_software">برمجي (متوافق)</string>
+
     <string name="settings_subtitle_size_small">صغير</string>
     <string name="settings_subtitle_size_default">تلقائي</string>
     <string name="settings_subtitle_size_large">كبير</string>

@@ -33,3 +33,19 @@ fun subtitleBackgroundColorOptions(): List<SubtitleColorOption> = listOf(
     SubtitleColorOption(0xCC000000.toInt(), R.string.settings_subtitle_background_black),
     SubtitleColorOption(0xCC102A43.toInt(), R.string.settings_subtitle_background_blue)
 )
+
+fun formatLiveBufferLabel(sizeMs: Int, context: Context): String = when (sizeMs) {
+    0 -> context.getString(R.string.settings_buffer_auto)
+    5000 -> context.getString(R.string.settings_buffer_5s)
+    10000 -> context.getString(R.string.settings_buffer_10s)
+    20000 -> context.getString(R.string.settings_buffer_20s)
+    30000 -> context.getString(R.string.settings_buffer_30s)
+    else -> "$sizeMs ms"
+}
+
+fun formatDecoderModeLabel(mode: String, context: Context): String = when (mode) {
+    "AUTO" -> context.getString(R.string.settings_decoder_auto)
+    "HARDWARE" -> context.getString(R.string.settings_decoder_hardware)
+    "SOFTWARE" -> context.getString(R.string.settings_decoder_software)
+    else -> mode
+}

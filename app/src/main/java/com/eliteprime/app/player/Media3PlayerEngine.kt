@@ -21,7 +21,9 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.domain.model.StreamInfo
+import com.eliteprime.app.domain.model.StreamType
 import com.eliteprime.app.domain.model.VideoFormat
 import com.eliteprime.app.player.playback.*
 import com.eliteprime.app.player.timeshift.LiveTimeshiftState
@@ -36,7 +38,8 @@ import javax.inject.Singleton
 @OptIn(UnstableApi::class)
 class Media3PlayerEngine @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val preferenceRepository: PreferenceRepository
 ) : PlayerEngine {
 
     private val TAG = "Media3PlayerEngine"
@@ -109,19 +112,38 @@ class Media3PlayerEngine @Inject constructor(
         val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
         mediaSourceFactory = PlayerMediaSourceFactory(context, dataSourceFactory)
 
+        // Adjust buffer policy based on user preferences
+        val userBufferMs = preferenceRepository.liveBufferSize.value
+        val effectiveBufferPolicy = if (userBufferMs > 0 && currentStreamInfo?.streamType == StreamType.MPEG_TS) {
+            bufferPolicy.copy(
+                label = "user-stable-live",
+                minBufferMs = userBufferMs,
+                maxBufferMs = (userBufferMs * 3).coerceAtLeast(30000),
+                rebufferMs = (userBufferMs / 2).coerceAtLeast(3000)
+            )
+        } else bufferPolicy
+
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                bufferPolicy.minBufferMs,
-                bufferPolicy.maxBufferMs,
-                bufferPolicy.playbackBufferMs,
-                bufferPolicy.rebufferMs
+                effectiveBufferPolicy.minBufferMs,
+                effectiveBufferPolicy.maxBufferMs,
+                effectiveBufferPolicy.playbackBufferMs,
+                effectiveBufferPolicy.rebufferMs
             )
-            .setTargetBufferBytes(bufferPolicy.targetBufferBytes)
-            .setPrioritizeTimeOverSizeThresholds(bufferPolicy.prioritizeTimeOverSizeThresholds)
+            .setTargetBufferBytes(effectiveBufferPolicy.targetBufferBytes)
+            .setPrioritizeTimeOverSizeThresholds(effectiveBufferPolicy.prioritizeTimeOverSizeThresholds)
             .build()
 
         val renderersFactory = DefaultRenderersFactory(context)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            
+        // Setup Decoder Mode
+        val decoderMode = preferenceRepository.decoderMode.value
+        if (decoderMode == "SOFTWARE") {
+            renderersFactory.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+        } else if (decoderMode == "HARDWARE") {
+            renderersFactory.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
+        }
 
         exoPlayer?.release()
         exoPlayer = ExoPlayer.Builder(context, renderersFactory)
@@ -136,7 +158,7 @@ class Media3PlayerEngine @Inject constructor(
                 boundPlayerView?.player = this
             }
         
-        currentBufferPolicy = bufferPolicy
+        currentBufferPolicy = effectiveBufferPolicy
     }
 
     override fun prepare(streamInfo: StreamInfo) {

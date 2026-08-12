@@ -27,6 +27,21 @@ class PreferenceRepository @Inject constructor(
     private val _isSecureConnectionEnabled = MutableStateFlow(prefs.getBoolean("secure_connection_enabled", false))
     val isSecureConnectionEnabled: StateFlow<Boolean> = _isSecureConnectionEnabled
 
+    private val _autoPlayNextEpisode = MutableStateFlow(prefs.getBoolean("auto_play_next_episode", true))
+    val autoPlayNextEpisode: StateFlow<Boolean> = _autoPlayNextEpisode
+
+    private val _zapAutoRevert = MutableStateFlow(prefs.getBoolean("zap_auto_revert", false))
+    val zapAutoRevert: StateFlow<Boolean> = _zapAutoRevert
+
+    private val _preventStandby = MutableStateFlow(prefs.getBoolean("prevent_standby", true))
+    val preventStandby: StateFlow<Boolean> = _preventStandby
+
+    private val _liveBufferSize = MutableStateFlow(prefs.getInt("live_buffer_size", 0)) // 0 = Auto/Default
+    val liveBufferSize: StateFlow<Int> = _liveBufferSize
+
+    private val _decoderMode = MutableStateFlow(prefs.getString("decoder_mode", "AUTO") ?: "AUTO")
+    val decoderMode: StateFlow<String> = _decoderMode
+
     private val _subtitleStyle = MutableStateFlow(loadSubtitleStyle())
     val subtitleStyle: StateFlow<PlayerSubtitleStyle> = _subtitleStyle
 
@@ -75,6 +90,31 @@ class PreferenceRepository @Inject constructor(
     fun setSecureConnectionEnabled(enabled: Boolean) {
         prefs.edit().putBoolean("secure_connection_enabled", enabled).apply()
         _isSecureConnectionEnabled.value = enabled
+    }
+
+    fun setAutoPlayNextEpisode(enabled: Boolean) {
+        prefs.edit().putBoolean("auto_play_next_episode", enabled).apply()
+        _autoPlayNextEpisode.value = enabled
+    }
+
+    fun setZapAutoRevert(enabled: Boolean) {
+        prefs.edit().putBoolean("zap_auto_revert", enabled).apply()
+        _zapAutoRevert.value = enabled
+    }
+
+    fun setPreventStandby(enabled: Boolean) {
+        prefs.edit().putBoolean("prevent_standby", enabled).apply()
+        _preventStandby.value = enabled
+    }
+
+    fun setLiveBufferSize(sizeMs: Int) {
+        prefs.edit().putInt("live_buffer_size", sizeMs).apply()
+        _liveBufferSize.value = sizeMs
+    }
+
+    fun setDecoderMode(mode: String) {
+        prefs.edit().putString("decoder_mode", mode).apply()
+        _decoderMode.value = mode
     }
 
     fun applySavedLocale() {
