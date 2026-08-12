@@ -46,6 +46,8 @@ class Media3PlayerEngine @Inject constructor(
     private var exoPlayer: ExoPlayer? = null
     private val trackSelector = DefaultTrackSelector(context)
     private var boundPlayerView: PlayerView? = null
+    // A view that requested binding before the ExoPlayer instance existed yet.
+    private var pendingRenderView: PlayerView? = null
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private var positionUpdateJob: Job? = null
     private var currentBufferPolicy: PlaybackBufferPolicy? = null
@@ -153,11 +155,15 @@ class Media3PlayerEngine @Inject constructor(
             .apply {
                 addListener(PlayerListener())
                 playWhenReady = true
-                
-                // Bind to view immediately if one is waiting
-                boundPlayerView?.player = this
             }
-        
+
+        // If a render view requested binding before the player was ready, bind it now.
+        pendingRenderView?.let { view ->
+            view.player = exoPlayer
+            boundPlayerView = view
+            pendingRenderView = null
+        }
+
         currentBufferPolicy = effectiveBufferPolicy
     }
 
@@ -291,7 +297,13 @@ class Media3PlayerEngine @Inject constructor(
 
     override fun bindRenderView(renderView: View, resizeMode: PlayerSurfaceResizeMode) {
         val playerView = renderView as? PlayerView ?: return
-        val player = exoPlayer ?: return
+        val player = exoPlayer
+        if (player == null) {
+            // Player isn't ready yet (e.g. still fetching EPG/resolving the stream).
+            // Remember this view and bind it once the player is created.
+            pendingRenderView = playerView
+            return
+        }
         
         if (boundPlayerView !== playerView) {
             Log.d(TAG, "bindRenderView: Switching from ${boundPlayerView?.hashCode()} to ${playerView.hashCode()}")
@@ -320,6 +332,9 @@ class Media3PlayerEngine @Inject constructor(
 
     override fun unbindRenderView(renderView: View) {
         val playerView = renderView as? PlayerView ?: return
+        if (pendingRenderView === playerView) {
+            pendingRenderView = null
+        }
         if (boundPlayerView === playerView) {
             Log.d(TAG, "unbindRenderView: Clearing current binding ${playerView.hashCode()}")
             playerView.player = null
@@ -330,6 +345,7 @@ class Media3PlayerEngine @Inject constructor(
     override fun clearRenderBinding() {
         boundPlayerView?.player = null
         boundPlayerView = null
+        pendingRenderView = null
     }
 
     private inner class PlayerListener : Player.Listener {
