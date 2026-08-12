@@ -4,6 +4,7 @@ import com.eliteprime.app.data.remote.TmdbApiService
 import com.eliteprime.app.data.remote.XtreamApi
 import com.eliteprime.app.data.remote.util.RateLimitInterceptor
 import com.eliteprime.app.domain.model.ProxyConfig
+import com.eliteprime.app.util.StringObfuscator
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.TypeAdapter
@@ -152,7 +153,13 @@ object NetworkModule {
                 val request = chain.request()
                 val builder = request.newBuilder()
                 if (request.header("User-Agent").isNullOrBlank()) {
-                    builder.header("User-Agent", "ArenaLive/1.0 (Android; Media3; OkHttp)")
+                    // ArenaLive/1.0 (Android; Media3; OkHttp)
+                    val uaData = byteArrayOf(
+                        0x28, 0x14, 0x00, 0x0e, 0x00, 0x22, 0x00, 0x13, 0x00, 0x4f, 0x54, 0x5a, 0x51, 0x4d, 0x2d, 0x1d, 
+                        0x0a, 0x1c, 0x12, 0x0a, 0x0f, 0x05, 0x42, 0x4b, 0x01, 0x17, 0x01, 0x01, 0x01, 0x72, 0x59, 0x6e, 
+                        0x2c, 0x1d, 0x01, 0x1c, 0x16, 0x10, 0x41
+                    )
+                    builder.header("User-Agent", StringObfuscator.decode(uaData))
                 }
                 chain.proceed(builder.build())
             }
@@ -166,8 +173,13 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideTmdbApi(client: OkHttpClient, gson: Gson): TmdbApiService {
+        // Obfuscated https://api.themoviedb.org/3/
+        val tmdbData = byteArrayOf(
+            0x21, 0x12, 0x11, 0x10, 0x12, 0x76, 0x6e, 0x6e, 0x00, 0x16, 0x00, 0x6e, 0x11, 0x0c, 0x00, 0x1c, 
+            0x00, 0x14, 0x11, 0x05, 0x01, 0x07, 0x03, 0x2e, 0x0e, 0x12, 0x02, 0x4f, 0x56, 0x6f
+        )
         return Retrofit.Builder()
-            .baseUrl("https://api.themoviedb.org/3/")
+            .baseUrl(StringObfuscator.decode(tmdbData))
             .client(client)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()

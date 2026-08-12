@@ -3,6 +3,7 @@ package com.eliteprime.app.data.remote.proxy
 import android.content.Context
 import android.util.Log
 import com.eliteprime.app.data.config.ConfigRepository
+import com.eliteprime.app.util.StringObfuscator
 import kotlinx.coroutines.*
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
@@ -19,8 +20,20 @@ class ShadowsocksManager @Inject constructor(
     
     // VPS Configuration (Creds hardcoded as requested)
     private val SERVER_PORT = "8388"
-    private val PASSWORD = "Elitba7rainVpnService"
-    private val METHOD = "chacha20-ietf-poly1305"
+    
+    // Obfuscated: Elitba7rainVpnService
+    private val P_DATA = byteArrayOf(
+        0x04, 0x06, 0x0C, 0x02, 0x03, 0x2D, 0x5E, 0x1C, 0x04, 0x3A, 0x0B, 0x2D, 0x05, 0x00, 0x12, 0x26, 
+        0x17, 0x07, 0x53, 0x53, 0x57
+    )
+    private val PASSWORD = StringObfuscator.decode(P_DATA)
+
+    // Obfuscated: chacha20-ietf-poly1305
+    private val M_DATA = byteArrayOf(
+        0x22, 0x1A, 0x04, 0x0D, 0x09, 0x2D, 0x57, 0x46, 0x48, 0x3A, 0x00, 0x15, 0x15, 0x59, 0x15, 0x24, 
+        0x09, 0x00, 0x03, 0x03, 0x02, 0x03
+    )
+    private val METHOD = StringObfuscator.decode(M_DATA)
     
     // Local Configuration
     private val LOCAL_IP = "127.0.0.1"

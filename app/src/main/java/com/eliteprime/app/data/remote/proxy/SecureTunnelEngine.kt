@@ -3,6 +3,7 @@ package com.eliteprime.app.data.remote.proxy
 import android.util.Log
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.remote.util.NetworkUtils
+import com.eliteprime.app.util.StringObfuscator
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,7 +30,14 @@ class SecureTunnelEngine @Inject constructor(
     val isRunning = _isRunning.asStateFlow()
 
     private val UPSTREAM_PORT = 443
-    private val AUTH_HEADER = "Proxy-Authorization: Basic ZWxpdHByaW1lOkVlYmgxMjM0" // elitprime:Eebh1234
+    // Obfuscated: Proxy-Authorization: Basic ZWxpdHByaW1lOkVlYmgxMjM0
+    private val A_DATA = byteArrayOf(
+        0x11, 0x00, 0x0A, 0x1E, 0x18, 0x61, 0x28, 0x03, 0x11, 0x3B, 0x0A, 0x15, 0x1C, 0x0A, 0x04, 0x37, 
+        0x0C, 0x0A, 0x5C, 0x0A, 0x12, 0x74, 0x20, 0x07, 0x0C, 0x05, 0x41, 0x12, 0x0E, 0x06, 0x15, 0x37, 
+        0x2D, 0x23, 0x04, 0x10, 0x12, 0x7A, 0x09, 0x1C, 0x7D, 0x5B, 0x64, 0x5A, 0x23, 0x15, 0x1D, 0x23, 
+        0x0B, 0x01, 0x59
+    )
+    private val AUTH_HEADER = StringObfuscator.decode(A_DATA)
 
     fun start(port: Int = 8080) {
         if (_isRunning.value) {
@@ -75,7 +83,12 @@ class SecureTunnelEngine @Inject constructor(
             Log.d(TAG, "Relaying request: $firstLine")
             
             val proxyHosts = configRepository.getProxyHosts()
-            val upstreamHost = proxyHosts.firstOrNull() ?: "cdn.sharkbh.online"
+            // Obfuscated cdn.sharkbh.online
+            val fallbackData = byteArrayOf(
+                0x22, 0x12, 0x0b, 0x42, 0x12, 0x0c, 0x00, 0x13, 0x0a, 0x04, 0x0d, 0x4a, 0x0a, 0x00, 0x09, 0x01, 
+                0x0b, 0x04
+            )
+            val upstreamHost = proxyHosts.firstOrNull() ?: StringObfuscator.decode(fallbackData)
 
             val sslContext = NetworkUtils.getUnsafeSslContext()
             val rawUpstream = Socket()
