@@ -1,6 +1,7 @@
 package com.eliteprime.app.ui.screens.login
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.R
@@ -25,6 +26,7 @@ class LoginViewModel @Inject constructor(
     private val application: Application
 ) : ViewModel() {
 
+    private val TAG = "LoginViewModel"
     private val _loginState = MutableStateFlow<LoginState>(LoginState.Idle)
     val loginState: StateFlow<LoginState> = _loginState.asStateFlow()
 
@@ -68,12 +70,19 @@ class LoginViewModel @Inject constructor(
 
     fun login(user: String, pass: String) {
         viewModelScope.launch {
+            Log.d(TAG, "Starting login for user: $user")
             _loginState.value = LoginState.Loading
-            val success = xtreamRepository.login(user, pass)
-            if (success) {
-                startSync()
-            } else {
-                _loginState.value = LoginState.Error(application.getString(R.string.login_error_invalid))
+            try {
+                val success = xtreamRepository.login(user, pass)
+                Log.d(TAG, "Login result: $success")
+                if (success) {
+                    startSync()
+                } else {
+                    _loginState.value = LoginState.Error(application.getString(R.string.login_error_invalid))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Login crash: ${e.message}", e)
+                _loginState.value = LoginState.Error("Login error: ${e.message}")
             }
         }
     }
