@@ -6,6 +6,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -70,18 +72,7 @@ fun LoginScreen(
     AppBackground {
         Scaffold(
             containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
-                if (isTv) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 32.dp, vertical = 24.dp)
-                    ) {
-                        ArenaLiveLogo(textSize = 26.sp)
-                    }
-                }
-            }
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
         ) { paddingValues ->
             Box(
                 modifier = Modifier
@@ -155,20 +146,44 @@ private fun TvLoginLayout(
                 if (state is LoginState.Loading) {
                     SyncProgressView(syncProgress)
                 } else {
-                    Column {
-                        LoginForm(
-                            username = user,
-                            onUsernameChange = onUserChange,
-                            password = pass,
-                            onPasswordChange = onPassChange,
-                            passwordVisible = passwordVisible,
-                            onTogglePasswordVisible = onTogglePasswordVisible,
-                            isSecureEnabled = isSecureEnabled,
-                            onSecureToggle = onSecureToggle,
-                            onSubmit = onSubmit
+                    Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        ArenaLiveLogo(textSize = 24.sp)
+                        
+                        Text(
+                            text = stringResource(R.string.login_title),
+                            color = ArenaOrange,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 18.sp
                         )
+                        
+                        OutlinedTextField(
+                            value = user,
+                            onValueChange = onUserChange,
+                            label = { Text(stringResource(R.string.login_username)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            colors = loginFieldColors()
+                        )
+                        
+                        OutlinedTextField(
+                            value = pass,
+                            onValueChange = onPassChange,
+                            label = { Text(stringResource(R.string.login_password)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            colors = loginFieldColors()
+                        )
+                        
+                        Button(
+                            onClick = onSubmit,
+                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = ArenaOrange)
+                        ) {
+                            Text(stringResource(R.string.login_btn), fontWeight = FontWeight.Bold)
+                        }
+
                         if (state is LoginState.Error) {
-                            Spacer(modifier = Modifier.height(16.dp))
                             ErrorBanner(state.message)
                         }
                     }
@@ -259,34 +274,143 @@ private fun MobileLoginLayout(
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(32.dp)
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            modifier = Modifier.widthIn(max = 640.dp)
         ) {
-            ArenaLiveLogo(textSize = 32.sp)
+            ArenaLiveLogo(textSize = 34.sp)
 
             Surface(
-                modifier = Modifier.fillMaxWidth().widthIn(max = 640.dp),
+                modifier = Modifier.fillMaxWidth(),
                 color = Color.Black.copy(alpha = 0.65f),
                 shape = RoundedCornerShape(28.dp),
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
             ) {
                 Column(
                     modifier = Modifier.padding(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     if (state is LoginState.Loading) {
                         SyncProgressView(syncProgress)
                     } else {
-                        LoginForm(
-                            username = user,
-                            onUsernameChange = onUserChange,
-                            password = pass,
-                            onPasswordChange = onPassChange,
-                            passwordVisible = passwordVisible,
-                            onTogglePasswordVisible = onTogglePasswordVisible,
-                            isSecureEnabled = isSecureEnabled,
-                            onSecureToggle = onSecureToggle,
-                            onSubmit = onSubmit
-                        )
+                        // 1. Header Row: Sign In + Subtitle
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.login_title),
+                                color = ArenaOrange,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 18.sp,
+                                letterSpacing = 1.sp
+                            )
+                            Text(
+                                text = stringResource(R.string.login_subtitle),
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        // 2. Input Fields Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = user,
+                                onValueChange = onUserChange,
+                                placeholder = { Text(stringResource(R.string.login_username), color = Color.White.copy(alpha = 0.35f), maxLines = 1) },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                shape = RoundedCornerShape(16.dp),
+                                leadingIcon = { Icon(Icons.Default.Person, null, tint = Color.White.copy(alpha = 0.35f), modifier = Modifier.size(18.dp)) },
+                                colors = loginFieldColors()
+                            )
+                            
+                            OutlinedTextField(
+                                value = pass,
+                                onValueChange = onPassChange,
+                                placeholder = { Text(stringResource(R.string.login_password), color = Color.White.copy(alpha = 0.35f), maxLines = 1) },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                shape = RoundedCornerShape(16.dp),
+                                leadingIcon = { Icon(Icons.Default.Lock, null, tint = Color.White.copy(alpha = 0.35f), modifier = Modifier.size(18.dp)) },
+                                trailingIcon = {
+                                    IconButton(onClick = onTogglePasswordVisible) {
+                                        Icon(
+                                            imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                            contentDescription = null,
+                                            tint = Color.White.copy(alpha = 0.35f),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                },
+                                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                colors = loginFieldColors()
+                            )
+                        }
+
+                        // 3. Action Row: Login (Left) + VPN (Right)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Wide Login Button on Left
+                            Button(
+                                onClick = onSubmit,
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = ArenaOrange)
+                            ) {
+                                Text(stringResource(R.string.login_btn), fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                            }
+
+                            // Small VPN Toggle on Right
+                            Surface(
+                                onClick = { onSecureToggle(!isSecureEnabled) },
+                                color = Color.White.copy(alpha = 0.05f),
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.weight(0.6f).height(48.dp),
+                                border = BorderStroke(1.dp, if (isSecureEnabled) ArenaOrange else Color.White.copy(alpha = 0.1f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        if (isSecureEnabled) Icons.Default.Shield else Icons.Default.ShieldMoon,
+                                        null,
+                                        tint = if (isSecureEnabled) ArenaOrange else Color.White.copy(alpha = 0.4f),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = "VPN",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(Modifier.weight(1f))
+                                    Switch(
+                                        checked = isSecureEnabled,
+                                        onCheckedChange = null,
+                                        modifier = Modifier.scale(0.7f),
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = ArenaOrange,
+                                            uncheckedThumbColor = Color.White.copy(alpha = 0.4f),
+                                            uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
+                                        )
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -296,196 +420,6 @@ private fun MobileLoginLayout(
             }
         }
     }
-}
-
-@Composable
-private fun LoginForm(
-    username: String,
-    onUsernameChange: (String) -> Unit,
-    password: String,
-    onPasswordChange: (String) -> Unit,
-    passwordVisible: Boolean,
-    onTogglePasswordVisible: () -> Unit,
-    isSecureEnabled: Boolean,
-    onSecureToggle: (Boolean) -> Unit,
-    onSubmit: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Text(
-            text = stringResource(R.string.login_title),
-            color = ArenaOrange,
-            fontWeight = FontWeight.Black,
-            fontSize = 11.sp,
-            letterSpacing = 1.4.sp
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.login_subtitle),
-            style = MaterialTheme.typography.titleMedium,
-            color = Color.White.copy(alpha = 0.6f),
-            fontWeight = FontWeight.Medium,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Input Fields Row (Horizontal for Mobile as requested)
-        val isTv = LocalContext.current.isTelevisionDevice()
-        
-        if (isTv) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                LoginFields(
-                    username = username,
-                    onUsernameChange = onUsernameChange,
-                    password = password,
-                    onPasswordChange = onPasswordChange,
-                    passwordVisible = passwordVisible,
-                    onTogglePasswordVisible = onTogglePasswordVisible
-                )
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(modifier = Modifier.weight(1f)) {
-                    OutlinedTextField(
-                        value = username,
-                        onValueChange = onUsernameChange,
-                        placeholder = { Text(stringResource(R.string.login_username), color = Color.White.copy(alpha = 0.35f), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(20.dp),
-                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
-                        colors = loginFieldColors()
-                    )
-                }
-                
-                Box(modifier = Modifier.weight(1f)) {
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = onPasswordChange,
-                        placeholder = { Text(stringResource(R.string.login_password), color = Color.White.copy(alpha = 0.35f), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(20.dp),
-                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
-                        trailingIcon = {
-                            IconButton(onClick = onTogglePasswordVisible) {
-                                Icon(
-                                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = null,
-                                    tint = Color.White.copy(alpha = 0.35f)
-                                )
-                            }
-                        },
-                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                        colors = loginFieldColors()
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Secure Connection Toggle
-        Surface(
-            onClick = { onSecureToggle(!isSecureEnabled) },
-            color = Color.White.copy(alpha = 0.05f),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, if (isSecureEnabled) ArenaOrange else Color.White.copy(alpha = 0.1f))
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(
-                    if (isSecureEnabled) Icons.Default.Shield else Icons.Default.ShieldMoon,
-                    null,
-                    tint = if (isSecureEnabled) ArenaOrange else Color.White.copy(alpha = 0.4f),
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = stringResource(R.string.login_secure_vpn),
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                Switch(
-                    checked = isSecureEnabled,
-                    onCheckedChange = null,
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = ArenaOrange,
-                        uncheckedThumbColor = Color.White.copy(alpha = 0.4f),
-                        uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
-                    )
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = onSubmit,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = ArenaOrange)
-        ) {
-            Text(stringResource(R.string.login_btn), fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-        }
-    }
-}
-
-@Composable
-private fun LoginFields(
-    username: String,
-    onUsernameChange: (String) -> Unit,
-    password: String,
-    onPasswordChange: (String) -> Unit,
-    passwordVisible: Boolean,
-    onTogglePasswordVisible: () -> Unit
-) {
-    OutlinedTextField(
-        value = username,
-        onValueChange = onUsernameChange,
-        placeholder = { Text(stringResource(R.string.login_username), color = Color.White.copy(alpha = 0.35f)) },
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-        shape = RoundedCornerShape(20.dp),
-        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
-        colors = loginFieldColors()
-    )
-    
-    OutlinedTextField(
-        value = password,
-        onValueChange = onPasswordChange,
-        placeholder = { Text(stringResource(R.string.login_password), color = Color.White.copy(alpha = 0.35f)) },
-        modifier = Modifier.fillMaxWidth(),
-        singleLine = true,
-        shape = RoundedCornerShape(20.dp),
-        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
-        trailingIcon = {
-            IconButton(onClick = onTogglePasswordVisible) {
-                Icon(
-                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.35f)
-                )
-            }
-        },
-        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        colors = loginFieldColors()
-    )
 }
 
 @Composable
