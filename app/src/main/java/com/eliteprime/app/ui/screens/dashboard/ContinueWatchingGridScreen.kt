@@ -16,8 +16,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,6 +31,7 @@ import com.eliteprime.app.data.local.entity.PlaybackHistory
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
+import kotlinx.coroutines.delay
 
 private enum class HistoryFilter { ALL, MOVIES, SERIES }
 
@@ -48,6 +53,24 @@ fun ContinueWatchingGridScreen(
             HistoryFilter.ALL -> uiState.continueWatching
             HistoryFilter.MOVIES -> uiState.continueWatching.filter { it.type == "movie" }
             HistoryFilter.SERIES -> uiState.continueWatching.filter { it.type == "series" || it.type == "series_episode" }
+        }
+    }
+
+    val itemFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
+    var initialFocusDone by remember { mutableStateOf(false) }
+
+    LaunchedEffect(filteredHistory) {
+        if (isTv && filteredHistory.isNotEmpty() && !initialFocusDone) {
+            // Quick repeat attempts to capture focus as soon as the first item is composed
+            repeat(10) {
+                try {
+                    val firstId = filteredHistory.first().id
+                    itemFocusRequesters[firstId]?.requestFocus()
+                    initialFocusDone = true
+                    return@LaunchedEffect
+                } catch (e: Exception) {}
+                delay(50)
+            }
         }
     }
 
@@ -119,9 +142,11 @@ fun ContinueWatchingGridScreen(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalArrangement = Arrangement.spacedBy(24.dp)
                         ) {
-                            items(filteredHistory) { history ->
+                            items(filteredHistory, key = { it.id }) { history ->
+                                val focusRequester = itemFocusRequesters.getOrPut(history.id) { FocusRequester() }
                                 ContinueWatchingCard(
                                     history = history,
+                                    modifier = Modifier.focusRequester(focusRequester),
                                     onClick = {
                                         when (history.type) {
                                             "movie" -> onNavigateToMovieDetails(history.streamId)

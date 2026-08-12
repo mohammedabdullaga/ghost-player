@@ -76,6 +76,7 @@ interface PlayerEngine {
     ): View
     
     fun bindRenderView(renderView: View, resizeMode: PlayerSurfaceResizeMode)
+    fun unbindRenderView(renderView: View)
     fun clearRenderBinding()
 }
 

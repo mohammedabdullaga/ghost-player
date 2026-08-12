@@ -34,6 +34,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
@@ -46,6 +48,7 @@ import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -82,6 +85,32 @@ fun MobileLiveTvScreen(
     val channelFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
     val globalMode by viewModel.globalPlayerState.mode.collectAsState()
     var lastFocusedChannelId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val scope = rememberCoroutineScope()
+
+    // Restore focus on every resume (e.g. coming back from player)
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (isTv) {
+            val targetId = previewChannel?.id ?: lastFocusedChannelId
+            if (targetId != null) {
+                scope.launch {
+                    repeat(15) {
+                        val index = uiState.filteredChannels.indexOfFirst { it.id == targetId }
+                        if (index >= 0) {
+                            if (!channelListState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
+                                channelListState.scrollToItem(index)
+                            }
+                            delay(50)
+                            try {
+                                channelFocusRequesters[targetId]?.requestFocus()
+                                return@launch
+                            } catch (e: Exception) {}
+                        }
+                        delay(100)
+                    }
+                }
+            }
+        }
+    }
 
     // Restore focus to the active channel or last focused instantly
     LaunchedEffect(previewChannel, uiState.selectedCategory, globalMode) {

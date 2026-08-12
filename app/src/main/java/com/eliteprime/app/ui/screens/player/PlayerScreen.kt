@@ -107,13 +107,12 @@ fun PlayerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Transparent) // MUST be transparent to see the global video layer
+            .background(Color.Transparent) 
             .onPreviewKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown) {
-                    // Reset timer on ANY key activity
                     viewModel.onUserAction()
                 }
-                false // Never consume here
+                false
             }
     ) {
         // 1. Background Key Trap (TV only, when UI is hidden)

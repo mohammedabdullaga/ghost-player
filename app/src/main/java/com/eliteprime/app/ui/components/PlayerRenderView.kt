@@ -16,9 +16,11 @@ fun PlayerRenderView(
     resizeMode: PlayerSurfaceResizeMode = PlayerSurfaceResizeMode.FIT,
     modifier: Modifier = Modifier
 ) {
-    // Observe global mode to trigger re-binding when handoff happens
+    // Observe global mode and player state to ensure binding happens as soon as player is ready
     val globalModeState = globalPlayerState?.mode?.collectAsStateWithLifecycle()
     val globalMode = globalModeState?.value ?: PlayerViewMode.HIDDEN
+    
+    val playbackState by playerEngine.playbackState.collectAsStateWithLifecycle()
 
     AndroidView(
         factory = { context ->
@@ -34,15 +36,15 @@ fun PlayerRenderView(
             if (shouldBind) {
                 playerEngine.bindRenderView(view, resizeMode)
                 (view as? PlayerView)?.apply {
-                    // Force a layout pass if the resize mode changed
                     requestLayout()
-                    // LIGHTWEIGHT optimization: explicitly avoid NaN frame rates on API 35
                     if (Build.VERSION.SDK_INT >= 35) {
                         try {
-                            setRequestedFrameRate(0f) // RESET to system default
+                            setRequestedFrameRate(0f)
                         } catch (e: Exception) {}
                     }
                 }
+            } else {
+                playerEngine.unbindRenderView(view)
             }
         },
         modifier = modifier

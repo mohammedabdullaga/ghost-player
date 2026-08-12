@@ -573,7 +573,8 @@ fun ContinueWatchingRow(
 fun ContinueWatchingCard(
     history: PlaybackHistory,
     onClick: () -> Unit,
-    onLongClick: () -> Unit = {}
+    onLongClick: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
     var isFocused by remember { mutableStateOf(false) }
@@ -641,7 +642,7 @@ fun ContinueWatchingCard(
         TvSurface(
             onClick = onClick,
             onLongClick = onLongClick,
-            modifier = Modifier
+            modifier = modifier
                 .width(220.dp)
                 .aspectRatio(16f / 9f)
                 .onFocusChanged { isFocused = it.isFocused },
@@ -653,7 +654,7 @@ fun ContinueWatchingCard(
         }
     } else {
         Surface(
-            modifier = Modifier
+            modifier = modifier
                 .width(200.dp)
                 .aspectRatio(16f / 9f)
                 .pointerInput(Unit) {

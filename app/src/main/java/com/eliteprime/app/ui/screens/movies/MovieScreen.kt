@@ -28,6 +28,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
@@ -36,6 +38,7 @@ import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -70,8 +73,32 @@ fun MovieScreen(
     val movieFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
     var lastFocusedMovieId by rememberSaveable { mutableStateOf<Long?>(null) }
     val topBarHomeFocusRequester = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
 
-    // Initial focus logic: Instantly target the correct item to prevent "jumping"
+    // Restore focus on initial load AND when returning from other screens
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (isTv && uiState.filteredMovies.isNotEmpty()) {
+            val targetId = lastFocusedMovieId ?: uiState.filteredMovies.first().id
+            val index = uiState.filteredMovies.indexOfFirst { it.id == targetId }
+            
+            if (index >= 0) {
+                scope.launch {
+                    repeat(10) {
+                        try {
+                            if (!movieGridState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
+                                movieGridState.scrollToItem(index)
+                            }
+                            delay(50)
+                            movieFocusRequesters[targetId]?.requestFocus()
+                            return@launch
+                        } catch (e: Exception) {}
+                        delay(100)
+                    }
+                }
+            }
+        }
+    }
+
     LaunchedEffect(uiState.filteredMovies) {
         if (isTv && uiState.filteredMovies.isNotEmpty()) {
             val targetId = lastFocusedMovieId ?: uiState.filteredMovies.first().id

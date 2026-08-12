@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -36,6 +37,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
@@ -50,6 +53,7 @@ import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.formatPositionMs
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private enum class SeriesDetailTab { EPISODES, RELATED }
 
@@ -70,6 +74,7 @@ fun SeriesDetailsScreen(
     val relatedSeries by viewModel.relatedSeries.collectAsState()
     val isTv = LocalContext.current.isTelevisionDevice()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.userMessage.collect { msg ->
@@ -80,11 +85,73 @@ fun SeriesDetailsScreen(
     val listState = rememberLazyListState()
     var currentTab by remember { mutableStateOf(SeriesDetailTab.EPISODES) }
     val episodesTabFocusRequester = remember { FocusRequester() }
+    
+    // Focus restoration states
+    val episodeFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
+    var lastFocusedEpisodeId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var initialFocusDone by remember { mutableStateOf(false) }
 
-    LaunchedEffect(series) {
-        if (isTv && series != null) {
-            delay(100)
-            episodesTabFocusRequester.requestFocus()
+    // Logic to request initial focus or restore focus
+    LaunchedEffect(selectedSeason, resumeEpisode, currentTab) {
+        if (isTv && currentTab == SeriesDetailTab.EPISODES) {
+            val season = selectedSeason
+            if (season != null && season.episodes.isNotEmpty()) {
+                val targetId = if (!initialFocusDone) {
+                    resumeEpisode?.id ?: season.episodes.first().id
+                } else {
+                    lastFocusedEpisodeId ?: resumeEpisode?.id ?: season.episodes.first().id
+                }
+
+                if (targetId != null) {
+                    scope.launch {
+                        // Repeat check to ensure item is composed and ready for focus
+                        repeat(5) {
+                            val index = season.episodes.indexOfFirst { it.id == targetId }
+                            if (index >= 0) {
+                                // Scroll to it first
+                                if (!listState.layoutInfo.visibleItemsInfo.any { it.index == index + 2 }) {
+                                    listState.scrollToItem(index + 2)
+                                }
+                                delay(100)
+                                try {
+                                    episodeFocusRequesters[targetId]?.requestFocus()
+                                    initialFocusDone = true
+                                    return@launch
+                                } catch (e: Exception) {}
+                            }
+                            delay(200)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Restore focus on every resume (e.g., coming back from player)
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (isTv && currentTab == SeriesDetailTab.EPISODES) {
+            val season = selectedSeason
+            if (season != null && season.episodes.isNotEmpty()) {
+                val targetId = lastFocusedEpisodeId ?: resumeEpisode?.id ?: season.episodes.first().id
+                if (targetId != null) {
+                    scope.launch {
+                        repeat(5) {
+                            val index = season.episodes.indexOfFirst { it.id == targetId }
+                            if (index >= 0) {
+                                if (!listState.layoutInfo.visibleItemsInfo.any { it.index == index + 2 }) {
+                                    listState.scrollToItem(index + 2)
+                                }
+                                delay(100)
+                                try {
+                                    episodeFocusRequesters[targetId]?.requestFocus()
+                                    return@launch
+                                } catch (e: Exception) {}
+                            }
+                            delay(200)
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -254,6 +321,7 @@ fun SeriesDetailsScreen(
                             itemsIndexed(swE.episodes) { index, episode ->
                                 val isHighlighted = resumeEpisode?.id == episode.id
                                 val dl = episodeDownloads[episode.id]
+                                val focusRequester = episodeFocusRequesters.getOrPut(episode.id) { FocusRequester() }
                                 EpisodeRow(
                                     episode = episode,
                                     index = index + 1,
@@ -265,7 +333,9 @@ fun SeriesDetailsScreen(
                                         else onPlayEpisode(episode, "${series.name} - ${episode.title}") 
                                     },
                                     onDownloadClick = { viewModel.downloadEpisode(episode) },
-                                    isTv = isTv
+                                    isTv = isTv,
+                                    focusRequester = focusRequester,
+                                    onFocused = { lastFocusedEpisodeId = episode.id }
                                 )
                             }
                         }
@@ -601,12 +671,18 @@ private fun EpisodeRow(
     fallbackImageUrl: String?,
     onClick: () -> Unit,
     onDownloadClick: () -> Unit,
-    isTv: Boolean
+    isTv: Boolean,
+    focusRequester: FocusRequester? = null,
+    onFocused: () -> Unit = {}
 ) {
     if (isTv) {
         TvSurface(
             onClick = onClick,
-            modifier = Modifier.fillMaxWidth().height(72.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                .onFocusChanged { if (it.isFocused) onFocused() },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = if (isHighlighted) AppColors.ArenaOrange.copy(alpha = 0.1f) else DetailSurface.cardFill,

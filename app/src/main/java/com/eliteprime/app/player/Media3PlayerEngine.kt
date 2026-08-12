@@ -248,7 +248,7 @@ class Media3PlayerEngine @Inject constructor(
     override fun createRenderView(context: Context, resizeMode: PlayerSurfaceResizeMode, surfaceType: PlayerRenderSurfaceType): View {
         return PlayerView(context).apply {
             useController = false
-            setBackgroundColor(Color.BLACK)
+            setShutterBackgroundColor(Color.BLACK)
             // Prevent PlayerView from stealing focus from Compose D-pad handlers
             isFocusable = false
             isFocusableInTouchMode = false
@@ -264,22 +264,38 @@ class Media3PlayerEngine @Inject constructor(
 
     override fun bindRenderView(renderView: View, resizeMode: PlayerSurfaceResizeMode) {
         val playerView = renderView as? PlayerView ?: return
+        val player = exoPlayer ?: return
         
         if (boundPlayerView !== playerView) {
-            Log.d(TAG, "bindRenderView: Switching to new view")
-            boundPlayerView?.player = null
+            Log.d(TAG, "bindRenderView: Switching from ${boundPlayerView?.hashCode()} to ${playerView.hashCode()}")
+            
+            // Use official Media3 switchTargetView for seamless handoff
+            PlayerView.switchTargetView(player, boundPlayerView, playerView)
+            
             boundPlayerView = playerView
+        } else if (playerView.player !== player) {
+            playerView.player = player
         }
 
-        playerView.player = exoPlayer
-
-        playerView.resizeMode = when (resizeMode) {
+        val targetResizeMode = when (resizeMode) {
             PlayerSurfaceResizeMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
             PlayerSurfaceResizeMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
             PlayerSurfaceResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
         }
-        
-        playerView.requestLayout()
+
+        if (playerView.resizeMode != targetResizeMode) {
+            playerView.resizeMode = targetResizeMode
+            playerView.requestLayout()
+        }
+    }
+
+    override fun unbindRenderView(renderView: View) {
+        val playerView = renderView as? PlayerView ?: return
+        if (boundPlayerView === playerView) {
+            Log.d(TAG, "unbindRenderView: Clearing current binding ${playerView.hashCode()}")
+            playerView.player = null
+            boundPlayerView = null
+        }
     }
 
     override fun clearRenderBinding() {

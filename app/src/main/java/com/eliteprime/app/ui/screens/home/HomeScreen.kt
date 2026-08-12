@@ -37,6 +37,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
@@ -48,6 +50,7 @@ import com.eliteprime.app.ui.screens.dashboard.TrendingItem
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -85,16 +88,26 @@ fun HomeScreen(
     val trendingFocusRequester = remember { FocusRequester() }
     val continueFocusRequester = remember { FocusRequester() }
     val downloadsFocusRequester = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
 
     var lastFocusedIndex by rememberSaveable { mutableStateOf(HomeFocusIndex.TRENDING) }
 
-    LaunchedEffect(Unit) {
+    // Restore focus on initial load AND when returning from other screens
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (isTv) {
-            delay(100)
-            when (lastFocusedIndex) {
-                HomeFocusIndex.TRENDING -> trendingFocusRequester.requestFocus()
-                HomeFocusIndex.CONTINUE -> continueFocusRequester.requestFocus()
-                HomeFocusIndex.DOWNLOADS -> downloadsFocusRequester.requestFocus()
+            scope.launch {
+                // Intense focus "grabber" to prevent jumping to navbar
+                repeat(15) {
+                    try {
+                        when (lastFocusedIndex) {
+                            HomeFocusIndex.TRENDING -> trendingFocusRequester.requestFocus()
+                            HomeFocusIndex.CONTINUE -> continueFocusRequester.requestFocus()
+                            HomeFocusIndex.DOWNLOADS -> downloadsFocusRequester.requestFocus()
+                        }
+                        // If we reached here without exception, focus is likely requested
+                    } catch (e: Exception) {}
+                    delay(30)
+                }
             }
         }
     }
