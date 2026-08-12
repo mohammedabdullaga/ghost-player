@@ -90,10 +90,10 @@ fun SeriesDetailsScreen(
 
     // Scroll to resume episode
     LaunchedEffect(selectedSeason, resumeEpisode) {
-        val season = selectedSeason
+        val swE = selectedSeason
         val resume = resumeEpisode
-        if (season != null && resume != null && currentTab == SeriesDetailTab.EPISODES) {
-            val index = season.episodes.indexOfFirst { it.id == resume.id }
+        if (swE != null && resume != null && currentTab == SeriesDetailTab.EPISODES) {
+            val index = swE.episodes.indexOfFirst { it.id == resume.id }
             if (index >= 0) {
                 listState.animateScrollToItem(index + 2)
             }
@@ -250,8 +250,8 @@ fun SeriesDetailsScreen(
                     }
 
                     if (currentTab == SeriesDetailTab.EPISODES) {
-                        selectedSeason?.let { season ->
-                            itemsIndexed(season.episodes) { index, episode ->
+                        selectedSeason?.let { swE ->
+                            itemsIndexed(swE.episodes) { index, episode ->
                                 val isHighlighted = resumeEpisode?.id == episode.id
                                 val dl = episodeDownloads[episode.id]
                                 EpisodeRow(
@@ -303,9 +303,9 @@ fun SeriesDetailsScreen(
 
 @Composable
 private fun DetailTabSection(
-    seasons: List<Season>,
-    selectedSeason: Season?,
-    onSeasonSelected: (Season) -> Unit,
+    seasons: List<SeasonWithEpisodes>,
+    selectedSeason: SeasonWithEpisodes?,
+    onSeasonSelected: (SeasonWithEpisodes) -> Unit,
     currentTab: SeriesDetailTab,
     onTabChange: (SeriesDetailTab) -> Unit,
     isTv: Boolean,
@@ -328,7 +328,7 @@ private fun DetailTabSection(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = if (isActive && selectedSeason != null) selectedSeason.name else "EPISODES",
+                        text = if (isActive && selectedSeason != null) selectedSeason.season.name else "EPISODES",
                         color = Color.White,
                         fontWeight = FontWeight.Black,
                         fontSize = 13.sp,
@@ -374,11 +374,11 @@ private fun DetailTabSection(
                 onDismissRequest = { expanded = false }, 
                 modifier = Modifier.background(Color(0xFF14171C))
             ) {
-                seasons.forEach { season ->
+                seasons.forEach { swE ->
                     DropdownMenuItem(
-                        text = { Text(season.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) },
+                        text = { Text(swE.season.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold) },
                         onClick = { 
-                            onSeasonSelected(season)
+                            onSeasonSelected(swE)
                             onTabChange(SeriesDetailTab.EPISODES)
                             expanded = false 
                         }

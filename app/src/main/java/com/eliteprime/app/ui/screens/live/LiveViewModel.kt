@@ -19,6 +19,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Collections
 import javax.inject.Inject
 
@@ -72,22 +73,16 @@ class LiveViewModel @Inject constructor(
     }.distinctUntilChanged().flowOn(Dispatchers.Default)
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
-    val uiState: StateFlow<LiveUiState> = combine(
-        categoriesFlow,
+    private val filteredChannelsFlow = combine(
         _selectedCategoryId,
         _searchQuery.debounce(300),
-        _isReorderMode,
-        _reorderCategories
-    ) { allCategories, selectedId, query, reorderMode, reorderList ->
-        
-        val categories = if (reorderMode) reorderList else allCategories
+        categoriesFlow
+    ) { selectedId, query, allCategories ->
         val currentId = selectedId ?: CAT_ID_ALL
-        val currentSelected = categories.find { it.id == currentId } ?: allCategories.find { it.id == CAT_ID_ALL } ?: allCategories.first()
+        val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.find { it.id == CAT_ID_ALL } ?: allCategories.first()
 
-        // Separate flow logic: we emit the category list immediately, 
-        // and fetch channels on a background thread without blocking category display.
-        val channels = if (reorderMode) emptyList() else {
-            val baseChannels = when (currentId) {
+        val baseChannels = withContext(Dispatchers.IO) {
+            when (currentId) {
                 CAT_ID_ALL -> liveBox.query().build().find()
                 CAT_ID_FAVORITES -> liveBox.query().equal(LiveStream_.isFavorite, true).build().find()
                 CAT_ID_RECENT -> liveBox.query().notEqual(LiveStream_.lastWatchedAt, 0L).orderDesc(LiveStream_.lastWatchedAt).build().find(0, 50)
@@ -101,15 +96,29 @@ class LiveViewModel @Inject constructor(
                     }
                 }
             }
-            baseChannels.filter { 
-                !it.isHidden && (query.isEmpty() || it.name.contains(query, ignoreCase = true)) 
-            }
         }
+        baseChannels.filter { 
+            !it.isHidden && (query.isEmpty() || it.name.contains(query, ignoreCase = true)) 
+        }
+    }.onStart { emit(emptyList()) }.flowOn(Dispatchers.Default)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<LiveUiState> = combine(
+        categoriesFlow,
+        _selectedCategoryId,
+        filteredChannelsFlow,
+        _isReorderMode,
+        _reorderCategories
+    ) { allCategories, selectedId, channels, reorderMode, reorderList ->
+        
+        val categories = if (reorderMode) reorderList else allCategories
+        val currentId = selectedId ?: CAT_ID_ALL
+        val currentSelected = categories.find { it.id == currentId } ?: allCategories.find { it.id == CAT_ID_ALL } ?: allCategories.first()
 
         LiveUiState(
             categories = categories,
             selectedCategory = currentSelected,
-            filteredChannels = channels,
+            filteredChannels = if (reorderMode) emptyList() else channels,
             isLoading = false,
             isCategoryReorderMode = reorderMode
         )

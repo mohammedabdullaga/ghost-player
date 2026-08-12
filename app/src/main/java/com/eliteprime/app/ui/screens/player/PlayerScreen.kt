@@ -4,21 +4,31 @@ import android.app.Activity
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eliteprime.app.MainActivity
 import com.eliteprime.app.player.PlayerEngine
 import com.eliteprime.app.player.PlaybackState
-import com.eliteprime.app.player.PlayerTrack
+import com.eliteprime.app.util.isTelevisionDevice
+import kotlinx.coroutines.delay
 
 @Composable
 fun PlayerScreen(
@@ -42,10 +52,13 @@ fun PlayerScreen(
     val resumePrompt by viewModel.resumePrompt.collectAsStateWithLifecycle()
     val hasNextEpisode by viewModel.hasNextEpisode.collectAsStateWithLifecycle()
     val hasPreviousEpisode by viewModel.hasPreviousEpisode.collectAsStateWithLifecycle()
+    val seekAccumulator by viewModel.seekAccumulator.collectAsStateWithLifecycle()
 
     val isInPip by (activity as? MainActivity)?.pictureInPictureModeFlow?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
-
     val videoFormat by viewModel.videoFormat.collectAsStateWithLifecycle()
+
+    val isTv = LocalContext.current.isTelevisionDevice()
+    val trapFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(videoFormat, isInPip) {
         if (!isInPip) {
@@ -63,11 +76,19 @@ fun PlayerScreen(
     var showAudioDialog by remember { mutableStateOf(false) }
     var showSubtitleDialog by remember { mutableStateOf(false) }
 
+    // Auto-focus logic for TV
+    LaunchedEffect(showControls, resumePrompt.show) {
+        if (isTv && !showControls && !resumePrompt.show) {
+            delay(100) // Ensure UI has settled
+            try {
+                trapFocusRequester.requestFocus()
+            } catch (e: Exception) {}
+        }
+    }
+
     DisposableEffect(Unit) {
         activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        // Claim the global full-screen player
         viewModel.claimFullScreen()
-        
         onDispose {
             activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             (activity as? MainActivity)?.updatePipState(false, 0, 0)
@@ -76,17 +97,63 @@ fun PlayerScreen(
     }
 
     BackHandler {
-        onBack()
+        if (showControls) {
+            viewModel.toggleControls()
+        } else {
+            onBack()
+        }
     }
 
-    // Notice: We do NOT render a Video Surface here. 
-    // It is hosted globally in MainShell via GlobalPlayerHost.
-    // This allows seamless handoff from Preview -> FullScreen.
-    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Transparent) // MUST be transparent to see the global video layer
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown) {
+                    // Reset timer on ANY key activity
+                    viewModel.onUserAction()
+                }
+                false // Never consume here
+            }
+    ) {
+        // 1. Background Key Trap (TV only, when UI is hidden)
+        // This ensures D-pad Left/Right/OK works for seeking/showing menu
+        if (isTv && !showControls && !resumePrompt.show) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .focusRequester(trapFocusRequester)
+                    .focusable()
+                    .onKeyEvent { event ->
+                        if (event.type == KeyEventType.KeyDown) {
+                            when (event.key) {
+                                Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> {
+                                    viewModel.toggleControls()
+                                    true
+                                }
+                                Key.DirectionLeft -> {
+                                    viewModel.accumulateSeek(-10)
+                                    true
+                                }
+                                Key.DirectionRight -> {
+                                    viewModel.accumulateSeek(10)
+                                    true
+                                }
+                                Key.DirectionUp, Key.DirectionDown -> {
+                                    viewModel.toggleControls()
+                                    true
+                                }
+                                else -> false
+                            }
+                        } else false
+                    }
+            )
+        }
+
         if (!isInPip) {
-            // Modern Controls
+            // 2. Control Layer
             MobilePlayerControls(
-                visible = showControls,
+                isControlsVisible = showControls,
                 title = title,
                 isPlaying = isPlaying,
                 isMuted = isMuted,
@@ -107,6 +174,7 @@ fun PlayerScreen(
                 onEnterPiP = { viewModel.enterPip(activity) },
                 onToggleVisibility = { viewModel.toggleControls() },
                 onToggleDiagnostics = { viewModel.toggleDiagnostics() },
+                onInteraction = { viewModel.onUserAction() },
                 contentType = when (viewModel.type) {
                     "live" -> PlayerContentType.LIVE_TV
                     "series" -> PlayerContentType.SERIES
@@ -119,25 +187,51 @@ fun PlayerScreen(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Diagnostics Overlay
+            // 3. Seek Indicator Overlay
+            AnimatedVisibility(
+                visible = seekAccumulator != 0,
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut(),
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                Surface(
+                    color = Color.Black.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (seekAccumulator > 0) Icons.Default.Forward10 else Icons.Default.Replay10,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                        Text(
+                            text = if (seekAccumulator > 0) "+${formatSeek(seekAccumulator)}" else formatSeek(seekAccumulator),
+                            color = Color.White,
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+            }
+
+            // 4. Loading / Diagnostics / Resume
             if (showDiagnostics) {
                 DiagnosticsOverlay(
                     stats = stats,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 80.dp, end = 20.dp)
+                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 80.dp, end = 20.dp)
                 )
             }
 
-            // Loading Indicator
             if (playbackState == PlaybackState.BUFFERING) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center),
-                    color = Color.White
-                )
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.White)
             }
 
-            // Resume Prompt
             if (resumePrompt.show) {
                 MobileResumePrompt(
                     title = resumePrompt.title,
@@ -149,22 +243,13 @@ fun PlayerScreen(
             }
         }
     }
+}
 
-    if (showAudioDialog) {
-        PlayerTrackSelectionDialog(
-            title = "Audio Tracks",
-            tracks = audioTracks,
-            onTrackSelected = { playerEngine.selectAudioTrack(it.id) },
-            onDismissRequest = { showAudioDialog = false }
-        )
-    }
-
-    if (showSubtitleDialog) {
-        PlayerTrackSelectionDialog(
-            title = "Subtitles",
-            tracks = subtitleTracks,
-            onTrackSelected = { playerEngine.selectSubtitleTrack(it.id) },
-            onDismissRequest = { showSubtitleDialog = false }
-        )
-    }
+private fun formatSeek(seconds: Int): String {
+    val absSec = Math.abs(seconds)
+    if (absSec < 60) return "${seconds}s"
+    val mins = absSec / 60
+    val secs = absSec % 60
+    val sign = if (seconds < 0) "-" else ""
+    return if (secs == 0) "$sign${mins}m" else "$sign${mins}m ${secs}s"
 }

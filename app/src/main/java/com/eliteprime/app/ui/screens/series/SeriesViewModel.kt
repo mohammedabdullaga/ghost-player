@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -33,6 +34,7 @@ class SeriesViewModel @Inject constructor(
     private val _selectedCategoryId = MutableStateFlow<Long?>(null)
     private val _searchQuery = MutableStateFlow("")
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val categoriesFlow = categoryBox.query()
         .equal(Category_.type, "series", StringOrder.CASE_INSENSITIVE)
         .build()
@@ -49,45 +51,57 @@ class SeriesViewModel @Inject constructor(
         .flowOn(Dispatchers.Default)
 
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
-    val uiState: StateFlow<SeriesUiState> = combine(
-        categoriesFlow,
+    private val filteredSeriesFlow = combine(
         _selectedCategoryId,
-        _searchQuery.debounce(300)
-    ) { allCategories, selectedId, query ->
-        
+        _searchQuery.debounce(300),
+        categoriesFlow
+    ) { selectedId, query, allCategories ->
         val currentId = selectedId ?: CAT_ID_ALL
         val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.find { it.id == CAT_ID_ALL } ?: allCategories.first()
 
-        val seriesList = if (query.isNotEmpty()) {
-            val qb = seriesBox.query().contains(Series_.name, query, StringOrder.CASE_INSENSITIVE)
-            if (currentId != CAT_ID_ALL && currentId > 0) {
-                qb.equal(Series_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
-            }
-            qb.build().find(0, FAST_LOAD_LIMIT)
-        } else {
-            when (currentId) {
-                CAT_ID_ALL -> seriesBox.query().build().find(0, FAST_LOAD_LIMIT)
-                CAT_ID_FAVORITES -> seriesBox.query().equal(Series_.isFavorite, true).build().find()
-                CAT_ID_CONTINUE -> {
-                    val histories = historyBox.query()
-                        .equal(PlaybackHistory_.type, "series", StringOrder.CASE_INSENSITIVE)
-                        .order(PlaybackHistory_.lastPlayedAt, QueryBuilder.DESCENDING)
-                        .build()
-                        .find()
-                    
-                    val seriesIds = histories.map { it.streamId }
-                    val seriesData = seriesBox.get(seriesIds.toLongArray()).filterNotNull()
-                    val seriesMap = seriesData.associateBy { it.id }
-                    seriesIds.mapNotNull { seriesMap[it] }
+        withContext(Dispatchers.IO) {
+            if (query.isNotEmpty()) {
+                val qb = seriesBox.query().contains(Series_.name, query, StringOrder.CASE_INSENSITIVE)
+                if (currentId != CAT_ID_ALL && currentId > 0) {
+                    qb.equal(Series_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
                 }
-                else -> {
-                    seriesBox.query()
-                        .equal(Series_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
-                        .build()
-                        .find()
+                qb.build().find(0, FAST_LOAD_LIMIT)
+            } else {
+                when (currentId) {
+                    CAT_ID_ALL -> seriesBox.query().build().find(0, FAST_LOAD_LIMIT)
+                    CAT_ID_FAVORITES -> seriesBox.query().equal(Series_.isFavorite, true).build().find()
+                    CAT_ID_CONTINUE -> {
+                        val histories = historyBox.query()
+                            .equal(PlaybackHistory_.type, "series", StringOrder.CASE_INSENSITIVE)
+                            .order(PlaybackHistory_.lastPlayedAt, QueryBuilder.DESCENDING)
+                            .build()
+                            .find()
+                        
+                        val seriesIds = histories.map { it.streamId }
+                        val seriesData = seriesBox.get(seriesIds.toLongArray()).filterNotNull()
+                        val seriesMap = seriesData.associateBy { it.id }
+                        seriesIds.mapNotNull { seriesMap[it] }
+                    }
+                    else -> {
+                        seriesBox.query()
+                            .equal(Series_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+                            .build()
+                            .find()
+                    }
                 }
             }
         }
+    }.onStart { emit(emptyList()) }.flowOn(Dispatchers.Default)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<SeriesUiState> = combine(
+        categoriesFlow,
+        _selectedCategoryId,
+        filteredSeriesFlow
+    ) { allCategories, selectedId, seriesList ->
+        
+        val currentId = selectedId ?: CAT_ID_ALL
+        val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.find { it.id == CAT_ID_ALL } ?: allCategories.first()
 
         SeriesUiState(
             categories = allCategories,

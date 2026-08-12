@@ -20,7 +20,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -49,7 +50,7 @@ enum class PlayerContentType { MOVIE, SERIES, LIVE_TV }
 
 @Composable
 fun MobilePlayerControls(
-    visible: Boolean,
+    isControlsVisible: Boolean,
     title: String,
     isPlaying: Boolean,
     isMuted: Boolean,
@@ -70,6 +71,7 @@ fun MobilePlayerControls(
     onEnterPiP: () -> Unit,
     onToggleVisibility: () -> Unit,
     onToggleDiagnostics: () -> Unit,
+    onInteraction: () -> Unit = {},
     modifier: Modifier = Modifier,
     contentType: PlayerContentType = PlayerContentType.MOVIE,
     hasNextEpisode: Boolean = false,
@@ -77,6 +79,18 @@ fun MobilePlayerControls(
     onNextEpisode: () -> Unit = {},
     onPreviousEpisode: () -> Unit = {}
 ) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    val playPauseFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(isControlsVisible) {
+        if (isTv && isControlsVisible) {
+            delay(300)
+            try {
+                playPauseFocusRequester.requestFocus()
+            } catch (e: Exception) {}
+        }
+    }
+
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         val context = LocalContext.current
         val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
@@ -124,6 +138,7 @@ fun MobilePlayerControls(
                                 volumeFraction = (volumeFraction + delta).coerceIn(0f, 1f)
                                 audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (volumeFraction * maxVolume).toInt(), 0)
                                 showVolumeIndicator = true
+                                onInteraction()
                             }
                         }
                 )
@@ -148,6 +163,7 @@ fun MobilePlayerControls(
                                     window.attributes = params
                                 }
                                 showBrightnessIndicator = true
+                                onInteraction()
                             }
                         }
                 )
@@ -167,7 +183,7 @@ fun MobilePlayerControls(
             )
 
             AnimatedVisibility(
-                visible = visible,
+                visible = isControlsVisible,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier.fillMaxSize()
@@ -219,32 +235,41 @@ fun MobilePlayerControls(
                                 PlayerTopIconButton(
                                     icon = Icons.Default.BugReport,
                                     contentDescription = "Diagnostics",
-                                    onClick = onToggleDiagnostics
+                                    onClick = onToggleDiagnostics,
+                                    onInteraction = onInteraction
                                 )
                                 if (audioTrackCount > 0) {
                                     PlayerTopIconButton(
                                         icon = Icons.Default.Audiotrack,
                                         contentDescription = stringResource(R.string.player_audio),
-                                        onClick = onOpenAudioTracks
+                                        onClick = onOpenAudioTracks,
+                                        onInteraction = onInteraction
                                     )
                                 }
                                 if (subtitleTrackCount > 0) {
                                     PlayerTopIconButton(
                                         icon = Icons.Default.Subtitles,
                                         contentDescription = stringResource(R.string.player_subs),
-                                        onClick = onOpenSubtitleTracks
+                                        onClick = onOpenSubtitleTracks,
+                                        onInteraction = onInteraction
                                     )
                                 }
-                                PlayerAspectRatioChip(label = aspectRatioLabel, onClick = onToggleAspectRatio)
+                                PlayerAspectRatioChip(
+                                    label = aspectRatioLabel, 
+                                    onClick = onToggleAspectRatio,
+                                    onInteraction = onInteraction
+                                )
                                 PlayerTopIconButton(
                                     icon = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
                                     contentDescription = "Mute",
-                                    onClick = onToggleMute
+                                    onClick = onToggleMute,
+                                    onInteraction = onInteraction
                                 )
                                 PlayerTopIconButton(
                                     icon = Icons.Default.PictureInPicture,
                                     contentDescription = "PiP",
-                                    onClick = onEnterPiP
+                                    onClick = onEnterPiP,
+                                    onInteraction = onInteraction
                                 )
                             }
                         }
@@ -273,6 +298,7 @@ fun MobilePlayerControls(
                                     icon = Icons.Default.SkipPrevious,
                                     contentDescription = "Previous",
                                     onClick = onPreviousEpisode,
+                                    onInteraction = onInteraction,
                                     enabled = hasPreviousEpisode
                                 )
                             }
@@ -282,6 +308,7 @@ fun MobilePlayerControls(
                                 PlayerControlButton(
                                     icon = Icons.Default.Replay10,
                                     contentDescription = "Rewind 10s",
+                                    onInteraction = onInteraction,
                                     onClick = onSeekBackward
                                 )
                             }
@@ -291,8 +318,10 @@ fun MobilePlayerControls(
                                 icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = "Play/Pause",
                                 onClick = onTogglePlayPause,
+                                onInteraction = onInteraction,
                                 containerColor = AppColors.ArenaOrange,
-                                size = 44.dp
+                                size = 44.dp,
+                                modifier = Modifier.focusRequester(playPauseFocusRequester)
                             )
 
                             // 4. Seek Forward (VOD/Series only)
@@ -300,6 +329,7 @@ fun MobilePlayerControls(
                                 PlayerControlButton(
                                     icon = Icons.Default.Forward10,
                                     contentDescription = "Forward 10s",
+                                    onInteraction = onInteraction,
                                     onClick = onSeekForward
                                 )
                             }
@@ -310,6 +340,7 @@ fun MobilePlayerControls(
                                     icon = Icons.Default.SkipNext,
                                     contentDescription = "Next",
                                     onClick = onNextEpisode,
+                                    onInteraction = onInteraction,
                                     enabled = hasNextEpisode
                                 )
                             }
@@ -340,6 +371,7 @@ fun MobilePlayerControls(
                                         onValueChange = {
                                             isDragging = true
                                             sliderValue = it
+                                            onInteraction()
                                         },
                                         onValueChangeFinished = {
                                             isDragging = false
@@ -381,9 +413,11 @@ private fun PlayerControlButton(
     icon: ImageVector,
     contentDescription: String?,
     onClick: () -> Unit,
+    onInteraction: () -> Unit,
     enabled: Boolean = true,
     size: Dp = 40.dp,
-    containerColor: Color = Color.White.copy(alpha = 0.08f)
+    containerColor: Color = Color.White.copy(alpha = 0.08f),
+    modifier: Modifier = Modifier
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
     if (isTv) {
@@ -391,9 +425,12 @@ private fun PlayerControlButton(
         TvSurface(
             onClick = onClick,
             enabled = enabled,
-            modifier = Modifier
+            modifier = modifier
                 .size(size)
-                .onFocusChanged { isFocused = it.isFocused },
+                .onFocusChanged { 
+                    isFocused = it.isFocused 
+                    if (it.isFocused) onInteraction()
+                },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = containerColor,
@@ -417,7 +454,7 @@ private fun PlayerControlButton(
         IconButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = Modifier
+            modifier = modifier
                 .size(size)
                 .background(containerColor, CircleShape)
         ) {
@@ -475,20 +512,48 @@ private fun LiveIndicatorBar() {
 }
 
 @Composable
-private fun PlayerAspectRatioChip(label: String, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        color = Color.White.copy(alpha = 0.1f),
-        shape = RoundedCornerShape(10.dp),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
+private fun PlayerAspectRatioChip(label: String, onClick: () -> Unit, onInteraction: () -> Unit) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    if (isTv) {
+        var isFocused by remember { mutableStateOf(false) }
+        TvSurface(
+            onClick = onClick,
+            modifier = Modifier.onFocusChanged { 
+                isFocused = it.isFocused 
+                if (it.isFocused) onInteraction()
+            },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.White.copy(alpha = 0.1f),
+                focusedContainerColor = Color.White
+            ),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+            border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
         ) {
-            Icon(Icons.Default.AspectRatio, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-            Text(label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Icon(Icons.Default.AspectRatio, contentDescription = null, tint = if (isFocused) Color.Black else Color.White, modifier = Modifier.size(16.dp))
+                Text(label, color = if (isFocused) Color.Black else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    } else {
+        Surface(
+            onClick = onClick,
+            color = Color.White.copy(alpha = 0.1f),
+            shape = RoundedCornerShape(10.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Icon(Icons.Default.AspectRatio, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Text(label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -542,6 +607,18 @@ fun MobileResumePrompt(
     onResume: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    val resumeButtonFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        if (isTv) {
+            delay(500)
+            try {
+                resumeButtonFocusRequester.requestFocus()
+            } catch (e: Exception) {}
+        }
+    }
+
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Box(
             modifier = modifier
@@ -623,39 +700,71 @@ fun MobileResumePrompt(
                         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        OutlinedButton(
-                            onClick = onStartOver,
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Default.Replay, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White.copy(alpha = 0.6f))
-                                Text(
-                                    text = stringResource(R.string.player_resume_start_over).uppercase(),
-                                    color = Color.White.copy(alpha = 0.7f),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp
-                                )
+                        if (isTv) {
+                            TvSurface(
+                                onClick = onStartOver,
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
+                                colors = ClickableSurfaceDefaults.colors(
+                                    containerColor = Color.White.copy(alpha = 0.05f),
+                                    focusedContainerColor = Color.White
+                                ),
+                                border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text("START OVER", color = Color.Unspecified, fontWeight = FontWeight.Bold)
+                                }
                             }
-                        }
 
-                        Button(
-                            onClick = onResume,
-                            modifier = Modifier.weight(1.2f).height(48.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
-                            shape = RoundedCornerShape(16.dp),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
-                                Text(
-                                    text = stringResource(R.string.player_resume_btn).uppercase(),
-                                    fontWeight = FontWeight.Black,
-                                    letterSpacing = 1.sp,
-                                    fontSize = 12.sp
-                                )
+                            TvSurface(
+                                onClick = onResume,
+                                modifier = Modifier.weight(1.2f).height(48.dp).focusRequester(resumeButtonFocusRequester),
+                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
+                                colors = ClickableSurfaceDefaults.colors(
+                                    containerColor = AppColors.ArenaOrange,
+                                    focusedContainerColor = Color.White
+                                ),
+                                border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text("RESUME", color = Color.Unspecified, fontWeight = FontWeight.Black)
+                                }
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = onStartOver,
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Icon(Icons.Default.Replay, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White.copy(alpha = 0.6f))
+                                    Text(
+                                        text = stringResource(R.string.player_resume_start_over).uppercase(),
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
+
+                            Button(
+                                onClick = onResume,
+                                modifier = Modifier.weight(1.2f).height(48.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
+                                shape = RoundedCornerShape(16.dp),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
+                                    Text(
+                                        text = stringResource(R.string.player_resume_btn).uppercase(),
+                                        fontWeight = FontWeight.Black,
+                                        letterSpacing = 1.sp,
+                                        fontSize = 12.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -666,12 +775,35 @@ fun MobileResumePrompt(
 }
 
 @Composable
-private fun PlayerTopIconButton(icon: ImageVector, contentDescription: String?, onClick: () -> Unit) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.1f), CircleShape)
-    ) {
-        Icon(icon, contentDescription = contentDescription, tint = Color.White, modifier = Modifier.size(18.dp))
+private fun PlayerTopIconButton(icon: ImageVector, contentDescription: String?, onClick: () -> Unit, onInteraction: () -> Unit) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    if (isTv) {
+        var isFocused by remember { mutableStateOf(false) }
+        TvSurface(
+            onClick = onClick,
+            modifier = Modifier.size(40.dp).onFocusChanged { 
+                isFocused = it.isFocused 
+                if (it.isFocused) onInteraction()
+            },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.White.copy(alpha = 0.1f),
+                focusedContainerColor = Color.White
+            ),
+            shape = ClickableSurfaceDefaults.shape(CircleShape),
+            border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+        ) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = contentDescription, tint = if (isFocused) Color.Black else Color.White, modifier = Modifier.size(20.dp))
+            }
+        }
+    } else {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.1f), CircleShape)
+        ) {
+            Icon(icon, contentDescription = contentDescription, tint = Color.White, modifier = Modifier.size(18.dp))
+        }
     }
 }
 

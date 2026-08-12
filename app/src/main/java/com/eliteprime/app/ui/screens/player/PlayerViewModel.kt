@@ -18,10 +18,12 @@ import com.eliteprime.app.player.playback.PlayerErrorClassifier
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
 import io.objectbox.query.QueryBuilder.StringOrder
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
+import java.util.Date
 import javax.inject.Inject
 
 @HiltViewModel
@@ -68,6 +70,9 @@ class PlayerViewModel @Inject constructor(
     private val _showDiagnostics = MutableStateFlow(false)
     val showDiagnostics = _showDiagnostics.asStateFlow()
 
+    private val _seekAccumulator = MutableStateFlow(0)
+    val seekAccumulator = _seekAccumulator.asStateFlow()
+
     private val _resumePrompt = MutableStateFlow(ResumePromptState())
     val resumePrompt = _resumePrompt.asStateFlow()
 
@@ -81,36 +86,125 @@ class PlayerViewModel @Inject constructor(
     private var currentChannels: List<LiveStream> = emptyList()
     private var activeStreamId: Long = streamId
     private var activeProviderId: Long = 0
+    private var autoResumeJob: Job? = null
+    private val _userActionTrigger = MutableSharedFlow<Unit>(replay = 1)
+    private var seekJob: Job? = null
 
     init {
-        loadActiveProvider()
-        checkResumeProgress()
-        resolveAndPlay(activeStreamId, initialTitle)
-        observePlayback()
-        startAutoHideTimer()
-        if (type == "series") {
-            loadSeriesContext()
-        } else if (type == "live") {
-            loadLiveContext()
+        viewModelScope.launch {
+            loadActiveProvider()
+            
+            val resumePoint = getResumePoint()
+            if (resumePoint != null && resumePoint > 10000) {
+                _resumePrompt.value = ResumePromptState(
+                    show = true,
+                    positionMs = resumePoint,
+                    title = _displayTitle.value
+                )
+                startAutoResumeTimer()
+                resolveAndPlay(activeStreamId, initialTitle, resumeAt = resumePoint)
+            } else {
+                resolveAndPlay(activeStreamId, initialTitle)
+            }
+
+            observePlayback()
+            startAutoHideTimer()
+            if (type == "series") {
+                loadSeriesContext()
+            } else if (type == "live") {
+                loadLiveContext()
+            }
+            observeVideoFormat()
         }
-        observeVideoFormat()
     }
 
-    private fun loadActiveProvider() {
-        viewModelScope.launch {
-            boxStore.boxFor(XtreamAccount::class.java).query().equal(XtreamAccount_.isActive, true).build().findFirst()?.let {
-                activeProviderId = it.id
+    private suspend fun loadActiveProvider() {
+        val account = boxStore.boxFor(XtreamAccount::class.java).query().equal(XtreamAccount_.isActive, true).build().findFirst()
+        if (account != null) {
+            activeProviderId = account.id
+        }
+    }
+
+    private suspend fun getResumePoint(): Long? {
+        if (type == "live") return null
+        var count = 0
+        while (activeProviderId == 0L && count < 20) {
+            delay(50)
+            count++
+        }
+        return playbackHistoryRepository.getPlaybackHistory(activeStreamId, type, activeProviderId)?.lastPositionMs
+    }
+
+    private fun startAutoResumeTimer() {
+        autoResumeJob?.cancel()
+        autoResumeJob = viewModelScope.launch {
+            delay(10000)
+            if (_resumePrompt.value.show) {
+                Log.d("PlayerVM", "Auto-resuming after 10s timeout")
+                dismissResumePrompt(true)
             }
+        }
+    }
+
+    fun dismissResumePrompt(resume: Boolean) {
+        autoResumeJob?.cancel()
+        val position = _resumePrompt.value.positionMs
+        _resumePrompt.value = ResumePromptState(show = false)
+        if (resume) {
+            playerEngine.seekTo(position)
+            playerEngine.play()
+        } else {
+            playerEngine.seekTo(0)
+            playerEngine.play()
+        }
+    }
+
+    private fun startAutoHideTimer() {
+        viewModelScope.launch {
+            _userActionTrigger.emit(Unit)
+            _userActionTrigger.collectLatest {
+                if (_showControls.value) {
+                    delay(5000)
+                    _showControls.value = false
+                }
+            }
+        }
+    }
+
+    fun onUserAction() {
+        viewModelScope.launch {
+            _userActionTrigger.emit(Unit)
+        }
+    }
+
+    fun handleOkClick() {
+        onUserAction()
+        if (!_showControls.value) {
+            _showControls.value = true
+        } else {
+            togglePlayPause()
+        }
+    }
+
+    fun accumulateSeek(deltaSeconds: Int) {
+        if (type == "live") return 
+        onUserAction()
+        
+        _seekAccumulator.value += deltaSeconds
+        
+        seekJob?.cancel()
+        seekJob = viewModelScope.launch {
+            delay(800)
+            val finalSeekAmountMs = _seekAccumulator.value * 1000L
+            seekTo(currentPosition.value + finalSeekAmountMs)
+            _seekAccumulator.value = 0
         }
     }
 
     private fun observeVideoFormat() {
         viewModelScope.launch {
             videoFormat.collectLatest { format ->
-                if (format.width > 0 && format.height > 0) {
-                    // Update global state or activity for PIP
-                    // We need a way to reach the activity from here, but usually it's better via UI side effect
-                }
+                if (format.width > 0 && format.height > 0) {}
             }
         }
     }
@@ -213,7 +307,6 @@ class PlayerViewModel @Inject constructor(
                     extension = episode.containerExtension
                 )
                 
-                // Record history for the new episode
                 playbackHistoryRepository.recordPlayback(
                     PlaybackHistory(
                         streamId = episode.id,
@@ -255,32 +348,7 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun checkResumeProgress() {
-        if (type == "live") return
-        viewModelScope.launch {
-            // Wait for activeProviderId to be loaded
-            while(activeProviderId == 0L) delay(50)
-            
-            val history = playbackHistoryRepository.getPlaybackHistory(activeStreamId, type, activeProviderId)
-            if (history != null && history.lastPositionMs > 10000) {
-                _resumePrompt.value = ResumePromptState(
-                    show = true,
-                    positionMs = history.lastPositionMs,
-                    title = _displayTitle.value
-                )
-            }
-        }
-    }
-
-    fun dismissResumePrompt(resume: Boolean) {
-        val position = _resumePrompt.value.positionMs
-        _resumePrompt.value = ResumePromptState(show = false)
-        if (resume) {
-            playerEngine.seekTo(position)
-        }
-    }
-
-    private fun resolveAndPlay(targetStreamId: Long, targetTitle: String) {
+    private fun resolveAndPlay(targetStreamId: Long, targetTitle: String, resumeAt: Long? = null) {
         viewModelScope.launch {
             val account = boxStore.boxFor(XtreamAccount::class.java).query().equal(XtreamAccount_.isActive, true).build().findFirst()
             if (account != null) {
@@ -320,7 +388,6 @@ class PlayerViewModel @Inject constructor(
                             }
                         }
                         
-                        // Fallback to DownloadItem if it was a direct download play
                         if (attempts < 99) {
                             val dl = downloadManager.observeAllDownloads().first().find { 
                                 it.contentId == targetStreamId && it.contentType.name.lowercase().contains(type) 
@@ -337,7 +404,7 @@ class PlayerViewModel @Inject constructor(
 
                         if (attempts < 99) {
                             attempts++
-                            delay(200) // Wait for re-sync if needed
+                            delay(200)
                         }
                     }
                 }
@@ -362,21 +429,29 @@ class PlayerViewModel @Inject constructor(
                     val currentState = playerEngine.playbackState.value
 
                     if (currentInfo?.url == url && (currentState == PlaybackState.READY || currentState == PlaybackState.BUFFERING)) {
-                        Log.d("PlayerVM", "resolveAndPlay: Resuming existing handoff stream")
-                        playerEngine.play()
+                        if (resumeAt != null) {
+                            playerEngine.seekTo(resumeAt)
+                            playerEngine.pause()
+                        } else {
+                            playerEngine.play()
+                        }
                     } else {
-                        Log.d("PlayerVM", "resolveAndPlay: Preparing new stream target=$url")
                         playerEngine.prepare(StreamInfo(
                             streamId = targetStreamId, 
                             name = targetTitle, 
                             url = url, 
                             streamType = if (type == "live") StreamType.MPEG_TS else StreamType.fromContainerExtension(extension)
                         ))
-                        playerEngine.play()
+                        
+                        if (resumeAt != null) {
+                            playerEngine.seekTo(resumeAt)
+                            playerEngine.pause()
+                        } else {
+                            playerEngine.play()
+                        }
                     }
                 }
 
-                // Initial history record (After starting playback to reduce latency)
                 launch {
                     playbackHistoryRepository.recordPlayback(
                         PlaybackHistory(
@@ -398,7 +473,6 @@ class PlayerViewModel @Inject constructor(
 
     private fun observePlayback() {
         viewModelScope.launch {
-            // Observe playback state for auto-play next episode
             playbackState.collectLatest { state ->
                 if (state == PlaybackState.ENDED && type == "series" && _hasNextEpisode.value) {
                     playNextEpisode()
@@ -437,21 +511,8 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun startAutoHideTimer() {
-        viewModelScope.launch {
-            while (true) {
-                if (_showControls.value) {
-                    delay(5000)
-                    if (_showControls.value) {
-                        _showControls.value = false
-                    }
-                }
-                delay(1000)
-            }
-        }
-    }
-
     fun toggleControls() {
+        onUserAction()
         _showControls.value = !_showControls.value
     }
 
@@ -510,15 +571,11 @@ class PlayerViewModel @Inject constructor(
 
     fun onPlayerScreenDisposed() {
         globalPlayerState.hide()
-        // Explicitly clear binding to allow the preview pane to reclaim the engine surface
         playerEngine.clearRenderBinding()
     }
 
     override fun onCleared() {
         super.onCleared()
-        // DO NOT call playerEngine.stop() here for Live TV.
-        // This allows the video to continue in the preview pane (YouTube-like).
-        // VOD should still stop to save bandwidth.
         if (type != "live") {
             playerEngine.stop()
         }

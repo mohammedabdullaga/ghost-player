@@ -20,6 +20,11 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class SeasonWithEpisodes(
+    val season: Season,
+    val episodes: List<Episode>
+)
+
 @HiltViewModel
 class SeriesDetailsViewModel @Inject constructor(
     private val boxStore: BoxStore,
@@ -41,20 +46,22 @@ class SeriesDetailsViewModel @Inject constructor(
     private val _selectedSeasonNumber = MutableStateFlow<Int?>(null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val seasons = combine(
+    val seasons: StateFlow<List<SeasonWithEpisodes>> = combine(
         seasonBox.query().equal(Season_.seriesId, seriesId).build().flow(),
         episodeBox.query().equal(Episode_.seriesId, seriesId).build().flow()
     ) { seasonList, _ ->
-        seasonList.sortedBy { it.seasonNumber }.onEach { season ->
-            season.episodes.reset() 
-            season.episodes.sortBy { it.episodeNumber }
+        seasonList.sortedBy { it.seasonNumber }.map { season ->
+            SeasonWithEpisodes(
+                season = season,
+                episodes = season.episodes.toList().sortedBy { it.episodeNumber }
+            )
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val resumeEpisode = seasons.map { seasonList ->
         var lastWatched: Episode? = null
-        for (season in seasonList) {
-            for (episode in season.episodes) {
+        for (swE in seasonList) {
+            for (episode in swE.episodes) {
                 if (episode.watchProgress > 0) {
                     if (lastWatched == null || episode.lastWatchedAt > lastWatched.lastWatchedAt) {
                         lastWatched = episode
@@ -74,7 +81,7 @@ class SeriesDetailsViewModel @Inject constructor(
     val selectedSeason = combine(seasons, _selectedSeasonNumber) { list, number ->
         if (list.isEmpty()) null
         else if (number == null) list.firstOrNull()
-        else list.find { it.seasonNumber == number } ?: list.firstOrNull()
+        else list.find { it.season.seasonNumber == number } ?: list.firstOrNull()
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -120,8 +127,8 @@ class SeriesDetailsViewModel @Inject constructor(
         }
     }
 
-    fun selectSeason(season: Season) {
-        _selectedSeasonNumber.value = season.seasonNumber
+    fun selectSeason(swE: SeasonWithEpisodes) {
+        _selectedSeasonNumber.value = swE.season.seasonNumber
     }
 
     fun toggleFavorite() {

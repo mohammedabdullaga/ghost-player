@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.SurfaceView
 import android.view.TextureView
 import android.view.View
+import android.view.ViewGroup
 import androidx.annotation.OptIn
 import androidx.media3.common.*
 import androidx.media3.common.util.UnstableApi
@@ -248,6 +249,11 @@ class Media3PlayerEngine @Inject constructor(
         return PlayerView(context).apply {
             useController = false
             setBackgroundColor(Color.BLACK)
+            // Prevent PlayerView from stealing focus from Compose D-pad handlers
+            isFocusable = false
+            isFocusableInTouchMode = false
+            descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+            
             this.resizeMode = when (resizeMode) {
                 PlayerSurfaceResizeMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                 PlayerSurfaceResizeMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
