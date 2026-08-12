@@ -3,7 +3,6 @@ package com.eliteprime.app.data.remote.proxy
 import android.util.Log
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.remote.util.NetworkUtils
-import com.eliteprime.app.util.StringObfuscator
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,17 +29,7 @@ class SecureTunnelEngine @Inject constructor(
     val isRunning = _isRunning.asStateFlow()
 
     private val UPSTREAM_PORT = 443
-    // Obfuscated: Proxy-Authorization: Basic ZWxpdHByaW1lOkVlYmgxMjM0
-    private val A_DATA = byteArrayOf(
-        0x11.toByte(), 0x00.toByte(), 0x0A.toByte(), 0x16.toByte(), 0x18.toByte(), 0x61.toByte(), 0x28.toByte(), 0x03.toByte(), 
-        0x11.toByte(), 0x3B.toByte(), 0x0A.toByte(), 0x11.toByte(), 0x1C.toByte(), 0x08.toByte(), 0x04.toByte(), 0x3F.toByte(), 
-        0x0C.toByte(), 0x16.toByte(), 0x5C.toByte(), 0x0A.toByte(), 0x12.toByte(), 0x74.toByte(), 0x20.toByte(), 0x01.toByte(), 
-        0x0C.toByte(), 0x0D.toByte(), 0x41.toByte(), 0x16.toByte(), 0x3E.toByte(), 0x0E.toByte(), 0x15.toByte(), 0x37.toByte(), 
-        0x2D.toByte(), 0x21.toByte(), 0x0C.toByte(), 0x13.toByte(), 0x32.toByte(), 0x7A.toByte(), 0x09.toByte(), 0x36.toByte(), 
-        0x59.toByte(), 0x66.toByte(), 0x5E.toByte(), 0x6F.toByte(), 0x2C.toByte(), 0x15.toByte(), 0x1D.toByte(), 0x23.toByte(), 
-        0x0B.toByte(), 0x01.toByte(), 0x59.toByte()
-    )
-    private val AUTH_HEADER = StringObfuscator.decode(A_DATA)
+    private val AUTH_HEADER = "Proxy-Authorization: Basic ZWxpdHByaW1lOkVlYmgxMjM0"
 
     fun start(port: Int = 8080) {
         if (_isRunning.value) {
@@ -86,13 +75,7 @@ class SecureTunnelEngine @Inject constructor(
             Log.d(TAG, "Relaying request: $firstLine")
             
             val proxyHosts = configRepository.getProxyHosts()
-            // Obfuscated cdn.sharkbh.online
-            val fallbackData = byteArrayOf(
-                0x22.toByte(), 0x16.toByte(), 0x0B.toByte(), 0x40.toByte(), 0x12.toByte(), 0x24.toByte(), 0x08.toByte(), 0x04.toByte(), 
-                0x0E.toByte(), 0x31.toByte(), 0x0D.toByte(), 0x4D.toByte(), 0x1A.toByte(), 0x1C.toByte(), 0x09.toByte(), 0x22.toByte(), 
-                0x0B.toByte(), 0x1C.toByte()
-            )
-            val upstreamHost = proxyHosts.firstOrNull() ?: StringObfuscator.decode(fallbackData)
+            val upstreamHost = proxyHosts.firstOrNull() ?: "cdn.sharkbh.online"
 
             val sslContext = NetworkUtils.getUnsafeSslContext()
             val rawUpstream = Socket()

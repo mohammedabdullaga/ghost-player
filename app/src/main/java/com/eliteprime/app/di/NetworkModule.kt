@@ -4,7 +4,6 @@ import com.eliteprime.app.data.remote.TmdbApiService
 import com.eliteprime.app.data.remote.XtreamApi
 import com.eliteprime.app.data.remote.util.RateLimitInterceptor
 import com.eliteprime.app.domain.model.ProxyConfig
-import com.eliteprime.app.util.StringObfuscator
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.TypeAdapter
@@ -153,16 +152,7 @@ object NetworkModule {
                 val request = chain.request()
                 val builder = request.newBuilder()
                 if (request.header("User-Agent").isNullOrBlank()) {
-                    // Reverting to legacy User-Agent for provider compatibility
-                    // ELITPRIME/1.0 (Android; Media3; OkHttp)
-                    val uaData = byteArrayOf(
-                        0x04.toByte(), 0x3E.toByte(), 0x2C.toByte(), 0x3A.toByte(), 0x31.toByte(), 0x1E.toByte(), 0x20.toByte(), 0x3B.toByte(), 
-                        0x20.toByte(), 0x7C.toByte(), 0x54.toByte(), 0x4D.toByte(), 0x45.toByte(), 0x52.toByte(), 0x4D.toByte(), 0x0A.toByte(), 
-                        0x0B.toByte(), 0x1D.toByte(), 0x40.toByte(), 0x5F.toByte(), 0x5B.toByte(), 0x52.toByte(), 0x7A.toByte(), 0x52.toByte(), 
-                        0x28.toByte(), 0x0B.toByte(), 0x05.toByte(), 0x25.toByte(), 0x08.toByte(), 0x45.toByte(), 0x5E.toByte(), 0x73.toByte(), 
-                        0x2A.toByte(), 0x08.toByte(), 0x3D.toByte(), 0x06.toByte(), 0x11.toByte(), 0x3B.toByte(), 0x4C.toByte()
-                    )
-                    builder.header("User-Agent", StringObfuscator.decode(uaData))
+                    builder.header("User-Agent", "ELITPRIME/1.0 (Android; Media3; OkHttp)")
                 }
                 chain.proceed(builder.build())
             }
@@ -176,15 +166,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideTmdbApi(client: OkHttpClient, gson: Gson): TmdbApiService {
-        // Obfuscated https://api.themoviedb.org/3/
-        val tmdbData = byteArrayOf(
-            0x29.toByte(), 0x06.toByte(), 0x11.toByte(), 0x1E.toByte(), 0x12.toByte(), 0x76.toByte(), 0x46.toByte(), 0x59.toByte(), 
-            0x04.toByte(), 0x23.toByte(), 0x0C.toByte(), 0x4D.toByte(), 0x01.toByte(), 0x1A.toByte(), 0x00.toByte(), 0x26.toByte(), 
-            0x0A.toByte(), 0x0F.toByte(), 0x5B.toByte(), 0x55.toByte(), 0x56.toByte(), 0x54.toByte(), 0x6F.toByte(), 0x1D.toByte(), 
-            0x17.toByte(), 0x09.toByte(), 0x4E.toByte(), 0x7F.toByte(), 0x46.toByte()
-        )
         return Retrofit.Builder()
-            .baseUrl(StringObfuscator.decode(tmdbData))
+            .baseUrl("https://api.themoviedb.org/3/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()

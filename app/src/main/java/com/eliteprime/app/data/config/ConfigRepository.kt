@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import com.eliteprime.app.domain.model.ConfigResponse
 import com.eliteprime.app.domain.model.HostEntry
-import com.eliteprime.app.util.StringObfuscator
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,15 +21,7 @@ class ConfigRepository @Inject constructor(
 ) {
     private val TAG = "ConfigRepository"
     private var cachedConfig: ConfigResponse? = null
-    // Obfuscated https://api.arenaliveapp.top/api/config
-    private val CONFIG_DATA = byteArrayOf(
-        0x29.toByte(), 0x06.toByte(), 0x11.toByte(), 0x1E.toByte(), 0x12.toByte(), 0x76.toByte(), 0x46.toByte(), 0x59.toByte(), 
-        0x04.toByte(), 0x23.toByte(), 0x0C.toByte(), 0x4D.toByte(), 0x14.toByte(), 0x00.toByte(), 0x00.toByte(), 0x25.toByte(), 
-        0x04.toByte(), 0x15.toByte(), 0x5B.toByte(), 0x46.toByte(), 0x57.toByte(), 0x57.toByte(), 0x31.toByte(), 0x02.toByte(), 
-        0x4B.toByte(), 0x1A.toByte(), 0x0E.toByte(), 0x3C.toByte(), 0x46.toByte(), 0x17.toByte(), 0x15.toByte(), 0x3A.toByte(), 
-        0x4A.toByte(), 0x00.toByte(), 0x1A.toByte(), 0x1C.toByte(), 0x03.toByte(), 0x22.toByte(), 0x02.toByte()
-    )
-    private val CONFIG_ENDPOINT = StringObfuscator.decode(CONFIG_DATA)
+    private val CONFIG_ENDPOINT = "https://api.arenaliveapp.top/api/config"
     private val prefs = context.getSharedPreferences("config_prefs", Context.MODE_PRIVATE)
 
     init {
