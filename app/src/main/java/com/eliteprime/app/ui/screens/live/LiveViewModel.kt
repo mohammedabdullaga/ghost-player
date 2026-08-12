@@ -100,7 +100,7 @@ class LiveViewModel @Inject constructor(
         baseChannels.filter { 
             !it.isHidden && (query.isEmpty() || it.name.contains(query, ignoreCase = true)) 
         }
-    }.onStart { emit(emptyList()) }.flowOn(Dispatchers.Default)
+    }.flowOn(Dispatchers.Default)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<LiveUiState> = combine(

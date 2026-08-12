@@ -93,19 +93,22 @@ fun MobileLiveTvScreen(
             val targetId = previewChannel?.id ?: lastFocusedChannelId
             if (targetId != null) {
                 scope.launch {
-                    repeat(15) {
+                    repeat(25) {
                         val index = uiState.filteredChannels.indexOfFirst { it.id == targetId }
                         if (index >= 0) {
                             if (!channelListState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
                                 channelListState.scrollToItem(index)
                             }
-                            delay(50)
+                            delay(20)
                             try {
                                 channelFocusRequesters[targetId]?.requestFocus()
-                                return@launch
+                                // If we're here, requestFocus was called. 
+                                // Since we can't reliably check success, we stop if we tried multiple times 
+                                // and the channel is actually visible.
+                                if (it > 2) return@launch 
                             } catch (e: Exception) {}
                         }
-                        delay(100)
+                        delay(60)
                     }
                 }
             }
@@ -237,7 +240,7 @@ fun MobileLiveTvScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(vertical = 8.dp)
                         ) {
-                            items(uiState.filteredChannels) { channel ->
+                            items(uiState.filteredChannels, key = { it.id }) { channel ->
                                 val focusRequester = channelFocusRequesters.getOrPut(channel.id) { FocusRequester() }
                                 ChannelRowWithLongClick(
                                     channel = channel,
