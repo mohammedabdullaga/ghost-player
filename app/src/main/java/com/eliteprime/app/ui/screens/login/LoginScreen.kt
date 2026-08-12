@@ -26,6 +26,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eliteprime.app.R
@@ -265,7 +266,7 @@ private fun MobileLoginLayout(
         Spacer(modifier = Modifier.height(48.dp))
 
         Surface(
-            modifier = Modifier.widthIn(max = 400.dp),
+            modifier = Modifier.widthIn(max = 600.dp),
             color = Color.Black.copy(alpha = 0.65f),
             shape = RoundedCornerShape(28.dp),
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
@@ -334,43 +335,65 @@ private fun LoginForm(
         )
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Single Column with spacedBy ensures fields never overlap
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            OutlinedTextField(
-                value = username,
-                onValueChange = onUsernameChange,
-                placeholder = { Text(stringResource(R.string.login_username), color = Color.White.copy(alpha = 0.35f)) },
+        // Input Fields Row (Horizontal for Mobile as requested)
+        val isTv = LocalContext.current.isTelevisionDevice()
+        
+        if (isTv) {
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(20.dp),
-                leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
-                colors = loginFieldColors()
-            )
-            
-            OutlinedTextField(
-                value = password,
-                onValueChange = onPasswordChange,
-                placeholder = { Text(stringResource(R.string.login_password), color = Color.White.copy(alpha = 0.35f)) },
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                LoginFields(
+                    username = username,
+                    onUsernameChange = onUsernameChange,
+                    password = password,
+                    onPasswordChange = onPasswordChange,
+                    passwordVisible = passwordVisible,
+                    onTogglePasswordVisible = onTogglePasswordVisible
+                )
+            }
+        } else {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(20.dp),
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
-                trailingIcon = {
-                    IconButton(onClick = onTogglePasswordVisible) {
-                        Icon(
-                            imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.35f)
-                        )
-                    }
-                },
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                colors = loginFieldColors()
-            )
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = username,
+                        onValueChange = onUsernameChange,
+                        placeholder = { Text(stringResource(R.string.login_username), color = Color.White.copy(alpha = 0.35f), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(20.dp),
+                        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
+                        colors = loginFieldColors()
+                    )
+                }
+                
+                Box(modifier = Modifier.weight(1f)) {
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = onPasswordChange,
+                        placeholder = { Text(stringResource(R.string.login_password), color = Color.White.copy(alpha = 0.35f), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(20.dp),
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
+                        trailingIcon = {
+                            IconButton(onClick = onTogglePasswordVisible) {
+                                Icon(
+                                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.35f)
+                                )
+                            }
+                        },
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        colors = loginFieldColors()
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -424,6 +447,49 @@ private fun LoginForm(
             Text(stringResource(R.string.login_btn), fontWeight = FontWeight.Black, letterSpacing = 1.sp)
         }
     }
+}
+
+@Composable
+private fun LoginFields(
+    username: String,
+    onUsernameChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
+    passwordVisible: Boolean,
+    onTogglePasswordVisible: () -> Unit
+) {
+    OutlinedTextField(
+        value = username,
+        onValueChange = onUsernameChange,
+        placeholder = { Text(stringResource(R.string.login_username), color = Color.White.copy(alpha = 0.35f)) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        shape = RoundedCornerShape(20.dp),
+        leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
+        colors = loginFieldColors()
+    )
+    
+    OutlinedTextField(
+        value = password,
+        onValueChange = onPasswordChange,
+        placeholder = { Text(stringResource(R.string.login_password), color = Color.White.copy(alpha = 0.35f)) },
+        modifier = Modifier.fillMaxWidth(),
+        singleLine = true,
+        shape = RoundedCornerShape(20.dp),
+        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White.copy(alpha = 0.35f)) },
+        trailingIcon = {
+            IconButton(onClick = onTogglePasswordVisible) {
+                Icon(
+                    imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.35f)
+                )
+            }
+        },
+        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+        colors = loginFieldColors()
+    )
 }
 
 @Composable
