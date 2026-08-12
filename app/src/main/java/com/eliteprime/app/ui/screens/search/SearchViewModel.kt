@@ -8,6 +8,8 @@ import io.objectbox.BoxStore
 import io.objectbox.Property
 import io.objectbox.query.QueryBuilder.StringOrder
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,6 +25,8 @@ class SearchViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
+    private var searchJob: Job? = null
+
     fun onQueryChange(query: String) {
         val trimmed = query.trim()
         if (trimmed.length < 2) {
@@ -30,7 +34,9 @@ class SearchViewModel @Inject constructor(
             return
         }
 
-        viewModelScope.launch {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(300) // Debounce search
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             // Perform search in background
@@ -56,30 +62,62 @@ class SearchViewModel @Inject constructor(
         query: String
     ): List<T> {
         val box = boxStore.boxFor(entityClass)
-        
-        // 1. Priority 1: Exact matches or Starts With (Best for "FROM" series)
-        val startMatches = box.query()
-            .startsWith(nameProperty, query, StringOrder.CASE_INSENSITIVE)
-            .build().find()
-            
-        // 2. Priority 2: Contains but NOT starts with
-        val containsMatches = box.query()
+        val queryLower = query.lowercase()
+
+        // 1. Fetch potential matches from DB (broad contains)
+        val allMatches = box.query()
             .contains(nameProperty, query, StringOrder.CASE_INSENSITIVE)
             .build().find()
+
+        // 2. Refine, filter and sort in memory
+        return allMatches.map { entity ->
+            val originalName = getEntityName(entity)
             
-        // Merge results: Starts With first, then the rest
-        val startIds = startMatches.map { getEntityId(it) }.toSet()
-        val uniqueContains = containsMatches.filter { getEntityId(it) !in startIds }
-        
-        return startMatches + uniqueContains
+            // Clean the title: Ignore anything before the (-) symbol
+            // If multiple dashes, we look for the last one that seems to be a separator
+            // Usually category separators have spaces or are followed by the main title
+            val searchableName = originalName.getSearchablePart()
+            val searchableLower = searchableName.lowercase()
+            
+            var score = 0
+            if (searchableLower.startsWith(queryLower)) {
+                score = 100 // Highest priority: Keyword is the first one in the cleaned title
+            } else if (searchableLower.contains(queryLower)) {
+                score = 50 // High priority: Keyword is in the title but not at start
+            } else if (originalName.lowercase().contains(queryLower)) {
+                score = 10 // Low priority: Keyword was only in the prefix part
+            }
+            
+            entity to score
+        }
+        .filter { it.second >= 50 } // Ignore results where keyword is only in the prefix (score 10)
+        .sortedWith(compareByDescending<Pair<T, Int>> { it.second }
+            .thenBy { getEntityName(it.first).getSearchablePart().length } // Prefer shorter matches
+            .thenBy { getEntityName(it.first) })
+        .map { it.first }
     }
 
-    private fun getEntityId(entity: Any?): Long {
+    private fun String.getSearchablePart(): String {
+        return when {
+            this.contains(" - ") -> this.substringAfterLast(" - ").trim()
+            this.contains("-") -> {
+                val parts = this.split("-")
+                // If it's something like "fr-4k-title", we take the last part
+                // But avoid breaking "Spider-Man" (if there's only one dash and no spaces, it might be a single word title)
+                if (parts.size > 2) parts.last().trim() 
+                else if (parts.size == 2 && this.length > 20) parts.last().trim() // Likely "Category-Title"
+                else this // Likely a dashed title like "Spider-Man"
+            }
+            else -> this.trim()
+        }
+    }
+
+    private fun getEntityName(entity: Any?): String {
         return when (entity) {
-            is LiveStream -> entity.id
-            is Movie -> entity.id
-            is Series -> entity.id
-            else -> 0L
+            is LiveStream -> entity.name
+            is Movie -> entity.name
+            is Series -> entity.name
+            else -> ""
         }
     }
 
