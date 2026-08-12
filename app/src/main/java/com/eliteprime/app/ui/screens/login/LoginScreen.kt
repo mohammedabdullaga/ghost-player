@@ -250,55 +250,51 @@ private fun MobileLoginLayout(
     onSecureToggle: (Boolean) -> Unit,
     onSubmit: () -> Unit
 ) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .imePadding()
             .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
+        contentAlignment = Alignment.Center
     ) {
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        ArenaLiveLogo(textSize = 28.sp)
-        
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Surface(
-            modifier = Modifier.widthIn(max = 600.dp),
-            color = Color.Black.copy(alpha = 0.65f),
-            shape = RoundedCornerShape(28.dp),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            ArenaLiveLogo(textSize = 32.sp)
+
+            Surface(
+                modifier = Modifier.fillMaxWidth().widthIn(max = 640.dp),
+                color = Color.Black.copy(alpha = 0.65f),
+                shape = RoundedCornerShape(28.dp),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
             ) {
-                if (state is LoginState.Loading) {
-                    SyncProgressView(syncProgress)
-                } else {
-                    LoginForm(
-                        username = user,
-                        onUsernameChange = onUserChange,
-                        password = pass,
-                        onPasswordChange = onPassChange,
-                        passwordVisible = passwordVisible,
-                        onTogglePasswordVisible = onTogglePasswordVisible,
-                        isSecureEnabled = isSecureEnabled,
-                        onSecureToggle = onSecureToggle,
-                        onSubmit = onSubmit
-                    )
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (state is LoginState.Loading) {
+                        SyncProgressView(syncProgress)
+                    } else {
+                        LoginForm(
+                            username = user,
+                            onUsernameChange = onUserChange,
+                            password = pass,
+                            onPasswordChange = onPassChange,
+                            passwordVisible = passwordVisible,
+                            onTogglePasswordVisible = onTogglePasswordVisible,
+                            isSecureEnabled = isSecureEnabled,
+                            onSecureToggle = onSecureToggle,
+                            onSubmit = onSubmit
+                        )
+                    }
                 }
             }
-        }
 
-        if (state is LoginState.Error) {
-            Spacer(modifier = Modifier.height(16.dp))
-            ErrorBanner(state.message)
+            if (state is LoginState.Error) {
+                ErrorBanner(state.message)
+            }
         }
-        
-        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
