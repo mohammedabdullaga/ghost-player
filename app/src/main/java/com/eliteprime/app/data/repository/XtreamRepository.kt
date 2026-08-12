@@ -1,5 +1,6 @@
 package com.eliteprime.app.data.repository
 
+import android.util.Log
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.remote.XtreamApi
@@ -22,6 +23,7 @@ class XtreamRepository @Inject constructor(
     private val configRepository: ConfigRepository,
     private val parser: XtreamStreamParser
 ) {
+    private val TAG = "XtreamRepository"
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
     private val categoryBox = boxStore.boxFor(Category::class.java)
     private val liveBox = boxStore.boxFor(LiveStream::class.java)
@@ -32,16 +34,21 @@ class XtreamRepository @Inject constructor(
     suspend fun login(user: String, pass: String): Boolean = withContext(Dispatchers.IO) {
         val hosts = configRepository.getActiveHosts()
         if (hosts.isEmpty()) {
+            Log.d(TAG, "Hosts list empty, fetching config...")
             configRepository.fetchConfig()
         }
         val activeHosts = configRepository.getActiveHosts()
+        Log.d(TAG, "Attempting login with ${activeHosts.size} hosts")
         
         for (host in activeHosts) {
             try {
                 val baseUrl = if (host.url.endsWith("/")) host.url else "${host.url}/"
                 val fullUrl = "${baseUrl}player_api.php"
+                Log.d(TAG, "Authenticating against: $fullUrl")
                 
                 val response = xtreamApi.authenticate(fullUrl, user, pass)
+                Log.d(TAG, "Response status: ${response.userInfo?.status}")
+
                 if (response.userInfo?.status == "Active") {
                     boxStore.runInTx {
                         accountBox.removeAll()
@@ -57,9 +64,11 @@ class XtreamRepository @Inject constructor(
                         ))
                     }
                     return@withContext true
+                } else if (response.userInfo?.status != null) {
+                    Log.w(TAG, "Account status not active: ${response.userInfo.status}")
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e(TAG, "Login failed for host ${host.url}: ${e.message}")
             }
         }
         false

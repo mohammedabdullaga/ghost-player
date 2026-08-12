@@ -1,6 +1,7 @@
 package com.eliteprime.app.data.config
 
 import android.content.Context
+import android.util.Log
 import com.eliteprime.app.domain.model.ConfigResponse
 import com.eliteprime.app.domain.model.HostEntry
 import com.eliteprime.app.util.StringObfuscator
@@ -19,6 +20,7 @@ class ConfigRepository @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val json: Json
 ) {
+    private val TAG = "ConfigRepository"
     private var cachedConfig: ConfigResponse? = null
     // Obfuscated https://api.arenaliveapp.top/api/config
     private val CONFIG_DATA = byteArrayOf(
@@ -44,6 +46,7 @@ class ConfigRepository @Inject constructor(
     }
 
     suspend fun fetchConfig(): ConfigResponse? = withContext(Dispatchers.IO) {
+        Log.d(TAG, "Fetching config from: $CONFIG_ENDPOINT")
         val request = Request.Builder()
             .url(CONFIG_ENDPOINT)
             .get()
@@ -52,6 +55,9 @@ class ConfigRepository @Inject constructor(
 
         try {
             val response = okHttpClient.newCall(request).execute()
+            val code = response.code
+            Log.d(TAG, "Config response code: $code")
+            
             val body = response.body?.string().orEmpty()
 
             if (response.isSuccessful) {
@@ -60,9 +66,11 @@ class ConfigRepository @Inject constructor(
                 // Save to disk
                 prefs.edit().putString("cached_config", body).apply()
                 return@withContext config
+            } else {
+                Log.e(TAG, "Failed to fetch config. Code: $code, Body: $body")
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "Error fetching config: ${e.message}", e)
         }
         cachedConfig
     }

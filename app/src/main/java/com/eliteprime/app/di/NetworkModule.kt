@@ -153,12 +153,14 @@ object NetworkModule {
                 val request = chain.request()
                 val builder = request.newBuilder()
                 if (request.header("User-Agent").isNullOrBlank()) {
-                    // ArenaLive/1.0 (Android; Media3; OkHttp)
+                    // Reverting to legacy User-Agent for provider compatibility
+                    // ELITPRIME/1.0 (Android; Media3; OkHttp)
                     val uaData = byteArrayOf(
-                        0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x00.toByte(), 0x7C.toByte(), 
-                        0x54.toByte(), 0x4D.toByte(), 0x45.toByte(), 0x52.toByte(), 0x4D.toByte(), 0x0A.toByte(), 0x0B.toByte(), 0x1D.toByte(), 0x40.toByte(), 0x5F.toByte(), 
-                        0x5B.toByte(), 0x52.toByte(), 0x7A.toByte(), 0x52.toByte(), 0x28.toByte(), 0x0B.toByte(), 0x05.toByte(), 0x25.toByte(), 0x08.toByte(), 0x45.toByte(), 
-                        0x5E.toByte(), 0x73.toByte(), 0x2A.toByte(), 0x08.toByte(), 0x3D.toByte(), 0x06.toByte(), 0x11.toByte(), 0x3B.toByte(), 0x4C.toByte()
+                        0x04.toByte(), 0x3E.toByte(), 0x2C.toByte(), 0x3A.toByte(), 0x31.toByte(), 0x1E.toByte(), 0x20.toByte(), 0x3B.toByte(), 
+                        0x20.toByte(), 0x7C.toByte(), 0x54.toByte(), 0x4D.toByte(), 0x45.toByte(), 0x52.toByte(), 0x4D.toByte(), 0x0A.toByte(), 
+                        0x0B.toByte(), 0x1D.toByte(), 0x40.toByte(), 0x5F.toByte(), 0x5B.toByte(), 0x52.toByte(), 0x7A.toByte(), 0x52.toByte(), 
+                        0x28.toByte(), 0x0B.toByte(), 0x05.toByte(), 0x25.toByte(), 0x08.toByte(), 0x45.toByte(), 0x5E.toByte(), 0x73.toByte(), 
+                        0x2A.toByte(), 0x08.toByte(), 0x3D.toByte(), 0x06.toByte(), 0x11.toByte(), 0x3B.toByte(), 0x4C.toByte()
                     )
                     builder.header("User-Agent", StringObfuscator.decode(uaData))
                 }

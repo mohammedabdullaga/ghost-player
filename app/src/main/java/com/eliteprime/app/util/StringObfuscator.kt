@@ -13,7 +13,10 @@ object StringObfuscator {
     fun decode(data: ByteArray): String {
         val result = ByteArray(data.size)
         for (i in data.indices) {
-            result[i] = (data[i].toInt() xor KEY[i % KEY.size].toInt()).toByte()
+            // Masking with 0xFF to avoid potential sign extension issues during XOR
+            val dataByte = data[i].toInt() and 0xFF
+            val keyByte = KEY[i % KEY.size].toInt() and 0xFF
+            result[i] = (dataByte xor keyByte).toByte()
         }
         return String(result, Charsets.UTF_8)
     }
