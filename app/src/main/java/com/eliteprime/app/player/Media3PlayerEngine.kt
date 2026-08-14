@@ -13,6 +13,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -182,9 +183,11 @@ class Media3PlayerEngine @Inject constructor(
         val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
         mediaSourceFactory = PlayerMediaSourceFactory(context, dataSourceFactory)
 
-        // Adjust buffer policy based on user preferences
+        // Adjust buffer policy based on user preferences, but NEVER downgrade a UHD policy
         val userBufferMs = preferenceRepository.liveBufferSize.value
-        val effectiveBufferPolicy = if (userBufferMs > 0 && currentStreamInfo?.streamType == StreamType.MPEG_TS) {
+        val isUhdPolicy = bufferPolicy.label.contains("uhd")
+        
+        val effectiveBufferPolicy = if (userBufferMs > 0 && !isUhdPolicy && currentStreamInfo?.streamType == StreamType.MPEG_TS) {
             bufferPolicy.copy(
                 label = "user-stable-live",
                 minBufferMs = userBufferMs,
@@ -230,7 +233,7 @@ class Media3PlayerEngine @Inject constructor(
                     enableDecoderFallback,
                     eventHandler,
                     eventListener,
-                    50 // MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY
+                    100 // INCREASE DROPPED FRAME TOLERANCE FOR 4K
                 ) {
                     override fun getDecoderInfos(
                         selector: MediaCodecSelector,
@@ -240,15 +243,9 @@ class Media3PlayerEngine @Inject constructor(
                         return (selector as CapabilityAwareMediaCodecSelector).getRankedDecoderInfos(
                             format.sampleMimeType!!,
                             requiresSecure,
-                            false, // tunneling handled by renderer internally if needed
+                            false,
                             format
                         )
-                    }
-
-                    override fun onInputFormatChanged(formatHolder: FormatHolder): DecoderReuseEvaluation? {
-                        val evaluation = super.onInputFormatChanged(formatHolder)
-                        Log.d("CodecSelector", "Renderer.onInputFormatChanged: ${formatHolder.format} | Evaluation: $evaluation")
-                        return evaluation
                     }
 
                     override fun canReuseCodec(
@@ -258,35 +255,28 @@ class Media3PlayerEngine @Inject constructor(
                     ): DecoderReuseEvaluation {
                         var evaluation = super.canReuseCodec(codecInfo, oldFormat, newFormat)
                         
-                        Log.d("CodecSelector", "canReuseCodec: result=${evaluation.result} | forceReset=$forceNextCodecReset | Old: ${oldFormat.width}x${oldFormat.height} | New: ${newFormat.width}x${newFormat.height}")
+                        val isAmlogic = Build.HARDWARE.lowercase().contains("amlogic") || Build.BOARD.lowercase().contains("amlogic")
+                        val isHighRes = newFormat.width >= 1920 || newFormat.height >= 1080
                         
-                        // AGGRESSIVE: If resolution increases or we have a pending reset flag
-                        if (evaluation.result != DecoderReuseEvaluation.REUSE_RESULT_NO && 
-                            (forceNextCodecReset || newFormat.width > oldFormat.width || newFormat.height > oldFormat.height)) {
-                            
-                            if (Build.HARDWARE.lowercase().contains("amlogic") || Build.BOARD.lowercase().contains("amlogic")) {
-                                Log.w("CodecSelector", "Forcing NO_REUSE for Amlogic (Reason: ${if (forceNextCodecReset) "HANDOFF" else "RES_CHANGE"})")
-                                forceNextCodecReset = false
-                                evaluation = DecoderReuseEvaluation(
-                                    codecInfo.name,
-                                    oldFormat,
-                                    newFormat,
-                                    DecoderReuseEvaluation.REUSE_RESULT_NO,
-                                    evaluation.discardReasons or DecoderReuseEvaluation.DISCARD_REASON_VIDEO_RESOLUTION_CHANGED
-                                )
-                            }
+                        // AGGRESSIVE: NO REUSE for Amlogic 4K/HD to prevent artifacts (missing pixels)
+                        if (isAmlogic && isHighRes && evaluation.result != DecoderReuseEvaluation.REUSE_RESULT_NO) {
+                            Log.w("CodecSelector", "Forcing NO_REUSE for Amlogic 4K/HD stability")
+                            evaluation = DecoderReuseEvaluation(
+                                codecInfo.name,
+                                oldFormat,
+                                newFormat,
+                                DecoderReuseEvaluation.REUSE_RESULT_NO,
+                                evaluation.discardReasons or DecoderReuseEvaluation.DISCARD_REASON_VIDEO_RESOLUTION_CHANGED
+                            )
                         }
                         
                         return evaluation
                     }
                 })
-
-                // Note: Extension renderers (VP9, AV1 etc.) are skipped here for brevity 
-                // as they require manual reflection-based instantiation if not using super.
-                // In this project, we prioritize the custom hardware decoder selection logic.
             }
         }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             .setMediaCodecSelector(codecSelector)
+            .setEnableDecoderFallback(true) // ALLOW MEDIA3 TO TRY NEXT DECODER IF PRIMARY FAILS
             
         // Setup Extension Mode
         if (decoderMode == "SOFTWARE") {
@@ -316,9 +306,15 @@ class Media3PlayerEngine @Inject constructor(
             }
         }
 
+        val livePlaybackSpeedControl = DefaultLivePlaybackSpeedControl.Builder()
+            .setFallbackMinPlaybackSpeed(1.0f)
+            .setFallbackMaxPlaybackSpeed(1.0f)
+            .build()
+
         exoPlayer = ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(newTrackSelector)
             .setLoadControl(loadControl)
+            .setLivePlaybackSpeedControl(livePlaybackSpeedControl)
             .build()
             .apply {
                 addListener(PlayerListener())
@@ -341,7 +337,7 @@ class Media3PlayerEngine @Inject constructor(
     override fun prepare(streamInfo: StreamInfo) {
         prepareStartTime = System.currentTimeMillis()
         val resolvedType = StreamTypeResolver.resolve(streamInfo)
-        val bufferPolicy = PlaybackBufferPolicies.forPlayback(resolvedType)
+        val bufferPolicy = PlaybackBufferPolicies.forPlayback(resolvedType, _videoFormat.value, streamInfo)
 
         if (exoPlayer == null || currentBufferPolicy?.label != bufferPolicy.label) {
             initializePlayer(bufferPolicy)
@@ -572,14 +568,29 @@ class Media3PlayerEngine @Inject constructor(
                     updateTrackLists()
                     retryAttempt = 0
                     _retryStatus.value = null
+                    
                     val format = exoPlayer?.videoFormat
-                    Log.d(TAG, "READY details: VideoFormat: $format")
-                    _playerStats.value = _playerStats.value.copy(
+                    Log.d(TAG, "READY details: Format: $format")
+                    
+                    val domainFormat = VideoFormat(
                         width = format?.width ?: 0,
                         height = format?.height ?: 0,
-                        videoCodec = format?.sampleMimeType ?: "Unknown",
+                        frameRate = format?.frameRate ?: 0f,
+                        bitrate = format?.bitrate ?: 0,
+                        codec = format?.sampleMimeType
+                    )
+                    
+                    _videoFormat.value = domainFormat
+                    _playerStats.value = _playerStats.value.copy(
+                        width = domainFormat.width,
+                        height = domainFormat.height,
+                        videoCodec = domainFormat.codec ?: "Unknown",
                         videoDecoderName = "Internal Decoder"
                     )
+
+                    // 4K OPTIMIZATION: Check for promotion on READY too (bitrate discovery)
+                    promoteBufferIfNeeded(domainFormat)
+
                     PlaybackState.READY
                 }
                 Player.STATE_ENDED -> PlaybackState.ENDED
@@ -602,11 +613,21 @@ class Media3PlayerEngine @Inject constructor(
         override fun onVideoSizeChanged(videoSize: VideoSize) {
             val aspect = if (videoSize.height > 0) videoSize.width.toFloat() / videoSize.height * videoSize.pixelWidthHeightRatio else 0f
             Log.d("PlayerBinding", "onVideoSizeChanged: ${videoSize.width}x${videoSize.height} | aspect=$aspect | pixelRatio=${videoSize.pixelWidthHeightRatio}")
-            // Log at DEBUG level to ensure it's captured in filtered logs
-            Log.d("PlayerBinding", "  - StackTrace for size change: ${Log.getStackTraceString(Throwable()).take(500)}...")
             
-            _videoFormat.value = VideoFormat(videoSize.width, videoSize.height, 0f, 0)
+            // PRESERVE BITRATE AND CODEC IF KNOWN
+            val current = _videoFormat.value
+            val newFormat = VideoFormat(
+                width = videoSize.width,
+                height = videoSize.height,
+                frameRate = current.frameRate,
+                bitrate = current.bitrate,
+                codec = current.codec
+            )
+            _videoFormat.value = newFormat
             _playerStats.value = _playerStats.value.copy(width = videoSize.width, height = videoSize.height)
+
+            // 4K OPTIMIZATION: Check if we need to promote the buffer based on newly discovered resolution
+            promoteBufferIfNeeded(newFormat)
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -684,35 +705,37 @@ class Media3PlayerEngine @Inject constructor(
             while (isActive) {
                 val player = exoPlayer
                 if (player != null && !isRecoveringFromStall) {
-                    val bufferedAhead = player.bufferedPosition - player.currentPosition
                     val renderedCount = player.videoDecoderCounters?.renderedOutputBufferCount ?: 0
-                    val droppedCount = player.videoDecoderCounters?.droppedBufferCount ?: 0
                     
                     if (renderedCount > 0) isWaitingForFirstFrame = false
 
-                    Log.d("PlaybackWatchdog", "Watchdog: isPlaying=${player.isPlaying} | state=${_playbackState.value} | bufAhead=${bufferedAhead}ms | rendered=$renderedCount | dropped=$droppedCount")
-
-                    // STALL DETECTION:
-                    // If READY and PLAYING, but rendered count hasn't moved for 3 seconds
                     if (player.isPlaying && _playbackState.value == PlaybackState.READY) {
-                        if (renderedCount != lastRenderedCount) {
-                            lastRenderedCount = renderedCount
-                            lastRenderedTime = System.currentTimeMillis()
-                        } else {
-                            val stallDuration = System.currentTimeMillis() - lastRenderedTime
-                            val limit = if (isWaitingForFirstFrame) 10000L else 4000L
-                            
-                            if (stallDuration > limit) { 
-                                Log.e("DecoderStallRecovery", "STALL DETECTED! Rendered count stuck at $renderedCount for ${stallDuration}ms (FirstFrame=$isWaitingForFirstFrame). Triggering HARD RESET.")
-                                triggerStallRecovery()
-                            }
-                        }
+                         if (renderedCount == lastRenderedCount) {
+                             val stallDuration = System.currentTimeMillis() - lastRenderedTime
+                             
+                             // UHD is more sensitive to decoder hangs. 
+                             // We also give more time for the very first frame.
+                             val limit = if (isWaitingForFirstFrame) {
+                                 10000L 
+                             } else if (_videoFormat.value.width >= 3840) {
+                                 2500L 
+                             } else {
+                                 4000L
+                             }
+                             
+                             if (stallDuration > limit) {
+                                 Log.e("DecoderStallRecovery", "STALL DETECTED! Rendered stuck at $renderedCount (FirstFrame=$isWaitingForFirstFrame). Resetting.")
+                                 triggerStallRecovery()
+                             }
+                         } else {
+                             lastRenderedCount = renderedCount
+                             lastRenderedTime = System.currentTimeMillis()
+                         }
                     } else {
-                        // Not in a state where we expect constant rendering (e.g. paused or buffering)
                         lastRenderedTime = System.currentTimeMillis()
                     }
                 }
-                delay(2000)
+                delay(1500)
             }
         }
     }
@@ -755,6 +778,30 @@ class Media3PlayerEngine @Inject constructor(
                 isRecoveringFromStall = false
                 lastRenderedTime = System.currentTimeMillis()
             }
+        }
+    }
+
+    private fun promoteBufferIfNeeded(observedFormat: VideoFormat) {
+        val streamInfo = currentStreamInfo ?: return
+        val resolvedType = StreamTypeResolver.resolve(streamInfo)
+        val nextPolicy = PlaybackBufferPolicies.forPlayback(resolvedType, observedFormat, streamInfo)
+
+        if (currentBufferPolicy?.label != nextPolicy.label) {
+            Log.i(TAG, "PROMOTING BUFFER: ${currentBufferPolicy?.label} -> ${nextPolicy.label} (Found ${observedFormat.width}x${observedFormat.height})")
+            
+            // Re-apply policy to existing load control isn't directly possible in ExoPlayer 
+            // without a full re-preparation.
+            val position = exoPlayer?.currentPosition ?: 0L
+            val isPlaying = exoPlayer?.isPlaying == true
+            
+            // We use initializePlayer which will recreate the exoPlayer instance with the NEW buffer policy.
+            initializePlayer(nextPolicy)
+            prepare(streamInfo)
+            
+            if (resolvedType != ResolvedStreamType.MPEG_TS_LIVE) {
+                exoPlayer?.seekTo(position)
+            }
+            if (isPlaying) exoPlayer?.play()
         }
     }
 }
