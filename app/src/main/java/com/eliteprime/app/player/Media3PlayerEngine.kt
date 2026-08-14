@@ -6,10 +6,12 @@ import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.LayoutInflater
+import android.media.MediaFormat
 import android.os.Build
 import android.os.Handler
 import androidx.annotation.OptIn
 import androidx.media3.common.*
+import androidx.media3.common.util.ExperimentalApi
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
@@ -50,7 +52,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-@OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class, ExperimentalApi::class)
 class Media3PlayerEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     private val okHttpClient: OkHttpClient,
@@ -210,9 +212,9 @@ class Media3PlayerEngine @Inject constructor(
                     enableDecoderFallback, eventHandler, eventListener, 50
                 ) {
                     override fun canReuseCodec(
-                        codecInfo: MediaCodecInfo, oldFormat: Format, newFormat: Format
+                        codecInfo: MediaCodecInfo, oldFormat: Format, newFormat: Format, isTunnelingEnabled: Boolean
                     ): DecoderReuseEvaluation {
-                        var eval = super.canReuseCodec(codecInfo, oldFormat, newFormat)
+                        var eval = super.canReuseCodec(codecInfo, oldFormat, newFormat, isTunnelingEnabled)
                         val isAmlogic = Build.HARDWARE.contains("amlogic", true) || Build.BOARD.contains("amlogic", true)
                         val isHighRes = newFormat.width >= 1920 || newFormat.height >= 1080
                         
@@ -235,7 +237,7 @@ class Media3PlayerEngine @Inject constructor(
              DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER 
              else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
 
-        // AM-LOGIC 4K PERFORMANCE FIXES (Media3 1.4.1):
+        // AM-LOGIC 4K PERFORMANCE FIXES (Media3 1.11.0):
         // 1. Enable Asynchronous Buffer Queueing
         renderersFactory.forceEnableMediaCodecAsynchronousQueueing()
         
@@ -258,11 +260,12 @@ class Media3PlayerEngine @Inject constructor(
             .setTrackSelector(newTrackSelector)
             .setLoadControl(loadControl)
             .setLivePlaybackSpeedControl(speedControl)
+            .enablePerStreamMediaProgression(true)
             .build()
             .apply {
                 addListener(PlayerListener())
                 playWhenReady = true
-                setVideoFrameMetadataListener { presentationTimeUs, _, _, _ ->
+                setVideoFrameMetadataListener { presentationTimeUs: Long, _: Long, _: Format, _: MediaFormat? ->
                     stallDetector.onVideoFrameRendered(presentationTimeUs / 1000)
                 }
                 
