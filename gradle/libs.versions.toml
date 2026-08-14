@@ -16,7 +16,8 @@ engage = "1.6.0"
 engage-tv = "1.1.0"
 tvprovider = "1.1.0"
 documentfile = "1.0.1"
-media3 = "1.9.2"
+media3 = "1.4.1"
+desugar-jdk-libs = "2.1.5"
 hilt = "2.60.1"
 hilt-work = "1.2.0"
 retrofit = "2.12.0"
@@ -39,6 +40,7 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
+desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar-jdk-libs" }
 
 # Serialization
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization" }

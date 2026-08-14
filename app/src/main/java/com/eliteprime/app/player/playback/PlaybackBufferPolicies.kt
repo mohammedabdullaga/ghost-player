@@ -10,78 +10,100 @@ data class PlaybackBufferPolicy(
     val maxBufferMs: Int,
     val playbackBufferMs: Int,
     val rebufferMs: Int,
-    val targetBufferBytes: Int = -1,
-    val prioritizeTimeOverSizeThresholds: Boolean = true
+    val targetBufferBytes: Int,
+    val prioritizeTimeOverSizeThresholds: Boolean,
+    val qualityReason: String = "baseline"
 )
 
 object PlaybackBufferPolicies {
+    private const val DEFAULT_TARGET_BUFFER_BYTES = -1
+    private const val MPEG_TS_LIVE_TARGET_BUFFER_BYTES = 16 * 1024 * 1024
+    private const val LARGE_LIVE_TARGET_BUFFER_BYTES = 64 * 1024 * 1024
+
     private const val LIVE_MIN_BUFFER_MS = 8_000
     private const val LIVE_MAX_BUFFER_MS = 30_000
     private const val VOD_MIN_BUFFER_MS = 45_000
     private const val VOD_MAX_BUFFER_MS = 90_000
     private const val PLAYBACK_BUFFER_MS = 1_500
     private const val REBUFFER_MS = 5_000
+    private const val VOD_PLAYBACK_BUFFER_MS = 3_000
+    private const val VOD_REBUFFER_MS = 8_000
 
-    // LARGE/UHD Buffer settings
-    private const val LARGE_LIVE_MIN_BUFFER_MS = 25_000
-    private const val LARGE_LIVE_MAX_BUFFER_MS = 75_000
-    private const val LARGE_LIVE_PLAYBACK_BUFFER_MS = 5_000
-    private const val LARGE_LIVE_REBUFFER_MS = 15_000
+    private const val LARGE_LIVE_MIN_BUFFER_MS = 15_000
+    private const val LARGE_LIVE_MAX_BUFFER_MS = 50_000
+    private const val LARGE_LIVE_PLAYBACK_BUFFER_MS = 2_500
+    private const val LARGE_LIVE_REBUFFER_MS = 8_000
 
-    private const val MAX_BUFFER_BYTES = 64 * 1024 * 1024 // 64MB - Balanced for 4K without OOM risk
+    private const val UHD_MIN_WIDTH = 3800
+    private const val UHD_MIN_HEIGHT = 2100
+    private const val HIGH_BITRATE_THRESHOLD_BPS = 12_000_000 
 
     fun forPlayback(
         resolvedStreamType: ResolvedStreamType,
-        observedFormat: VideoFormat? = null,
+        observedVideoFormat: VideoFormat? = null,
         streamInfo: StreamInfo? = null
     ): PlaybackBufferPolicy {
-        val isUhd = isHighQualityStream(observedFormat, streamInfo)
+        val qualityReason = highQualityReason(streamInfo, observedVideoFormat)
         
-        return if (resolvedStreamType.isLive) {
-            if (isUhd) {
-                PlaybackBufferPolicy(
-                    label = "large-live-uhd",
-                    minBufferMs = LARGE_LIVE_MIN_BUFFER_MS,
-                    maxBufferMs = LARGE_LIVE_MAX_BUFFER_MS,
-                    playbackBufferMs = LARGE_LIVE_PLAYBACK_BUFFER_MS,
-                    rebufferMs = LARGE_LIVE_REBUFFER_MS,
-                    targetBufferBytes = MAX_BUFFER_BYTES
-                )
-            } else {
-                PlaybackBufferPolicy(
-                    label = "stable-live",
-                    minBufferMs = LIVE_MIN_BUFFER_MS,
-                    maxBufferMs = LIVE_MAX_BUFFER_MS,
-                    playbackBufferMs = PLAYBACK_BUFFER_MS,
-                    rebufferMs = REBUFFER_MS,
-                    targetBufferBytes = MAX_BUFFER_BYTES
-                )
-            }
-        } else {
-            PlaybackBufferPolicy(
-                label = "stable-vod",
-                minBufferMs = VOD_MIN_BUFFER_MS,
-                maxBufferMs = VOD_MAX_BUFFER_MS,
-                playbackBufferMs = 3_000,
-                rebufferMs = 8_000,
-                targetBufferBytes = MAX_BUFFER_BYTES
-            )
+        return when {
+            resolvedStreamType.isLive && qualityReason != null -> largeLivePolicy("auto-uhd-live", qualityReason)
+            resolvedStreamType.isLive -> baselineLivePolicy(resolvedStreamType)
+            else -> baselineVodPolicy()
         }
     }
 
-    fun isHighQualityStream(format: VideoFormat?, info: StreamInfo?): Boolean {
-        if (format != null) {
-            // 4K resolution check (allowing for slight variations)
-            if (format.width >= 3800 || format.height >= 2100) return true
-            // High bitrate check (e.g. > 15Mbps)
-            if (format.bitrate > 15_000_000) return true
+    private fun baselineLivePolicy(resolvedStreamType: ResolvedStreamType): PlaybackBufferPolicy {
+        val isMpegTs = resolvedStreamType == ResolvedStreamType.MPEG_TS_LIVE
+        return PlaybackBufferPolicy(
+            label = if (isMpegTs) "mpeg-ts-live" else "stable-live",
+            minBufferMs = LIVE_MIN_BUFFER_MS,
+            maxBufferMs = LIVE_MAX_BUFFER_MS,
+            playbackBufferMs = PLAYBACK_BUFFER_MS,
+            rebufferMs = REBUFFER_MS,
+            targetBufferBytes = if (isMpegTs) MPEG_TS_LIVE_TARGET_BUFFER_BYTES else DEFAULT_TARGET_BUFFER_BYTES,
+            prioritizeTimeOverSizeThresholds = true
+        )
+    }
+
+    private fun largeLivePolicy(label: String, qualityReason: String): PlaybackBufferPolicy = PlaybackBufferPolicy(
+        label = label,
+        minBufferMs = LARGE_LIVE_MIN_BUFFER_MS,
+        maxBufferMs = LARGE_LIVE_MAX_BUFFER_MS,
+        playbackBufferMs = LARGE_LIVE_PLAYBACK_BUFFER_MS,
+        rebufferMs = LARGE_LIVE_REBUFFER_MS,
+        targetBufferBytes = LARGE_LIVE_TARGET_BUFFER_BYTES,
+        prioritizeTimeOverSizeThresholds = true,
+        qualityReason = qualityReason
+    )
+
+    private fun baselineVodPolicy(): PlaybackBufferPolicy = PlaybackBufferPolicy(
+        label = "stable-vod",
+        minBufferMs = VOD_MIN_BUFFER_MS,
+        maxBufferMs = VOD_MAX_BUFFER_MS,
+        playbackBufferMs = VOD_PLAYBACK_BUFFER_MS,
+        rebufferMs = VOD_REBUFFER_MS,
+        targetBufferBytes = DEFAULT_TARGET_BUFFER_BYTES,
+        prioritizeTimeOverSizeThresholds = true
+    )
+
+    fun highQualityReason(streamInfo: StreamInfo?, observedVideoFormat: VideoFormat?): String? {
+        observedVideoFormat?.let { format ->
+            when {
+                format.width >= UHD_MIN_WIDTH -> return "observed-width-${format.width}"
+                format.height >= UHD_MIN_HEIGHT -> return "observed-height-${format.height}"
+                format.bitrate >= HIGH_BITRATE_THRESHOLD_BPS -> return "observed-bitrate-${format.bitrate}"
+            }
         }
+        val searchable = listOfNotNull(
+            streamInfo?.name,
+            streamInfo?.url
+        ).joinToString(" ").lowercase(Locale.ROOT)
         
-        if (info != null) {
-            val title = info.name.lowercase(Locale.ROOT)
-            if (title.contains("4k") || title.contains("uhd") || title.contains("2160")) return true
+        return when {
+            "2160p" in searchable -> "metadata-2160p"
+            "uhd" in searchable -> "metadata-uhd"
+            "4k" in searchable -> "metadata-4k"
+            else -> null
         }
-        
-        return false
     }
 }

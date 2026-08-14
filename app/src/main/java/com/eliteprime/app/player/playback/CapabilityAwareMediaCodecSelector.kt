@@ -9,6 +9,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecUtil
+import java.util.Locale
 
 @OptIn(UnstableApi::class)
 class CapabilityAwareMediaCodecSelector(
@@ -27,7 +28,7 @@ class CapabilityAwareMediaCodecSelector(
     }
 
     /**
-     * Custom ranking logic that considers Format (resolution/frame rate) if available.
+     * Custom ranking logic from original app + HEVC stability fixes.
      */
     fun getRankedDecoderInfos(
         mimeType: String,
@@ -43,102 +44,56 @@ class CapabilityAwareMediaCodecSelector(
 
         if (allDecoders.isEmpty()) return emptyList()
 
-        // Log all available hardware decoders for diagnostic
-        Log.d(TAG, "Available decoders for $mimeType: ${allDecoders.joinToString { "${it.name}(HW=${!it.softwareOnly})" }}")
-
-        val tierA = mutableListOf<MediaCodecInfo>() // Hardware + Explicitly Supported
-        val tierB = mutableListOf<MediaCodecInfo>() // Hardware + Capability Exceeded (Fallback)
-        val tierC = mutableListOf<MediaCodecInfo>() // Software
-
-        for (info in allDecoders) {
-            if (info.softwareOnly) {
-                tierC.add(info)
-            } else {
-                // Hardware decoder. Check capabilities if format is available.
-                val support = if (format != null) {
-                    try {
-                        info.isFormatSupported(context, format)
-                    } catch (e: Exception) {
-                        false
-                    }
-                } else true // Assume supported if resolution unknown
-
-                if (support) {
-                    tierA.add(info)
-                } else {
-                    tierB.add(info)
-                }
-            }
+        val policy = when(decoderMode) {
+            "HARDWARE" -> ActiveDecoderPolicy.HARDWARE_PREFERRED
+            "SOFTWARE" -> ActiveDecoderPolicy.SOFTWARE_PREFERRED
+            "COMPATIBILITY" -> ActiveDecoderPolicy.COMPATIBILITY
+            else -> ActiveDecoderPolicy.AUTO
         }
 
-        val result = mutableListOf<MediaCodecInfo>()
-        var selectedTier = "UNKNOWN"
-
-        when (decoderMode) {
-            "HARDWARE" -> {
-                if (tierA.isNotEmpty()) {
-                    result.addAll(tierA)
-                    selectedTier = "TIER_A (HW_OPTIMAL)"
-                } else if (tierB.isNotEmpty()) {
-                    result.addAll(tierB)
-                    selectedTier = "TIER_B (HW_FALLBACK)"
-                }
-            }
-            "SOFTWARE" -> {
-                if (tierC.isNotEmpty()) {
-                    result.addAll(tierC)
-                    selectedTier = "TIER_C (SW)"
-                } else if (tierA.isNotEmpty()) {
-                    result.addAll(tierA)
-                    selectedTier = "TIER_A (HW_AUTO_FALLBACK)"
-                }
-            }
-            else -> { // AUTO
-                if (tierA.isNotEmpty()) {
-                    result.addAll(tierA)
-                    selectedTier = "TIER_A (HW_OPTIMAL)"
-                } else if (tierB.isNotEmpty()) {
-                    result.addAll(tierB)
-                    selectedTier = "TIER_B (HW_FALLBACK)"
-                } else if (tierC.isNotEmpty()) {
-                    result.addAll(tierC)
-                    selectedTier = "TIER_C (SW)"
-                }
-            }
-        }
+        val result = allDecoders.toMutableList()
         
-        if (result.isEmpty() && allDecoders.isNotEmpty()) {
-            result.addAll(allDecoders)
-            selectedTier = "GLOBAL_FALLBACK"
-        }
-
-        // TIER RANKING: Favor native Amlogic 'vdec' over 'awesome' or 'c2' wrappers for 4K stability
-        if (result.size > 1) {
-            result.sortWith(compareByDescending<MediaCodecInfo> { 
-                val name = it.name.lowercase()
-                name.contains("vdec") || 
-                (name.contains("amlogic") && (name.contains("video") || name.contains("avc") || name.contains("hevc")))
-            }.thenByDescending { 
-                it.name.lowercase().contains("hw") 
-            }.thenBy { 
-                it.name.lowercase().contains("google") 
-            })
-        }
+        // SORTING: Combined logic from original app and current Amlogic fixes
+        result.sortWith(
+            compareBy<MediaCodecInfo> { info ->
+                // 1. Hardware preference
+                when (policy) {
+                    ActiveDecoderPolicy.AUTO -> 0
+                    ActiveDecoderPolicy.HARDWARE_PREFERRED -> if (isSoftwareCodec(info.name)) 1 else 0
+                    ActiveDecoderPolicy.SOFTWARE_PREFERRED,
+                    ActiveDecoderPolicy.COMPATIBILITY -> if (isSoftwareCodec(info.name)) 0 else 1
+                }
+            }.thenByDescending { info ->
+                // 2. Amlogic native decoder priority (The "vdec" units)
+                val name = info.name.lowercase(Locale.ROOT)
+                name.contains("vdec") || (name.contains("amlogic") && (name.contains("video") || name.contains("avc") || name.contains("hevc")))
+            }.thenByDescending { info ->
+                // 3. Hardware acceleration flag
+                !info.softwareOnly
+            }.thenBy { info ->
+                // 4. Google generic wrappers (lower priority)
+                info.name.lowercase(Locale.ROOT).contains("google")
+            }
+        )
 
         val decoderName = result.firstOrNull()?.name ?: "None"
         val isHardware = result.firstOrNull()?.softwareOnly == false
-        val resolution = if (format != null) "${format.width}x${format.height}" else "Unknown"
-        val bitrate = if (format != null) " | Bitrate: ${format.bitrate}" else ""
-        val codecs = if (format != null) " | Codecs: ${format.codecs}" else ""
         
-        Log.i(TAG, "Decoder Selection Tier: $selectedTier")
-        Log.i(TAG, "  - Selected: $decoderName (HW=$isHardware)")
-        Log.i(TAG, "  - MimeType: $mimeType$codecs$bitrate")
-        Log.i(TAG, "  - Resolution: $resolution")
-        Log.i(TAG, "  - Mode: $decoderMode")
-        Log.i(TAG, "  - Secure: $requiresSecureDecoder | Tunneling: $requiresTunnelingDecoder")
-        Log.i(TAG, "  - Device: ${Build.MODEL} (${Build.MANUFACTURER} / ${Build.HARDWARE})")
+        // Detailed logging for diagnostic
+        if (format != null) {
+            Log.i(TAG, "Selected Decoder: $decoderName for ${format.width}x${format.height} (HW=$isHardware, Policy=$policy)")
+        }
 
         return result
+    }
+
+    companion object {
+        fun isSoftwareCodec(name: String): Boolean {
+            val normalized = name.lowercase(Locale.ROOT)
+            return normalized.startsWith("omx.google.") ||
+                normalized.startsWith("c2.android.") ||
+                normalized.contains("ffmpeg") ||
+                normalized.contains("avcodec")
+        }
     }
 }

@@ -10,5 +10,5 @@ enum class ResolvedStreamType {
     UNKNOWN;
 
     val isLive: Boolean
-        get() = this == HLS || this == SMOOTH_STREAMING || this == MPEG_TS_LIVE || this == RTSP
+        get() = this == HLS || this == DASH || this == SMOOTH_STREAMING || this == MPEG_TS_LIVE || this == RTSP
 }

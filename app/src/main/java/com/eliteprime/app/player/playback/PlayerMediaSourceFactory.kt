@@ -50,6 +50,7 @@ class PlayerMediaSourceFactory(
             )
             .build()
 
+        // ALIGNED WITH ORIGINAL APP FLAGS
         val extractorsFactory = if (resolvedStreamType == ResolvedStreamType.MPEG_TS_LIVE) {
             DefaultExtractorsFactory()
                 .setTsExtractorMode(TsExtractor.MODE_SINGLE_PMT)
@@ -57,9 +58,7 @@ class PlayerMediaSourceFactory(
                     DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
                         or DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES
                         or DefaultTsPayloadReaderFactory.FLAG_IGNORE_SPLICE_INFO_STREAM
-                        or DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS
                 )
-                .setConstantBitrateSeekingEnabled(true)
                 .setTsSubtitleFormats(TS_SUBTITLE_FORMATS)
         } else {
             DefaultExtractorsFactory()

@@ -22,21 +22,13 @@ enum class PlayerTimeoutProfile(
         connectTimeoutMs = 5_000L,
         readTimeoutMs = 10_000L,
         writeTimeoutMs = 30_000L
-    ),
-    PRELOAD(
-        connectTimeoutMs = 10_000L,
-        readTimeoutMs = 15_000L,
-        writeTimeoutMs = 15_000L
     );
 
     companion object {
         fun resolve(
             streamInfo: StreamInfo,
-            resolvedStreamType: ResolvedStreamType,
-            preload: Boolean
+            resolvedStreamType: ResolvedStreamType
         ): PlayerTimeoutProfile {
-            if (preload) return PRELOAD
-            if (streamInfo.streamType == StreamType.RTSP) return LIVE
             return when {
                 resolvedStreamType == ResolvedStreamType.HLS -> LIVE
                 resolvedStreamType == ResolvedStreamType.SMOOTH_STREAMING -> LIVE

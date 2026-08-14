@@ -33,8 +33,21 @@ class GlobalPlayerState @Inject constructor() {
     val useTransformHandoff: StateFlow<Boolean> = _useTransformHandoff.asStateFlow()
 
     // POC: Force TextureView for POC validation (SurfaceView doesn't transform well)
+    // OPTIMIZATION: We will auto-fallback to SURFACE_VIEW for 4K to save memory
     private val _surfaceType = MutableStateFlow(PlayerRenderSurfaceType.TEXTURE_VIEW)
     val surfaceType: StateFlow<PlayerRenderSurfaceType> = _surfaceType.asStateFlow()
+
+    fun updateSurfaceTypeForResolution(width: Int, height: Int) {
+        // AM-LOGIC 4K MANDATORY RULE: Any resolution > FHD REQUIRES SurfaceView 
+        // to engage the hardware overlay scaler. TextureView will cause slow-motion.
+        val isHighRes = width > 1920 || height > 1080
+        val targetType = if (isHighRes) PlayerRenderSurfaceType.SURFACE_VIEW else PlayerRenderSurfaceType.TEXTURE_VIEW
+        
+        if (_surfaceType.value != targetType) {
+            Log.i("GlobalPlayerState", "MANDATORY SURFACE SWAP: Switching to $targetType for ${width}x${height} UHD content")
+            _surfaceType.value = targetType
+        }
+    }
 
     fun setSurfaceType(type: PlayerRenderSurfaceType) {
         _surfaceType.value = type
