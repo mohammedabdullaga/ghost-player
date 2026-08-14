@@ -50,7 +50,7 @@ class PlayerMediaSourceFactory(
             )
             .build()
 
-        // ALIGNED WITH ORIGINAL APP FLAGS
+        // ALIGNED WITH ORIGINAL APP FLAGS + MEDIA3 1.11.0 MEMORY FIXES
         val extractorsFactory = if (resolvedStreamType == ResolvedStreamType.MPEG_TS_LIVE) {
             DefaultExtractorsFactory()
                 .setTsExtractorMode(TsExtractor.MODE_SINGLE_PMT)
@@ -60,9 +60,11 @@ class PlayerMediaSourceFactory(
                         or DefaultTsPayloadReaderFactory.FLAG_IGNORE_SPLICE_INFO_STREAM
                 )
                 .setTsSubtitleFormats(TS_SUBTITLE_FORMATS)
+                .setDisableArtworkMetadata(true) // MEDIA3 1.11.0: REDUCE RAM FOOTPRINT
         } else {
             DefaultExtractorsFactory()
                 .setConstantBitrateSeekingEnabled(true)
+                .setDisableArtworkMetadata(true) // MEDIA3 1.11.0: REDUCE RAM FOOTPRINT
         }
 
         return when (resolvedStreamType) {

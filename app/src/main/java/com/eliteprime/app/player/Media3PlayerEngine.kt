@@ -2,17 +2,17 @@ package com.eliteprime.app.player
 
 import android.content.Context
 import android.graphics.Color
+import android.media.MediaFormat
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.LayoutInflater
-import android.media.MediaFormat
 import android.os.Build
 import android.os.Handler
 import androidx.annotation.OptIn
 import androidx.media3.common.*
-import androidx.media3.common.util.ExperimentalApi
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.ExperimentalApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -28,6 +28,7 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.FormatHolder
 import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.eliteprime.app.R
@@ -139,6 +140,12 @@ class Media3PlayerEngine @Inject constructor(
         val streamInfo = activeStreamInfo ?: return
         val timeoutProfile = PlayerTimeoutProfile.resolve(streamInfo, activeStreamType)
         
+        // MEDIA3 1.11.0: PROVIDE HIGHER INITIAL BITRATE FOR UHD TO AVOID STARTUP FLICKER
+        val initialBitrate = if (bufferPolicy.label.contains("uhd")) 15_000_000L else 2_000_000L
+        val bandwidthMeter = DefaultBandwidthMeter.Builder(context)
+            .setInitialBitrateSupplier { initialBitrate }
+            .build()
+
         val perStreamClient = okHttpClient.newBuilder()
             .connectTimeout(timeoutProfile.connectTimeoutMs, TimeUnit.MILLISECONDS)
             .readTimeout(timeoutProfile.readTimeoutMs, TimeUnit.MILLISECONDS)
@@ -188,7 +195,7 @@ class Media3PlayerEngine @Inject constructor(
             )
             .setTargetBufferBytes(bufferPolicy.targetBufferBytes)
             .setPrioritizeTimeOverSizeThresholds(bufferPolicy.prioritizeTimeOverSizeThresholds)
-            .setBackBuffer(30000, true)
+            .setBackBuffer(0, false) // STABILITY FIX: DISABLE BACK BUFFER FOR 4K RAM
             .build()
 
         val decoderMode = preferenceRepository.decoderMode.value
@@ -216,10 +223,12 @@ class Media3PlayerEngine @Inject constructor(
                     ): DecoderReuseEvaluation {
                         var eval = super.canReuseCodec(codecInfo, oldFormat, newFormat, isTunnelingEnabled)
                         val isAmlogic = Build.HARDWARE.contains("amlogic", true) || Build.BOARD.contains("amlogic", true)
-                        val isHighRes = newFormat.width >= 1920 || newFormat.height >= 1080
                         
-                        if (isAmlogic && (isHighRes || forceNextCodecReset) && eval.result != DecoderReuseEvaluation.REUSE_RESULT_NO) {
-                            Log.w(TAG, "Amlogic Stability: Forcing clean decoder for resolution change/handoff")
+                        // AGGRESSIVE: Reset for any UHD involving change
+                        val isUhd = newFormat.width >= 1920 || newFormat.height >= 1080
+                        
+                        if (isAmlogic && (isUhd || forceNextCodecReset) && eval.result != DecoderReuseEvaluation.REUSE_RESULT_NO) {
+                            Log.w(TAG, "Amlogic Stability: Forcing clean decoder")
                             forceNextCodecReset = false
                             eval = DecoderReuseEvaluation(
                                 codecInfo.name, oldFormat, newFormat,
@@ -237,12 +246,8 @@ class Media3PlayerEngine @Inject constructor(
              DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER 
              else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
 
-        // AM-LOGIC 4K PERFORMANCE FIXES (Media3 1.11.0):
-        // 1. Enable Asynchronous Buffer Queueing
-        renderersFactory.forceEnableMediaCodecAsynchronousQueueing()
-        
-        // 2. Enable Audio Track Playback Params
-        renderersFactory.setEnableAudioTrackPlaybackParams(true)
+        // Disable audio track params for Xiaomi sync issues
+        renderersFactory.setEnableAudioTrackPlaybackParams(false)
 
         val playerToRelease = exoPlayer
         exoPlayer = null
@@ -259,6 +264,7 @@ class Media3PlayerEngine @Inject constructor(
         exoPlayer = ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(newTrackSelector)
             .setLoadControl(loadControl)
+            .setBandwidthMeter(bandwidthMeter)
             .setLivePlaybackSpeedControl(speedControl)
             .enablePerStreamMediaProgression(true)
             .build()
@@ -269,14 +275,9 @@ class Media3PlayerEngine @Inject constructor(
                     stallDetector.onVideoFrameRendered(presentationTimeUs / 1000)
                 }
                 
-                val isUhd = (_videoFormat.value.width > 1920 || _videoFormat.value.height > 1080)
-                val paramsBuilder = currentTrackSelector!!.buildUponParameters()
-                if (isUhd && _renderSurfaceType.value == PlayerRenderSurfaceType.SURFACE_VIEW) {
-                    Log.i(TAG, "Enabling Tunneling for UHD content")
-                    paramsBuilder.setTunnelingEnabled(true)
-                }
-                paramsBuilder.setViewportSizeToPhysicalDisplaySize(context, true)
-                currentTrackSelector!!.parameters = paramsBuilder.build()
+                trackSelectionParameters = trackSelectionParameters.buildUpon()
+                    .setViewportSizeToPhysicalDisplaySize(context, true)
+                    .build()
                 
                 videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
             }
@@ -590,6 +591,15 @@ class Media3PlayerEngine @Inject constructor(
             Log.i(TAG, "PROMOTING: ${currentBufferPolicy?.label} -> ${next.label} (${next.qualityReason})")
             val pos = exoPlayer?.currentPosition ?: 0L
             val playing = exoPlayer?.isPlaying == true
+            
+            // For 4K streams, we try to AVOID player recreation if already playing 
+            // unless the buffer gap is dangerous.
+            if (observed.width >= 3840 && playing) {
+                Log.w(TAG, "Skipping mid-stream recreation for 4K to prevent freeze")
+                currentBufferPolicy = next // SILENT PROMOTE (won't take effect until next prepare)
+                return
+            }
+            
             initializePlayer(next)
             prepare(info)
             if (activeStreamType != ResolvedStreamType.MPEG_TS_LIVE) exoPlayer?.seekTo(pos)
