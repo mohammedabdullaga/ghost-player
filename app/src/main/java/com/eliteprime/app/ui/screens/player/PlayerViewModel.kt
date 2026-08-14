@@ -1,6 +1,7 @@
 package com.eliteprime.app.ui.screens.player
 
 import android.app.Activity
+import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -582,12 +583,13 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun claimFullScreen() {
+        Log.d("FullscreenTransition", "User requested fullscreen at elapsed=${SystemClock.elapsedRealtime()}")
         globalPlayerState.enterFullScreen(playerEngine)
     }
 
     fun onPlayerScreenDisposed() {
+        Log.d("FullscreenTransition", "Player screen disposed (leaving fullscreen) at elapsed=${SystemClock.elapsedRealtime()}")
         globalPlayerState.hide()
-        playerEngine.clearRenderBinding()
     }
 
     override fun onCleared() {

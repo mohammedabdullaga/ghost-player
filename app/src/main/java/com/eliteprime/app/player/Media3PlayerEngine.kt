@@ -27,10 +27,28 @@ import com.eliteprime.app.domain.model.StreamType
 import com.eliteprime.app.domain.model.VideoFormat
 import com.eliteprime.app.player.playback.*
 import com.eliteprime.app.player.timeshift.LiveTimeshiftState
+import android.os.Build
+import android.os.Handler
+import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
+import androidx.media3.exoplayer.video.VideoRendererEventListener
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
+import androidx.media3.exoplayer.FormatHolder
+import androidx.media3.exoplayer.DecoderReuseEvaluation
+import androidx.media3.exoplayer.mediacodec.MediaCodecRenderer
+import com.eliteprime.app.player.playback.CapabilityAwareMediaCodecSelector
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import okhttp3.OkHttpClient
+import okhttp3.ResponseBody
+import okio.Buffer
+import okio.BufferedSource
+import okio.ForwardingSource
+import okio.Okio
+import okio.Source
+import okio.buffer
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,7 +62,7 @@ class Media3PlayerEngine @Inject constructor(
 
     private val TAG = "Media3PlayerEngine"
     private var exoPlayer: ExoPlayer? = null
-    private val trackSelector = DefaultTrackSelector(context)
+    private var currentTrackSelector: DefaultTrackSelector? = null
     private var boundPlayerView: PlayerView? = null
     // A view that requested binding before the ExoPlayer instance existed yet.
     private var pendingRenderView: PlayerView? = null
@@ -53,6 +71,54 @@ class Media3PlayerEngine @Inject constructor(
     private var currentBufferPolicy: PlaybackBufferPolicy? = null
     private var mediaSourceFactory: PlayerMediaSourceFactory? = null
     private val subtitleStyleController = SubtitleStyleController()
+    private var prepareStartTime: Long = 0
+    private var playbackWatchdogJob: Job? = null
+    private var lastRenderedCount: Int = -1
+    private var lastRenderedTime: Long = 0
+    private var isRecoveringFromStall: Boolean = false
+    private var forceNextCodecReset: Boolean = false
+
+    private val playerOkHttpClient = okHttpClient.newBuilder()
+        .addNetworkInterceptor { chain ->
+            val request = chain.request()
+            val url = request.url.toString()
+            val isTs = url.contains(".ts") || url.contains("ext=ts")
+            
+            val response = chain.proceed(request)
+            if (isTs) {
+                val body = response.body
+                if (body != null) {
+                    Log.d("NetworkWatchdog", "Starting TS stream read: $url")
+                    val progressBody = object : ResponseBody() {
+                        private var totalBytesRead = 0L
+                        private var lastLogTime = 0L
+
+                        override fun contentType() = body.contentType()
+                        override fun contentLength() = body.contentLength()
+                        override fun source(): BufferedSource {
+                            val bodySource = body.source()
+                            val interceptorSource = object : ForwardingSource(bodySource) {
+                                override fun read(sink: Buffer, byteCount: Long): Long {
+                                    val bytesRead = super.read(sink, byteCount)
+                                    if (bytesRead != -1L) {
+                                        totalBytesRead += bytesRead
+                                        val now = System.currentTimeMillis()
+                                        if (now - lastLogTime > 5000) {
+                                            Log.d("NetworkWatchdog", "TS Read Progress: ${totalBytesRead / 1024} KB | URL: ${url.take(60)}...")
+                                            lastLogTime = now
+                                        }
+                                    }
+                                    return bytesRead
+                                }
+                            }
+                            return (interceptorSource as Source).buffer()
+                        }
+                    }
+                    response.newBuilder().body(progressBody).build()
+                } else response
+            } else response
+        }
+        .build()
 
     private val _playbackState = MutableStateFlow(PlaybackState.IDLE)
     override val playbackState = _playbackState.asStateFlow()
@@ -110,7 +176,7 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     private fun initializePlayer(bufferPolicy: PlaybackBufferPolicy) {
-        val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+        val httpDataSourceFactory = OkHttpDataSource.Factory(playerOkHttpClient)
         val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
         mediaSourceFactory = PlayerMediaSourceFactory(context, dataSourceFactory)
 
@@ -136,11 +202,91 @@ class Media3PlayerEngine @Inject constructor(
             .setPrioritizeTimeOverSizeThresholds(effectiveBufferPolicy.prioritizeTimeOverSizeThresholds)
             .build()
 
-        val renderersFactory = DefaultRenderersFactory(context)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
-            
-        // Setup Decoder Mode
         val decoderMode = preferenceRepository.decoderMode.value
+        val codecSelector = CapabilityAwareMediaCodecSelector(context, decoderMode)
+
+        // CREATE FRESH TRACK SELECTOR FOR NEW PLAYER INSTANCE
+        val newTrackSelector = DefaultTrackSelector(context)
+        currentTrackSelector = newTrackSelector
+
+        val renderersFactory = object : DefaultRenderersFactory(context) {
+            override fun buildVideoRenderers(
+                context: Context,
+                extensionRendererMode: Int,
+                mediaCodecSelector: MediaCodecSelector,
+                enableDecoderFallback: Boolean,
+                eventHandler: Handler,
+                eventListener: VideoRendererEventListener,
+                allowedVideoJoiningTimeMs: Long,
+                out: ArrayList<Renderer>
+            ) {
+                // Add our custom capability-aware renderer first
+                out.add(object : MediaCodecVideoRenderer(
+                    context,
+                    mediaCodecSelector,
+                    allowedVideoJoiningTimeMs,
+                    enableDecoderFallback,
+                    eventHandler,
+                    eventListener,
+                    50 // MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY
+                ) {
+                    override fun getDecoderInfos(
+                        selector: MediaCodecSelector,
+                        format: Format,
+                        requiresSecure: Boolean
+                    ): List<MediaCodecInfo> {
+                        return (selector as CapabilityAwareMediaCodecSelector).getRankedDecoderInfos(
+                            format.sampleMimeType!!,
+                            requiresSecure,
+                            false, // tunneling handled by renderer internally if needed
+                            format
+                        )
+                    }
+
+                    override fun onInputFormatChanged(formatHolder: FormatHolder): DecoderReuseEvaluation? {
+                        val evaluation = super.onInputFormatChanged(formatHolder)
+                        Log.d("CodecSelector", "Renderer.onInputFormatChanged: ${formatHolder.format} | Evaluation: $evaluation")
+                        return evaluation
+                    }
+
+                    override fun canReuseCodec(
+                        codecInfo: MediaCodecInfo,
+                        oldFormat: Format,
+                        newFormat: Format
+                    ): DecoderReuseEvaluation {
+                        var evaluation = super.canReuseCodec(codecInfo, oldFormat, newFormat)
+                        
+                        Log.d("CodecSelector", "canReuseCodec: result=${evaluation.result} | forceReset=$forceNextCodecReset | Old: ${oldFormat.width}x${oldFormat.height} | New: ${newFormat.width}x${newFormat.height}")
+                        
+                        // AGGRESSIVE: If resolution increases or we have a pending reset flag
+                        if (evaluation.result != DecoderReuseEvaluation.REUSE_RESULT_NO && 
+                            (forceNextCodecReset || newFormat.width > oldFormat.width || newFormat.height > oldFormat.height)) {
+                            
+                            if (Build.HARDWARE.lowercase().contains("amlogic") || Build.BOARD.lowercase().contains("amlogic")) {
+                                Log.w("CodecSelector", "Forcing NO_REUSE for Amlogic (Reason: ${if (forceNextCodecReset) "HANDOFF" else "RES_CHANGE"})")
+                                forceNextCodecReset = false
+                                evaluation = DecoderReuseEvaluation(
+                                    codecInfo.name,
+                                    oldFormat,
+                                    newFormat,
+                                    DecoderReuseEvaluation.REUSE_RESULT_NO,
+                                    evaluation.discardReasons or DecoderReuseEvaluation.DISCARD_REASON_VIDEO_RESOLUTION_CHANGED
+                                )
+                            }
+                        }
+                        
+                        return evaluation
+                    }
+                })
+
+                // Note: Extension renderers (VP9, AV1 etc.) are skipped here for brevity 
+                // as they require manual reflection-based instantiation if not using super.
+                // In this project, we prioritize the custom hardware decoder selection logic.
+            }
+        }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            .setMediaCodecSelector(codecSelector)
+            
+        // Setup Extension Mode
         if (decoderMode == "SOFTWARE") {
             renderersFactory.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
         } else if (decoderMode == "HARDWARE") {
@@ -149,7 +295,7 @@ class Media3PlayerEngine @Inject constructor(
 
         exoPlayer?.release()
         exoPlayer = ExoPlayer.Builder(context, renderersFactory)
-            .setTrackSelector(trackSelector)
+            .setTrackSelector(newTrackSelector)
             .setLoadControl(loadControl)
             .build()
             .apply {
@@ -168,6 +314,7 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     override fun prepare(streamInfo: StreamInfo) {
+        prepareStartTime = System.currentTimeMillis()
         val resolvedType = StreamTypeResolver.resolve(streamInfo)
         val bufferPolicy = PlaybackBufferPolicies.forPlayback(resolvedType)
 
@@ -197,7 +344,7 @@ class Media3PlayerEngine @Inject constructor(
             }
         }
 
-        Log.d(TAG, "prepare: url=${streamInfo.url} resolvedType=$resolvedType isLocal=$isLocal")
+        Log.d(TAG, "prepare: url=${streamInfo.url} resolvedType=$resolvedType isLocal=$isLocal streamInfo.mimeType=${streamInfo.streamType}")
 
         val mediaSource = mediaSourceFactory?.create(streamInfo, resolvedType, retryPolicy) ?: return
         exoPlayer?.setMediaSource(mediaSource)
@@ -231,22 +378,25 @@ class Media3PlayerEngine @Inject constructor(
     override fun selectAudioTrack(trackId: String) { selectTrack(C.TRACK_TYPE_AUDIO, trackId) }
     override fun selectVideoTrack(trackId: String) { selectTrack(C.TRACK_TYPE_VIDEO, trackId) }
     override fun selectSubtitleTrack(trackId: String?) {
+        val selector = currentTrackSelector ?: return
         if (trackId == null) {
-            trackSelector.parameters = trackSelector.buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).build()
+            selector.parameters = selector.buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).build()
         } else {
-            trackSelector.parameters = trackSelector.buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false).build()
+            selector.parameters = selector.buildUponParameters().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false).build()
             selectTrack(C.TRACK_TYPE_TEXT, trackId)
         }
     }
 
     private fun selectTrack(trackType: Int, trackId: String) {
-        val groups = exoPlayer?.currentTracks?.groups ?: return
+        val player = exoPlayer ?: return
+        val selector = currentTrackSelector ?: return
+        val groups = player.currentTracks.groups
         for (group in groups) {
             if (group.type == trackType) {
                 for (i in 0 until group.length) {
                     val format = group.getTrackFormat(i)
                     if (format.id == trackId) {
-                        trackSelector.parameters = trackSelector.buildUponParameters()
+                        selector.parameters = selector.buildUponParameters()
                             .setOverrideForType(TrackSelectionOverride(group.mediaTrackGroup, i))
                             .build()
                         return
@@ -272,6 +422,7 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     override fun release() {
+        playbackWatchdogJob?.cancel()
         positionUpdateJob?.cancel()
         scope.cancel()
         exoPlayer?.release()
@@ -287,10 +438,15 @@ class Media3PlayerEngine @Inject constructor(
             isFocusableInTouchMode = false
             descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
             
-            this.resizeMode = when (resizeMode) {
-                PlayerSurfaceResizeMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-                PlayerSurfaceResizeMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                PlayerSurfaceResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            // FIX: Set to FILL and let Compose handle aspect ratio via the pre-size modifier
+            // This prevents PlayerView's internal layout pass from triggering a second surface cycle.
+            this.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
+
+            // Diagnostic: Track size/layout changes to detect double-reconfig
+            addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+                if (left != oldLeft || top != oldTop || right != oldRight || bottom != oldBottom) {
+                    Log.v("PlayerLayout", "PlayerView size changed: ${right-left}x${bottom-top} (was ${oldRight-oldLeft}x${oldBottom-oldTop}) | view=${this.hashCode()}")
+                }
             }
         }
     }
@@ -304,17 +460,6 @@ class Media3PlayerEngine @Inject constructor(
             pendingRenderView = playerView
             return
         }
-        
-        if (boundPlayerView !== playerView) {
-            Log.d(TAG, "bindRenderView: Switching from ${boundPlayerView?.hashCode()} to ${playerView.hashCode()}")
-            
-            // Use official Media3 switchTargetView for seamless handoff
-            PlayerView.switchTargetView(player, boundPlayerView, playerView)
-            
-            boundPlayerView = playerView
-        } else if (playerView.player !== player) {
-            playerView.player = player
-        }
 
         val targetResizeMode = when (resizeMode) {
             PlayerSurfaceResizeMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
@@ -322,9 +467,32 @@ class Media3PlayerEngine @Inject constructor(
             PlayerSurfaceResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
         }
 
-        if (playerView.resizeMode != targetResizeMode) {
-            playerView.resizeMode = targetResizeMode
-            playerView.requestLayout()
+        Log.d("PlayerBinding", "bindRenderView: view=${playerView.hashCode()} | targetResizeMode=$targetResizeMode | currentResizeMode=${playerView.resizeMode}")
+
+        // 1. Resize mode is now handled by AspectRatioFrameLayout.RESIZE_MODE_FILL 
+        // and Compose modifier. No need to update it here and risk a layout pass.
+        
+        if (boundPlayerView !== playerView) {
+            val isHandoff = boundPlayerView != null
+            Log.d(TAG, "bindRenderView: ${if (isHandoff) "HANDOFF" else "COLD ATTACH"} Switching from ${boundPlayerView?.hashCode()} to ${playerView.hashCode()}")
+            
+            // PRE-EMPTIVE RESET: If Amlogic HEVC, force a codec reset on the next opportunity
+            val isAmlogic = Build.HARDWARE.lowercase().contains("amlogic") || Build.BOARD.lowercase().contains("amlogic")
+            val isHevc = currentStreamInfo?.url?.let { it.contains("hevc", true) || it.contains("h265", true) } ?: true
+            if (isAmlogic && isHevc && isHandoff) {
+                Log.w(TAG, "  - Pre-emptively flagging codec reset for Amlogic HEVC handoff")
+                forceNextCodecReset = true
+            }
+
+            Log.d("PlayerBinding", "  - StackTrace for context: ${Log.getStackTraceString(Throwable()).take(500)}...")
+            
+            // Use official Media3 switchTargetView for seamless handoff
+            PlayerView.switchTargetView(player, boundPlayerView, playerView)
+            
+            boundPlayerView = playerView
+        } else if (playerView.player !== player) {
+            Log.d("PlayerBinding", "  - Re-binding player to existing view")
+            playerView.player = player
         }
 
         subtitleStyleController.apply(playerView)
@@ -350,6 +518,16 @@ class Media3PlayerEngine @Inject constructor(
 
     private inner class PlayerListener : Player.Listener {
         override fun onPlaybackStateChanged(state: Int) {
+            val elapsed = if (prepareStartTime > 0) System.currentTimeMillis() - prepareStartTime else 0
+            val stateName = when (state) {
+                Player.STATE_BUFFERING -> "BUFFERING"
+                Player.STATE_READY -> "READY"
+                Player.STATE_ENDED -> "ENDED"
+                Player.STATE_IDLE -> "IDLE"
+                else -> "UNKNOWN"
+            }
+            Log.d(TAG, "onPlaybackStateChanged: $stateName | Elapsed since prepare: ${elapsed}ms")
+
             _playbackState.value = when (state) {
                 Player.STATE_BUFFERING -> PlaybackState.BUFFERING
                 Player.STATE_READY -> {
@@ -358,6 +536,7 @@ class Media3PlayerEngine @Inject constructor(
                     retryAttempt = 0
                     _retryStatus.value = null
                     val format = exoPlayer?.videoFormat
+                    Log.d(TAG, "READY details: VideoFormat: $format")
                     _playerStats.value = _playerStats.value.copy(
                         width = format?.width ?: 0,
                         height = format?.height ?: 0,
@@ -374,10 +553,21 @@ class Media3PlayerEngine @Inject constructor(
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _isPlaying.value = isPlaying
-            if (isPlaying) startPositionUpdates() else positionUpdateJob?.cancel()
+            if (isPlaying) {
+                startPositionUpdates()
+                startPlaybackWatchdog()
+            } else {
+                positionUpdateJob?.cancel()
+                playbackWatchdogJob?.cancel()
+            }
         }
 
         override fun onVideoSizeChanged(videoSize: VideoSize) {
+            val aspect = if (videoSize.height > 0) videoSize.width.toFloat() / videoSize.height * videoSize.pixelWidthHeightRatio else 0f
+            Log.d("PlayerBinding", "onVideoSizeChanged: ${videoSize.width}x${videoSize.height} | aspect=$aspect | pixelRatio=${videoSize.pixelWidthHeightRatio}")
+            // Log at DEBUG level to ensure it's captured in filtered logs
+            Log.d("PlayerBinding", "  - StackTrace for size change: ${Log.getStackTraceString(Throwable()).take(500)}...")
+            
             _videoFormat.value = VideoFormat(videoSize.width, videoSize.height, 0f, 0)
             _playerStats.value = _playerStats.value.copy(width = videoSize.width, height = videoSize.height)
         }
@@ -389,7 +579,21 @@ class Media3PlayerEngine @Inject constructor(
             handleRetry()
         }
 
-        override fun onTracksChanged(tracks: Tracks) { updateTrackLists() }
+        override fun onTracksChanged(tracks: Tracks) { 
+            Log.d(TAG, "onTracksChanged: ${tracks.groups.size} groups")
+            for (group in tracks.groups) {
+                if (group.type == C.TRACK_TYPE_VIDEO) {
+                    for (i in 0 until group.length) {
+                        Log.d(TAG, "  Video Track $i: ${group.getTrackFormat(i)}")
+                    }
+                }
+            }
+            updateTrackLists() 
+        }
+
+        override fun onRenderedFirstFrame() {
+            Log.d(TAG, "onRenderedFirstFrame: First frame has been rendered to the surface")
+        }
     }
 
     private fun handleRetry() {
@@ -429,6 +633,85 @@ class Media3PlayerEngine @Inject constructor(
                 _currentPosition.value = exoPlayer?.currentPosition ?: 0
                 _playerStats.value = _playerStats.value.copy(bufferedDurationMs = (exoPlayer?.bufferedPosition ?: 0) - (exoPlayer?.currentPosition ?: 0))
                 delay(1000)
+            }
+        }
+    }
+
+    private fun startPlaybackWatchdog() {
+        playbackWatchdogJob?.cancel()
+        playbackWatchdogJob = scope.launch {
+            lastRenderedCount = -1
+            lastRenderedTime = System.currentTimeMillis()
+            
+            while (isActive) {
+                val player = exoPlayer
+                if (player != null && !isRecoveringFromStall) {
+                    val bufferedAhead = player.bufferedPosition - player.currentPosition
+                    val renderedCount = player.videoDecoderCounters?.renderedOutputBufferCount ?: 0
+                    val droppedCount = player.videoDecoderCounters?.droppedBufferCount ?: 0
+                    
+                    Log.d("PlaybackWatchdog", "Watchdog: isPlaying=${player.isPlaying} | state=${_playbackState.value} | bufAhead=${bufferedAhead}ms | rendered=$renderedCount | dropped=$droppedCount")
+
+                    // STALL DETECTION:
+                    // If READY and PLAYING, but rendered count hasn't moved for 3 seconds
+                    if (player.isPlaying && _playbackState.value == PlaybackState.READY) {
+                        if (renderedCount != lastRenderedCount) {
+                            lastRenderedCount = renderedCount
+                            lastRenderedTime = System.currentTimeMillis()
+                        } else {
+                            val stallDuration = System.currentTimeMillis() - lastRenderedTime
+                            if (stallDuration > 3500) { // 3.5s to be safe
+                                Log.e("DecoderStallRecovery", "STALL DETECTED! Rendered count stuck at $renderedCount for ${stallDuration}ms. Triggering HARD RESET.")
+                                triggerStallRecovery()
+                            }
+                        }
+                    } else {
+                        // Not in a state where we expect constant rendering (e.g. paused or buffering)
+                        lastRenderedTime = System.currentTimeMillis()
+                    }
+                }
+                delay(2000)
+            }
+        }
+    }
+
+    private fun triggerStallRecovery() {
+        val streamInfo = currentStreamInfo ?: return
+        val bufferPolicy = currentBufferPolicy ?: return
+        val position = exoPlayer?.currentPosition ?: 0L
+        val lastView = boundPlayerView
+        
+        scope.launch {
+            isRecoveringFromStall = true
+            try {
+                Log.i("DecoderStallRecovery", "Restarting player for stream: ${streamInfo.name}")
+                Log.d("DecoderStallRecovery", "  - Reusing view identity: ${lastView?.hashCode()}")
+                
+                // initializePlayer will release old player and create new one
+                initializePlayer(bufferPolicy)
+                
+                // CRITICAL: Explicitly re-bind the existing view to the new player instance
+                lastView?.let { view ->
+                    val player = exoPlayer
+                    if (player != null) {
+                        Log.d("DecoderStallRecovery", "  - Re-attaching new player to view ${view.hashCode()}")
+                        view.player = player
+                        boundPlayerView = view
+                    }
+                }
+
+                // Re-prepare the new player
+                prepare(streamInfo)
+                if (streamInfo.streamType != StreamType.MPEG_TS) {
+                    exoPlayer?.seekTo(position)
+                }
+                exoPlayer?.play()
+                Log.i("DecoderStallRecovery", "Restart complete successfully.")
+            } catch (e: Exception) {
+                Log.e("DecoderStallRecovery", "FATAL RECOVERY FAILURE: Hard reset failed to rebuild player", e)
+            } finally {
+                isRecoveringFromStall = false
+                lastRenderedTime = System.currentTimeMillis()
             }
         }
     }
