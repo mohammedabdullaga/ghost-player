@@ -131,7 +131,7 @@ object NetworkModule {
             .cache(
                 Cache(
                     directory = File(context.cacheDir, "http_cache"),
-                    maxSize = 50L * 1024 * 1024 // 50 MB
+                    maxSize = 16L * 1024 * 1024 // Reduced to 16 MB as requested
                 )
             )
             .sslSocketFactory(sslContext.socketFactory, trustAllManager)

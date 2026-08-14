@@ -146,7 +146,7 @@ fun MovieDetailsScreen(
                             }
 
                             // 3. Rating Row
-                            TagRow(genre = null, rating = movie.rating)
+                            TagRow(genre = movie.genre, rating = movie.rating)
                             
                             // 4. Description (Plot)
                             if (!movie.plot.isNullOrBlank()) {

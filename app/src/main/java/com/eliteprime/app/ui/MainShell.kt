@@ -18,24 +18,23 @@ fun MainShell(
 ) {
     val navController = rememberNavController()
 
-    AppBackground {
+    AppBackground(isTransparent = false) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Global Player Host drawn behind navigation
+            // 1. Global Player Host (Bottom)
+            // Sitting on top of background image but behind navigation
             GlobalPlayerHost(
                 globalPlayerState = globalPlayerState,
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Uniform structure for both Mobile and TV
-            Box(modifier = Modifier.fillMaxSize()) {
-                AppNavigation(
-                    navController = navController,
-                    playerEngine = playerEngine,
-                    globalPlayerState = globalPlayerState,
-                    startDestination = startDestination, 
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
+            // 2. Navigation Layer (Top)
+            AppNavigation(
+                navController = navController,
+                playerEngine = playerEngine,
+                globalPlayerState = globalPlayerState,
+                startDestination = startDestination, 
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }

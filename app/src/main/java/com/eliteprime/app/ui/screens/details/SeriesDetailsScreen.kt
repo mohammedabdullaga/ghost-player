@@ -283,7 +283,7 @@ fun SeriesDetailsScreen(
                                 }
                             }
 
-                            TagRow(genre = null, rating = series.rating)
+                            TagRow(genre = series.genre, rating = series.rating)
                             
                             if (!series.plot.isNullOrBlank()) {
                                 Text(
@@ -624,6 +624,22 @@ private fun DetailFavButton(isFavorite: Boolean, onClick: () -> Unit, isTv: Bool
 @Composable
 private fun TagRow(genre: String?, rating: Double) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(DetailSpacing.xs)) {
+        genre?.takeIf { it.isNotBlank() }?.let {
+            Surface(
+                color = DetailSurface.cardFillElevated,
+                shape = RoundedCornerShape(DetailRadius.sm),
+                border = BorderStroke(1.dp, DetailSurface.hairline)
+            ) {
+                Text(
+                    text = it,
+                    color = DetailSurface.textSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = DetailSpacing.sm, vertical = DetailSpacing.xxs)
+                )
+            }
+        }
+        
         if (rating > 0) {
             Surface(
                 color = DetailSurface.cardFillElevated,
@@ -634,7 +650,7 @@ private fun TagRow(genre: String?, rating: Double) {
                     modifier = Modifier.padding(horizontal = DetailSpacing.sm, vertical = DetailSpacing.xxs),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Star, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(13.dp))
+                    Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700), modifier = Modifier.size(14.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(text = "%.1f".format(rating), color = DetailSurface.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }

@@ -30,8 +30,25 @@ class MovieDetailViewModel @Inject constructor(
     private val movieBox = boxStore.boxFor(Movie::class.java)
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
 
-    val movie = movieBox.query().equal(Movie_.id, movieId).build().flow().map { it.firstOrNull() }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    private val _dynamicMetadata = MutableStateFlow<Movie?>(null)
+
+    val movie = combine(
+        movieBox.query().equal(Movie_.id, movieId).build().flow().map { it.firstOrNull() },
+        _dynamicMetadata
+    ) { local, dynamic ->
+        if (local == null) return@combine null
+        if (dynamic != null && dynamic.id == local.id) {
+            local.apply {
+                plot = dynamic.plot
+                cast = dynamic.cast
+                director = dynamic.director
+                genre = dynamic.genre
+                duration = dynamic.duration
+                rating = dynamic.rating
+            }
+        }
+        local
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val relatedMovies = movie.flatMapLatest { m ->
@@ -60,7 +77,10 @@ class MovieDetailViewModel @Inject constructor(
         viewModelScope.launch {
             val m = movieBox.get(movieId)
             if (m != null) {
+                // Fetch from repository which updates the object with transient fields
                 xtreamRepository.fetchMovieDetails(m)
+                // Store the updated object in our local state to keep transient fields in memory
+                _dynamicMetadata.value = m
             }
         }
     }

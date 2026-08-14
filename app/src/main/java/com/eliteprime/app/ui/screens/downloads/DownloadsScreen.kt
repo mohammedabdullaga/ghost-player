@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
 import com.eliteprime.app.R
 import com.eliteprime.app.domain.model.DownloadItem
 import com.eliteprime.app.domain.model.DownloadStatus
@@ -259,7 +261,15 @@ private fun MobileDownloadCard(
                     modifier = Modifier.size(60.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.05f))
                 ) {
                     if (item.posterUrl != null) {
-                        AsyncImage(model = item.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(item.posterUrl)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .build(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     } else {
                         Icon(Icons.Default.Download, null, modifier = Modifier.align(Alignment.Center), tint = Color.White.copy(alpha = 0.3f))
                     }
@@ -340,7 +350,15 @@ private fun TvDownloadCard(
                     modifier = Modifier.size(70.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.05f))
                 ) {
                     if (item.posterUrl != null) {
-                        AsyncImage(model = item.posterUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(item.posterUrl)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .build(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     } else {
                         Icon(Icons.Default.Download, null, modifier = Modifier.align(Alignment.Center), tint = Color.White.copy(alpha = 0.3f))
                     }

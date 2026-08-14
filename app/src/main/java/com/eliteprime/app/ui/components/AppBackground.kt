@@ -14,19 +14,22 @@ import com.eliteprime.app.R
 @Composable
 fun AppBackground(
     modifier: Modifier = Modifier,
+    isTransparent: Boolean = false,
     content: @Composable BoxScope.() -> Unit
 ) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF070B14))
+            .background(if (isTransparent) Color.Transparent else Color(0xFF070B14))
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.app_background),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
+        if (!isTransparent) {
+            Image(
+                painter = painterResource(id = R.drawable.app_background),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
         content()
     }
 }

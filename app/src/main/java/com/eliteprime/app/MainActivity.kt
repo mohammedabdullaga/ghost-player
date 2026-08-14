@@ -103,6 +103,8 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         applyImmersiveMode()
+        // Ensure keyboard is hidden on resume
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
     }
 
     override fun onStop() {

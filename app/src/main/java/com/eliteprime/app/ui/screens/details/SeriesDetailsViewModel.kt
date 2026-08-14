@@ -40,8 +40,25 @@ class SeriesDetailsViewModel @Inject constructor(
     private val episodeBox = boxStore.boxFor(Episode::class.java)
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
 
-    val series = seriesBox.query().equal(Series_.id, seriesId).build().flow().map { it.firstOrNull() }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    private val _dynamicMetadata = MutableStateFlow<Series?>(null)
+
+    val series = combine(
+        seriesBox.query().equal(Series_.id, seriesId).build().flow().map { it.firstOrNull() },
+        _dynamicMetadata
+    ) { local, dynamic ->
+        if (local == null) return@combine null
+        if (dynamic != null && dynamic.id == local.id) {
+            local.apply {
+                plot = dynamic.plot
+                cast = dynamic.cast
+                director = dynamic.director
+                genre = dynamic.genre
+                releaseDate = dynamic.releaseDate
+                rating = dynamic.rating
+            }
+        }
+        local
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _selectedSeasonNumber = MutableStateFlow<Int?>(null)
 
@@ -122,7 +139,10 @@ class SeriesDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             val s = seriesBox.get(seriesId)
             if (s != null) {
+                // Fetch from repository which updates the object with transient fields
                 xtreamRepository.fetchSeriesDetails(s)
+                // Store in dynamic state
+                _dynamicMetadata.value = s
             }
         }
     }

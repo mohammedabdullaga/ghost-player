@@ -43,6 +43,8 @@ import androidx.compose.ui.util.lerp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
@@ -318,7 +320,10 @@ private fun TrendingCard(
             // Backdrop art fills the whole card — landscape source image
             // for a landscape card, instead of a boxed-in poster crop.
             AsyncImage(
-                model = item.backdropUrl ?: item.posterUrl,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(item.backdropUrl ?: item.posterUrl)
+                    .diskCachePolicy(CachePolicy.ENABLED) // ALLOWED for trending
+                    .build(),
                 contentDescription = item.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

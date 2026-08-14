@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName
 import io.objectbox.annotation.Entity
 import io.objectbox.annotation.Id
 import io.objectbox.annotation.Index
+import io.objectbox.annotation.Transient
 import io.objectbox.relation.ToOne
 
 @Entity
@@ -20,16 +21,19 @@ data class Movie(
     
     // TMDB metadata
     var tmdbId: Long = 0,
-    var rating: Double = 0.0,
     var backdropUrl: String? = null,
     var releaseDate: String? = null,
     var isTrendingThisWeek: Boolean = false,
     var trendingRank: Int = 0,
-    var plot: String? = null,
-    var cast: String? = null,
-    var director: String? = null,
-    var genre: String? = null,
-    var duration: String? = null,
+    
+    // Non-persistent fields (fetched on demand)
+    @Transient var rating: Double = 0.0,
+    @Transient var plot: String? = null,
+    @Transient var cast: String? = null,
+    @Transient var director: String? = null,
+    @Transient var genre: String? = null,
+    @Transient var duration: String? = null,
+
     @Index var isFavorite: Boolean = false,
     var lastWatchedAt: Long = 0,
     var watchProgress: Long = 0,

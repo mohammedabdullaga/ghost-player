@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName
 import io.objectbox.annotation.Entity
 import io.objectbox.annotation.Id
 import io.objectbox.annotation.Index
+import io.objectbox.annotation.Transient
 import io.objectbox.relation.ToOne
 
 @Entity
@@ -20,16 +21,18 @@ data class LiveStream(
     @SerializedName("direct_source") var directSource: String? = null,
     @SerializedName("tv_archive_duration") var tvArchiveDuration: Int = 0,
     @SerializedName("thumbnail") var thumbnail: String? = null,
-    
+
     @Index var isFavorite: Boolean = false,
     var isHidden: Boolean = false,
     var isLocked: Boolean = false,
     var order: Int = 0,
     var lastWatchedAt: Long = 0,
 
+    // Non-persistent metadata
+    @Transient var rating: Double = 0.0,
+
     // TMDB metadata (if matched)
     var tmdbId: Long = 0,
-    var rating: Double = 0.0,
     var backdropUrl: String? = null,
     var releaseDate: String? = null,
     var isTrendingThisWeek: Boolean = false,

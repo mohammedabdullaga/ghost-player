@@ -589,7 +589,14 @@ class PlayerViewModel @Inject constructor(
 
     fun onPlayerScreenDisposed() {
         Log.d("FullscreenTransition", "Player screen disposed (leaving fullscreen) at elapsed=${SystemClock.elapsedRealtime()}")
-        globalPlayerState.hide()
+        
+        // POC FIX: Direct transition from FULLSCREEN to PREVIEW for Live TV.
+        // This avoids the intermediate HIDDEN state that unmounts the surface.
+        if (type == "live") {
+            globalPlayerState.enterPreview(playerEngine)
+        } else {
+            globalPlayerState.hide()
+        }
     }
 
     override fun onCleared() {

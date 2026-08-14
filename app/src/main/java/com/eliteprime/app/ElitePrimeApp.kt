@@ -8,6 +8,7 @@ import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.memory.MemoryCache
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import coil3.request.CachePolicy
 import coil3.request.crossfade
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.remote.proxy.NetworkManager
@@ -42,9 +43,10 @@ class ElitePrimeApp : Application(), SingletonImageLoader.Factory {
             .diskCache {
                 DiskCache.Builder()
                     .directory(context.cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(32 * 1024 * 1024L) // 32MB limit as requested
+                    .maxSizeBytes(16 * 1024 * 1024L) // Reduced to 16MB as requested for general data
                     .build()
             }
+            .diskCachePolicy(CachePolicy.DISABLED) // DISABLE DISK CACHE BY DEFAULT
             .crossfade(true)
             .build()
     }

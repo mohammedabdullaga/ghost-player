@@ -20,7 +20,7 @@ object PlaybackBufferPolicies {
     private const val PLAYBACK_BUFFER_MS = 1_500
     private const val REBUFFER_MS = 5_000
 
-    private const val MAX_BUFFER_BYTES = 50 * 1024 * 1024 // 50MB max to prevent OOM
+    private const val MAX_BUFFER_BYTES = 64 * 1024 * 1024 // 64MB - Balanced for 4K without OOM risk
 
     fun forPlayback(resolvedStreamType: ResolvedStreamType): PlaybackBufferPolicy {
         return if (resolvedStreamType.isLive) {

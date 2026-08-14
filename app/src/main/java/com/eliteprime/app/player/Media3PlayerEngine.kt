@@ -48,6 +48,8 @@ import okio.BufferedSource
 import okio.ForwardingSource
 import okio.Okio
 import okio.Source
+import android.view.LayoutInflater
+import com.eliteprime.app.R
 import okio.buffer
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -293,7 +295,27 @@ class Media3PlayerEngine @Inject constructor(
             renderersFactory.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF)
         }
 
-        exoPlayer?.release()
+        // OFF-LOAD RELEASE: Releasing a potentially stuck hardware decoder on the Main thread 
+        // is the primary cause of ANRs during stall recovery. However, ExoPlayer REQUIRES 
+        // release on the application thread. We call stop() SYNCHRONOUSLY to signal to the
+        // hardware that resources can be reclaimed, then release in background.
+        val playerToRelease = exoPlayer
+        exoPlayer = null
+        playerToRelease?.let { old ->
+            try {
+                old.stop() // Immediate stop to free hardware
+            } catch (e: Exception) {
+                Log.e("Media3Engine", "Player stop failed", e)
+            }
+            scope.launch(Dispatchers.Main) {
+                try {
+                    old.release() // Background release for the slow part
+                } catch (e: Exception) {
+                    Log.e("Media3Engine", "Player background release failed", e)
+                }
+            }
+        }
+
         exoPlayer = ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(newTrackSelector)
             .setLoadControl(loadControl)
@@ -303,8 +325,11 @@ class Media3PlayerEngine @Inject constructor(
                 playWhenReady = true
             }
 
-        // If a render view requested binding before the player was ready, bind it now.
-        pendingRenderView?.let { view ->
+        // RE-BIND PERSISTENT VIEW: If we have an existing view bound, or a pending one, 
+        // attach the new player instance to it immediately.
+        val viewToBind = boundPlayerView ?: pendingRenderView
+        viewToBind?.let { view ->
+            Log.d(TAG, "initializePlayer: Re-attaching new player instance to view ${view.hashCode()}")
             view.player = exoPlayer
             boundPlayerView = view
             pendingRenderView = null
@@ -430,9 +455,21 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     override fun createRenderView(context: Context, resizeMode: PlayerSurfaceResizeMode, surfaceType: PlayerRenderSurfaceType): View {
-        return PlayerView(context).apply {
+        val layoutId = if (surfaceType == PlayerRenderSurfaceType.TEXTURE_VIEW) {
+            R.layout.player_texture
+        } else {
+            R.layout.player_surface
+        }
+        
+        val view = LayoutInflater.from(context).inflate(layoutId, null) as PlayerView
+        return view.apply {
             useController = false
             setShutterBackgroundColor(Color.BLACK)
+            
+            if (surfaceType == PlayerRenderSurfaceType.TEXTURE_VIEW) {
+                Log.d(TAG, "Created PlayerView with TextureView for better transform sync")
+            }
+
             // Prevent PlayerView from stealing focus from Compose D-pad handlers
             isFocusable = false
             isFocusableInTouchMode = false
@@ -642,6 +679,7 @@ class Media3PlayerEngine @Inject constructor(
         playbackWatchdogJob = scope.launch {
             lastRenderedCount = -1
             lastRenderedTime = System.currentTimeMillis()
+            var isWaitingForFirstFrame = true
             
             while (isActive) {
                 val player = exoPlayer
@@ -650,6 +688,8 @@ class Media3PlayerEngine @Inject constructor(
                     val renderedCount = player.videoDecoderCounters?.renderedOutputBufferCount ?: 0
                     val droppedCount = player.videoDecoderCounters?.droppedBufferCount ?: 0
                     
+                    if (renderedCount > 0) isWaitingForFirstFrame = false
+
                     Log.d("PlaybackWatchdog", "Watchdog: isPlaying=${player.isPlaying} | state=${_playbackState.value} | bufAhead=${bufferedAhead}ms | rendered=$renderedCount | dropped=$droppedCount")
 
                     // STALL DETECTION:
@@ -660,8 +700,10 @@ class Media3PlayerEngine @Inject constructor(
                             lastRenderedTime = System.currentTimeMillis()
                         } else {
                             val stallDuration = System.currentTimeMillis() - lastRenderedTime
-                            if (stallDuration > 3500) { // 3.5s to be safe
-                                Log.e("DecoderStallRecovery", "STALL DETECTED! Rendered count stuck at $renderedCount for ${stallDuration}ms. Triggering HARD RESET.")
+                            val limit = if (isWaitingForFirstFrame) 10000L else 4000L
+                            
+                            if (stallDuration > limit) { 
+                                Log.e("DecoderStallRecovery", "STALL DETECTED! Rendered count stuck at $renderedCount for ${stallDuration}ms (FirstFrame=$isWaitingForFirstFrame). Triggering HARD RESET.")
                                 triggerStallRecovery()
                             }
                         }

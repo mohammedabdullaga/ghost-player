@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,7 +31,11 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -83,15 +88,26 @@ fun MobileLiveTvScreen(
 
     val channelListState = rememberLazyListState()
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val isTv = context.isTelevisionDevice()
     val channelFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
     val globalMode by viewModel.globalPlayerState.mode.collectAsState()
     var lastFocusedChannelId by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
 
+    // Ensure player is hidden when leaving Live TV if not transitioning to fullscreen
+    DisposableEffect(Unit) {
+        onDispose {
+            if (viewModel.globalPlayerState.mode.value != PlayerViewMode.FULLSCREEN) {
+                viewModel.globalPlayerState.hide()
+            }
+        }
+    }
+
     // Restore focus on every resume (e.g. coming back from player)
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         if (isTv) {
+            keyboardController?.hide()
             val targetId = previewChannel?.id ?: lastFocusedChannelId
             if (targetId != null) {
                 scope.launch {
@@ -151,7 +167,7 @@ fun MobileLiveTvScreen(
         }
     }
 
-    AppBackground {
+    AppBackground(isTransparent = true) {
         Column(modifier = Modifier.fillMaxSize()) {
             LiveTopNavBar(
                 currentTime = currentTime.value,
@@ -265,28 +281,33 @@ fun MobileLiveTvScreen(
                 }
 
                 // --- Pane 3: Preview & EPG ---
-                PaneSurface(modifier = Modifier.weight(0.4f)) {
+                PaneSurface(
+                    modifier = Modifier.weight(0.4f),
+                    backgroundColor = Color.Transparent // DON'T DIM THE PANE (VIDEO IS BEHIND)
+                ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(0.dp)
                     ) {
-                        // Preview Player Area
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(16f / 9f)
-                                .padding(12.dp),
-                            color = Color.Black,
+                                .padding(12.dp)
+                                .onGloballyPositioned { coords ->
+                                    viewModel.globalPlayerState.updatePreviewBounds(coords.boundsInRoot())
+                                },
+                            color = Color.Transparent,
                             shape = RoundedCornerShape(16.dp),
                             border = BorderStroke(1.dp, LivePalette.hairline)
                         ) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 if (previewChannel != null) {
-                                    PlayerRenderView(
-                                        playerEngine = viewModel.playerEngine,
-                                        globalPlayerState = viewModel.globalPlayerState,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
+                                    // Ensure global player knows it should be visible in preview mode
+                                    LaunchedEffect(Unit) {
+                                        viewModel.globalPlayerState.enterPreview(viewModel.playerEngine)
+                                    }
+                                    
                                     Box(
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -308,12 +329,16 @@ fun MobileLiveTvScreen(
                             }
                         }
 
-                        // Channel Info & EPG Area
+                        // Channel Info & EPG Area - APPLY BACKGROUND HERE INSTEAD OF WHOLE PANE
                         Column(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
+                                .background(
+                                    LivePalette.paneFill, 
+                                    RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                                )
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             if (previewChannel != null) {
                                 Text(
@@ -782,7 +807,8 @@ private fun LiveTopNavBar(
             LiveRoundIconButton(
                 icon = Icons.Default.Search, 
                 contentDescription = stringResource(R.string.nav_search), 
-                onClick = onNavigateToSearch
+                onClick = onNavigateToSearch,
+                modifier = Modifier.focusable(false)
             )
 
             Spacer(modifier = Modifier.width(8.dp))
@@ -798,6 +824,7 @@ private fun LiveRoundIconButton(
     icon: ImageVector, 
     contentDescription: String?, 
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     isActive: Boolean = false
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
@@ -806,7 +833,7 @@ private fun LiveRoundIconButton(
     if (isTv) {
         TvSurface(
             onClick = onClick,
-            modifier = Modifier
+            modifier = modifier
                 .size(40.dp)
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
@@ -844,10 +871,14 @@ private fun LiveRoundIconButton(
 }
 
 @Composable
-private fun PaneSurface(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+private fun PaneSurface(
+    modifier: Modifier = Modifier, 
+    backgroundColor: Color = LivePalette.paneFill,
+    content: @Composable () -> Unit
+) {
     Surface(
         modifier = modifier.fillMaxHeight(),
-        color = LivePalette.paneFill,
+        color = backgroundColor,
         shape = RoundedCornerShape(24.dp),
         border = BorderStroke(1.dp, LivePalette.paneBorder)
     ) {
