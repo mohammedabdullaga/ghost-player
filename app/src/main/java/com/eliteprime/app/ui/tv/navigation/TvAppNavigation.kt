@@ -14,24 +14,16 @@ import com.eliteprime.app.player.GlobalPlayerState
 import com.eliteprime.app.player.PlayerEngine
 import com.eliteprime.app.ui.screens.dashboard.ContinueWatchingGridScreen
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
-import com.eliteprime.app.ui.screens.details.MovieDetailsScreen
-import com.eliteprime.app.ui.screens.details.SeriesDetailsScreen
 import com.eliteprime.app.ui.screens.downloads.DownloadsScreen
-import com.eliteprime.app.ui.screens.home.HomeScreen
-import com.eliteprime.app.ui.tv.screens.*
 import com.eliteprime.app.ui.screens.login.LoginScreen
 import com.eliteprime.app.ui.screens.login.LoginViewModel
-import com.eliteprime.app.ui.screens.movies.MovieScreen
 import com.eliteprime.app.ui.screens.player.PlayerScreen
 import com.eliteprime.app.ui.screens.player.PlayerViewModel
-import com.eliteprime.app.ui.screens.search.SearchScreen
-import com.eliteprime.app.ui.screens.series.SeriesScreen
-import com.eliteprime.app.ui.screens.settings.SettingsScreen
-import com.eliteprime.app.ui.screens.trending.TrendingScreen
+import com.eliteprime.app.ui.tv.screens.*
 
 /**
  * TV Specific Navigation.
- * Initially, this reuses the mobile screens but will be swapped for TV-Material screens one-by-one.
+ * Standardized for TV UX using TV Material components.
  */
 @Composable
 fun TvAppNavigation(
@@ -68,37 +60,45 @@ fun TvAppNavigation(
                 }
             })
         }
+
         composable("home") {
+            // Navigation to other sections (Live TV, Movies, Series,
+            // Downloads, Search, Settings) now happens exclusively via
+            // TvMainShell's TvSideNavRail, which wraps this screen from
+            // the outside — TvHomeScreen no longer takes or needs those
+            // callbacks itself.
             TvHomeScreen(
-                onNavigateToSearch = { stopPlayerAndNavigate("search") },
-                onNavigateToSettings = { stopPlayerAndNavigate("settings") },
-                onNavigateToLiveTv = { stopPlayerAndNavigate("live") },
-                onNavigateToMovies = { stopPlayerAndNavigate("movies") },
-                onNavigateToSeries = { stopPlayerAndNavigate("series") },
                 onNavigateToTrending = { navController.navigate("trending") },
-                onNavigateToDownloads = { stopPlayerAndNavigate("downloads") },
-                onNavigateToContinueWatching = { navController.navigate("continue_watching") }
+                onNavigateToContinueWatching = { navController.navigate("continue_watching") },
+                onMovieClick = { movie -> navController.navigate("movie_details/${movie.id}") },
+                onSeriesClick = { series -> navController.navigate("series_details/${series.id}") },
+                onResumeHistoryItem = { history ->
+                    if (history.type == "movie") {
+                        navController.navigate("movie_details/${history.streamId}")
+                    } else {
+                        navController.navigate("series_details/${history.streamId}")
+                    }
+                }
             )
         }
+
         composable("trending") {
-            TrendingScreen(
+            TvTrendingScreen(
                 onBack = { navController.popBackStack() },
                 onMovieClick = { movie -> navController.navigate("movie_details/${movie.id}") },
                 onSeriesClick = { series -> navController.navigate("series_details/${series.id}") }
             )
         }
+
         composable("live") {
-            // TARGET 1: New TV-optimized Live TV Screen
             TvLiveTvScreen(
                 onBack = navigateToHome,
-                onNavigateToSearch = { stopPlayerAndNavigate("search") },
-                onNavigateToMovies = { stopPlayerAndNavigate("movies") },
-                onNavigateToSeries = { stopPlayerAndNavigate("series") },
                 onPlayChannel = { channel ->
                     navController.navigate("player/${channel.id}/live/${Uri.encode(channel.name)}")
                 }
             )
         }
+
         composable("movies") {
             TvMovieScreen(
                 onBack = navigateToHome,
@@ -107,6 +107,7 @@ fun TvAppNavigation(
                 }
             )
         }
+
         composable("series") {
             TvSeriesScreen(
                 onBack = navigateToHome,
@@ -115,6 +116,7 @@ fun TvAppNavigation(
                 }
             )
         }
+
         composable(
             "movie_details/{id}",
             arguments = listOf(navArgument("id") { type = NavType.LongType })
@@ -126,6 +128,7 @@ fun TvAppNavigation(
                 }
             )
         }
+
         composable(
             "series_details/{id}",
             arguments = listOf(navArgument("id") { type = NavType.LongType })
@@ -137,6 +140,7 @@ fun TvAppNavigation(
                 }
             )
         }
+
         composable("search") {
             TvSearchScreen(
                 onBack = navigateToHome,
@@ -145,6 +149,7 @@ fun TvAppNavigation(
                 onChannelClick = { channel -> navController.navigate("player/${channel.id}/live/${Uri.encode(channel.name)}") }
             )
         }
+
         composable("settings") {
             TvSettingsScreen(
                 onBack = navigateToHome,
@@ -155,6 +160,7 @@ fun TvAppNavigation(
                 }
             )
         }
+
         composable("downloads") {
             DownloadsScreen(
                 onBack = { navController.popBackStack() },
@@ -168,6 +174,7 @@ fun TvAppNavigation(
                 }
             )
         }
+
         composable("continue_watching") {
             ContinueWatchingGridScreen(
                 onBack = { navController.popBackStack() },
@@ -175,23 +182,14 @@ fun TvAppNavigation(
                 onNavigateToSeriesDetails = { id -> navController.navigate("series_details/$id") }
             )
         }
-        composable("settings") {
-            SettingsScreen(
-                onBack = navigateToHome,
-                onLogout = {
-                    navController.navigate("login") {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
-            )
-        }
+
         composable(
             "player/{id}/{type}/{title}?url={url}",
             arguments = listOf(
                 navArgument("id") { type = NavType.LongType },
                 navArgument("type") { type = NavType.StringType },
                 navArgument("title") { type = NavType.StringType },
-                navArgument("url") { 
+                navArgument("url") {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
@@ -200,7 +198,7 @@ fun TvAppNavigation(
         ) {
             val playerViewModel: PlayerViewModel = hiltViewModel()
             PlayerScreen(
-                viewModel = playerViewModel, 
+                viewModel = playerViewModel,
                 playerEngine = playerViewModel.playerEngine,
                 onBack = { navController.popBackStack() }
             )

@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -61,25 +60,27 @@ private object TvLivePalette {
     val hairline = Color.White.copy(alpha = 0.1f)
     val textSecondary = Color.White.copy(alpha = 0.6f)
     val textTertiary = Color.White.copy(alpha = 0.38f)
+    val selectionOrange = Color(0xFFFF8C00)
 }
+
+private const val CATEGORIES_PANE_WEIGHT = 0.30f
+private const val CHANNELS_PANE_WEIGHT = 0.35f
+private const val PREVIEW_PANE_WEIGHT = 0.35f
 
 @Composable
 fun TvLiveTvScreen(
     onBack: () -> Unit,
-    onNavigateToSearch: () -> Unit,
-    onNavigateToMovies: () -> Unit,
-    onNavigateToSeries: () -> Unit,
     onPlayChannel: (LiveStream) -> Unit,
     viewModel: LiveViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val previewChannel by viewModel.previewChannel.collectAsState()
     val epgList by viewModel.currentEpg.collectAsState()
-    val currentTime = remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
-    
-    val channelListState = rememberLazyListState()
+
+    var hoveredCategory by remember { mutableStateOf<Category?>(null) }
     val scope = rememberCoroutineScope()
-    
+    val channelListState = rememberLazyListState()
+
     val categoryFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
     val channelFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
     val firstCategoryRequester = remember { FocusRequester() }
@@ -95,13 +96,7 @@ fun TvLiveTvScreen(
 
     BackHandler { onBack() }
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            currentTime.value = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-            delay(60000)
-        }
-    }
-
+    // Landing Focus
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         scope.launch {
             delay(200)
@@ -110,56 +105,64 @@ fun TvLiveTvScreen(
         }
     }
 
-    AppBackground(isTransparent = true) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            TvLiveTopNavBar(
-                currentTime = currentTime.value,
-                onBack = onBack,
-                onNavigateToSearch = onNavigateToSearch,
-                onNavigateToMovies = onNavigateToMovies,
-                onNavigateToSeries = onNavigateToSeries
-            )
+    // Auto-preview the first channel once the list loads, if nothing is
+    // already selected.
+    LaunchedEffect(uiState.filteredChannels) {
+        if (previewChannel == null && uiState.filteredChannels.isNotEmpty()) {
+            viewModel.previewChannel(uiState.filteredChannels.first())
+        }
+    }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp)
+    AppBackground(isTransparent = true) {
+        Box(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp)) {
+            TvSurface(
+                modifier = Modifier.fillMaxSize(),
+                onClick = {},
+                colors = ClickableSurfaceDefaults.colors(
+                    containerColor = TvLivePalette.paneFill,
+                    focusedContainerColor = TvLivePalette.paneFill
+                ),
+                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
+                border = ClickableSurfaceDefaults.border(
+                    border = Border(BorderStroke(1.dp, TvLivePalette.paneBorder)),
+                    focusedBorder = Border(BorderStroke(1.dp, TvLivePalette.paneBorder))
+                )
             ) {
-                // --- PANE 1: Categories ---
-                TvPaneSurface(modifier = Modifier.weight(0.28f)) {
-                    Column {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    // --- SECTION 1: Categories ---
+                    Column(modifier = Modifier.weight(CATEGORIES_PANE_WEIGHT).fillMaxHeight()) {
                         Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
                             Text(text = stringResource(R.string.generic_groups).uppercase(), color = TvLivePalette.textSecondary, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
                         }
-                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(TvLivePalette.hairline))
+                        HorizontalDivider(color = TvLivePalette.hairline)
 
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(8.dp)
-                        ) {
+                        LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(8.dp)) {
                             itemsIndexed(uiState.categories) { index, category ->
                                 val requester = if (index == 0) firstCategoryRequester else categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
-                                
+
                                 TvCategoryTab(
                                     category = category,
                                     isSelected = category.id == uiState.selectedCategory?.id,
                                     modifier = Modifier.focusRequester(requester),
-                                    onClick = { viewModel.selectCategory(category) }
+                                    onFocused = { hoveredCategory = category },
+                                    onClick = {
+                                        viewModel.selectCategory(category)
+                                        scope.launch { channelListState.scrollToItem(0) }
+                                    }
                                 )
                             }
                         }
                     }
-                }
 
-                // --- PANE 2: Channels ---
-                TvPaneSurface(modifier = Modifier.weight(0.32f)) {
-                    Column {
+                    TvSectionDivider()
+
+                    // --- SECTION 2: Channels ---
+                    Column(modifier = Modifier.weight(CHANNELS_PANE_WEIGHT).fillMaxHeight()) {
                         Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
                             Text(text = (uiState.selectedCategory?.categoryName ?: "").uppercase(), color = TvLivePalette.textSecondary, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
                         }
-                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(TvLivePalette.hairline))
-                        
+                        HorizontalDivider(color = TvLivePalette.hairline)
+
                         LazyColumn(
                             state = channelListState,
                             modifier = Modifier.fillMaxSize(),
@@ -171,7 +174,7 @@ fun TvLiveTvScreen(
                                     channel = channel,
                                     isSelected = previewChannel?.id == channel.id,
                                     modifier = Modifier.focusRequester(requester),
-                                    onClick = { 
+                                    onClick = {
                                         if (previewChannel?.id == channel.id) {
                                             viewModel.confirmChannel(channel)
                                             viewModel.globalPlayerState.enterFullScreen(viewModel.playerEngine)
@@ -184,20 +187,20 @@ fun TvLiveTvScreen(
                             }
                         }
                     }
-                }
 
-                // --- PANE 3: Preview & EPG ---
-                TvPaneSurface(modifier = Modifier.weight(0.4f), backgroundColor = Color.Transparent) {
-                    Column(modifier = Modifier.fillMaxSize()) {
+                    TvSectionDivider()
+
+                    // --- SECTION 3: Preview & EPG ---
+                    Column(modifier = Modifier.weight(PREVIEW_PANE_WEIGHT).fillMaxHeight().padding(16.dp)) {
+                        // Preview Hole
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(16f / 9f)
-                                .padding(12.dp)
                                 .onGloballyPositioned { coords ->
                                     viewModel.globalPlayerState.updatePreviewBounds(coords.boundsInRoot())
                                 }
-                                .border(1.dp, TvLivePalette.paneBorder, RoundedCornerShape(16.dp))
+                                .border(1.dp, TvLivePalette.paneBorder, RoundedCornerShape(12.dp))
                         ) {
                             if (previewChannel != null) {
                                 LaunchedEffect(previewChannel) {
@@ -210,22 +213,24 @@ fun TvLiveTvScreen(
                             }
                         }
 
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .background(TvLivePalette.paneFill, RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                                .padding(16.dp)
-                        ) {
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // EPG / Info
+                        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
                             if (previewChannel != null) {
-                                Text(text = stringResource(R.string.live_now), color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 10.sp)
-                                Text(text = previewChannel!!.name, color = Color.White, style = TvMaterialTheme.typography.titleMedium, maxLines = 1)
+                                Text(text = previewChannel!!.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp, maxLines = 1)
                                 Spacer(modifier = Modifier.height(12.dp))
-                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(TvLivePalette.hairline))
-                                
-                                LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    items(epgList) { program ->
-                                        TvEpgRow(program)
+                                HorizontalDivider(color = TvLivePalette.hairline)
+
+                                if (epgList.isEmpty()) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Text(stringResource(R.string.live_no_epg_data), color = TvLivePalette.textTertiary, fontSize = 13.sp)
+                                    }
+                                } else {
+                                    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        items(epgList) { program ->
+                                            TvEpgRow(program)
+                                        }
                                     }
                                 }
                             } else {
@@ -242,28 +247,59 @@ fun TvLiveTvScreen(
 }
 
 @Composable
+private fun RowScope.TvSectionDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxHeight(0.88f)
+            .width(1.5.dp)
+            .align(Alignment.CenterVertically)
+            .background(TvLivePalette.selectionOrange.copy(alpha = 0.45f))
+    )
+}
+
+@Composable
 private fun TvCategoryTab(
     category: Category,
     isSelected: Boolean,
     modifier: Modifier = Modifier,
+    onFocused: () -> Unit,
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
     TvSurface(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().padding(vertical = 2.dp).onFocusChanged { isFocused = it.isFocused },
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .padding(vertical = 2.dp)
+            .onFocusChanged {
+                isFocused = it.isFocused
+                if (it.isFocused) onFocused()
+            },
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+            containerColor = if (isSelected) TvLivePalette.selectionOrange.copy(alpha = 0.25f) else Color.Transparent,
             focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
         ),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
     ) {
-        Row(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.width(3.dp).height(18.dp).clip(CircleShape).background(if (isSelected || isFocused) AppColors.ArenaOrange else Color.Transparent))
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.width(3.dp).height(18.dp).background(if (isSelected || isFocused) TvLivePalette.selectionOrange else Color.Transparent, CircleShape))
             Spacer(modifier = Modifier.width(12.dp))
-            Text(text = category.categoryName, color = Color.White, fontSize = 13.sp, fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal)
+            Text(
+                text = category.categoryName,
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 16.sp,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
@@ -278,10 +314,10 @@ private fun TvChannelRow(
     var isFocused by remember { mutableStateOf(false) }
     TvSurface(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 3.dp).onFocusChanged { isFocused = it.isFocused },
+        modifier = modifier.fillMaxWidth().padding(vertical = 2.dp).onFocusChanged { isFocused = it.isFocused },
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.45f),
+            containerColor = if (isSelected) Color.White.copy(alpha = 0.1f) else Color.Transparent,
             focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
         ),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
@@ -297,7 +333,7 @@ private fun TvChannelRow(
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text(text = channel.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Text(text = channel.name, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(text = stringResource(R.string.live_no_epg_data), color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp, maxLines = 1)
             }
         }
@@ -311,73 +347,6 @@ private fun TvEpgRow(program: EPGProgram) {
              SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(program.startTimestamp))
         }
         Text(text = time, color = TvLivePalette.textSecondary, fontSize = 12.sp)
-        Text(text = program.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-    }
-}
-
-@Composable
-private fun TvLiveTopNavBar(
-    currentTime: String,
-    onBack: () -> Unit,
-    onNavigateToSearch: () -> Unit,
-    onNavigateToMovies: () -> Unit,
-    onNavigateToSeries: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        ArenaLiveLogo(textSize = 20.sp)
-        Spacer(modifier = Modifier.width(32.dp))
-        Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
-            NavTabButton(label = stringResource(R.string.nav_home), isActive = false, onClick = onBack)
-            NavTabButton(label = stringResource(R.string.nav_live_tv), isActive = true, onClick = {})
-            NavTabButton(label = stringResource(R.string.nav_movies), isActive = false, onClick = onNavigateToMovies)
-            NavTabButton(label = stringResource(R.string.nav_series), isActive = false, onClick = onNavigateToSeries)
-        }
-        TvRoundIconButton(icon = Icons.Default.Search, onClick = onNavigateToSearch)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text = currentTime, color = Color.White.copy(alpha = 0.6f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun TvRoundIconButton(icon: ImageVector, onClick: () -> Unit) {
-    var isFocused by remember { mutableStateOf(false) }
-    TvSurface(
-        onClick = onClick,
-        modifier = Modifier.size(40.dp).onFocusChanged { isFocused = it.isFocused },
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
-        shape = ClickableSurfaceDefaults.shape(CircleShape),
-        colors = ClickableSurfaceDefaults.colors(containerColor = Color.Black.copy(alpha = 0.45f), focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)),
-        border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
-    ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
-        }
-    }
-}
-
-@Composable
-private fun TvPaneSurface(
-    modifier: Modifier = Modifier, 
-    backgroundColor: Color = TvLivePalette.paneFill,
-    content: @Composable () -> Unit
-) {
-    TvSurface(
-        modifier = modifier.fillMaxHeight(),
-        onClick = {},
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = backgroundColor,
-            focusedContainerColor = backgroundColor
-        ),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
-        border = ClickableSurfaceDefaults.border(
-            border = Border(BorderStroke(1.dp, TvLivePalette.paneBorder)),
-            focusedBorder = Border(BorderStroke(1.dp, TvLivePalette.paneBorder))
-        )
-    ) {
-        content()
+        Text(text = program.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

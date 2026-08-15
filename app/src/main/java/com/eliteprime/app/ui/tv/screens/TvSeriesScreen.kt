@@ -1,6 +1,8 @@
 package com.eliteprime.app.ui.tv.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -12,6 +14,8 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,7 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,6 +37,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
+import coil3.compose.AsyncImage
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.Series
@@ -44,8 +51,6 @@ import kotlinx.coroutines.launch
 private object TvSeriesPalette {
     val paneFill = Color.Black.copy(alpha = 0.65f)
     val paneBorder = Color.White.copy(alpha = 0.12f)
-    val hairline = Color.White.copy(alpha = 0.1f)
-    val textSecondary = Color.White.copy(alpha = 0.6f)
     val selectionOrange = Color(0xFFFF8C00)
 }
 
@@ -60,6 +65,7 @@ fun TvSeriesScreen(
     
     val gridState = rememberLazyGridState()
     var hoveredCategory by remember { mutableStateOf<Category?>(null) }
+    var focusedSeries by remember { mutableStateOf<Series?>(null) }
     
     val categoryFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
     val firstCategoryRequester = remember { FocusRequester() }
@@ -71,12 +77,26 @@ fun TvSeriesScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         scope.launch {
             delay(200)
-            val targetId = uiState.selectedCategory?.id ?: -1L
-            categoryFocusRequesters[targetId]?.requestFocus() ?: firstCategoryRequester.requestFocus()
+            categoryFocusRequesters[uiState.selectedCategory?.id ?: -1L]?.requestFocus() ?: firstCategoryRequester.requestFocus()
         }
     }
 
     AppBackground(isTransparent = true) {
+        // Immersive Backdrop
+        Crossfade(targetState = focusedSeries, animationSpec = tween(1000), label = "seriesBackdrop") { series ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                AsyncImage(
+                    model = series?.backdropUrl ?: series?.cover,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    alpha = 0.3f
+                )
+                Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)), startY = 400f)))
+                Box(modifier = Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent), endX = 800f)))
+            }
+        }
+
         Row(
             modifier = Modifier.fillMaxSize().padding(24.dp),
             horizontalArrangement = Arrangement.spacedBy(24.dp)
@@ -85,9 +105,9 @@ fun TvSeriesScreen(
             TvSeriesPaneSurface(modifier = Modifier.weight(0.28f)) {
                 Column {
                     Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-                        Text(text = stringResource(R.string.generic_groups).uppercase(), color = TvSeriesPalette.textSecondary, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
+                        Text(text = stringResource(R.string.nav_series).uppercase(), color = Color.White.copy(alpha = 0.5f), fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
                     }
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(TvSeriesPalette.hairline))
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
 
                     LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(8.dp)) {
                         itemsIndexed(uiState.categories) { index, category ->
@@ -109,13 +129,25 @@ fun TvSeriesScreen(
             }
 
             // --- PANE 2: Content Grid ---
-            TvSeriesPaneSurface(modifier = Modifier.weight(0.72f)) {
-                Column {
-                    Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-                        Text(text = (uiState.selectedCategory?.categoryName ?: hoveredCategory?.categoryName ?: "").uppercase(), color = TvSeriesPalette.textSecondary, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
+            Column(modifier = Modifier.weight(0.72f)) {
+                // Header with focused item info
+                Column(modifier = Modifier.fillMaxWidth().height(160.dp).padding(start = 16.dp), verticalArrangement = Arrangement.Bottom) {
+                    if (focusedSeries != null) {
+                        Text(text = focusedSeries!!.name, style = MaterialTheme.typography.headlineMedium, color = Color.White, fontWeight = FontWeight.Black, maxLines = 1)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700), modifier = Modifier.size(14.dp))
+                                Text(text = "%.1f".format(focusedSeries!!.rating), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            }
+                            if (!focusedSeries!!.releaseDate.isNullOrBlank()) {
+                                Text(text = focusedSeries!!.releaseDate!!.take(4), color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(TvSeriesPalette.hairline))
-                    
+                }
+
+                TvSeriesPaneSurface(modifier = Modifier.weight(1f)) {
                     LazyVerticalGrid(
                         state = gridState,
                         columns = GridCells.Fixed(5),
@@ -128,7 +160,9 @@ fun TvSeriesScreen(
                             val requester = seriesFocusRequesters.getOrPut(series.id) { FocusRequester() }
                             SeriesPosterCard(
                                 series = series,
-                                modifier = Modifier.focusRequester(requester),
+                                modifier = Modifier
+                                    .focusRequester(requester)
+                                    .onFocusChanged { if (it.isFocused) focusedSeries = series },
                                 onClick = { onSeriesClick(series) }
                             )
                         }
@@ -159,7 +193,7 @@ private fun TvSeriesCategoryItem(
             },
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) TvSeriesPalette.selectionOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+            containerColor = if (isSelected) TvSeriesPalette.selectionOrange.copy(alpha = 0.25f) else Color.Transparent,
             focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
         ),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
@@ -192,7 +226,7 @@ private fun TvSeriesPaneSurface(
             containerColor = TvSeriesPalette.paneFill,
             focusedContainerColor = TvSeriesPalette.paneFill
         ),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
         border = ClickableSurfaceDefaults.border(
             border = Border(BorderStroke(1.dp, TvSeriesPalette.paneBorder)),
             focusedBorder = Border(BorderStroke(1.dp, TvSeriesPalette.paneBorder))

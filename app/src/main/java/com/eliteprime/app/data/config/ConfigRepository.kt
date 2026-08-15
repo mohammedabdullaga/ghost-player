@@ -67,9 +67,18 @@ class ConfigRepository @Inject constructor(
     }
 
     fun getActiveHosts(): List<HostEntry> {
-        return cachedConfig?.hosts
+        val configHosts = cachedConfig?.hosts
             ?.filter { it.status.equals("active", ignoreCase = true) }
             ?.sortedBy { it.priority } ?: emptyList()
+
+        if (configHosts.isEmpty()) {
+            Log.w(TAG, "No active hosts in config, using hardcoded test fallbacks.")
+            return listOf(
+                HostEntry(url = "http://8255685arena.online", priority = 1),
+                HostEntry(url = "http://ultracloudcdn.com", priority = 2)
+            )
+        }
+        return configHosts
     }
 
     fun getProxyHosts(): List<String> {
