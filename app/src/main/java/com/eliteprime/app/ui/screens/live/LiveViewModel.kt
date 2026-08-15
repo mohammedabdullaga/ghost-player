@@ -41,7 +41,6 @@ class LiveViewModel @Inject constructor(
     companion object {
         const val CAT_ID_FAVORITES = -1L
         const val CAT_ID_RECENT = -2L
-        const val CAT_ID_ALL = -3L
     }
 
     private val categoryBox = boxStore.boxFor(Category::class.java)
@@ -68,8 +67,7 @@ class LiveViewModel @Inject constructor(
     ) { providerCats, customGroups ->
         val virtualCats = listOf(
             Category(id = CAT_ID_FAVORITES, categoryName = application.getString(R.string.nav_favorites), isVirtual = true),
-            Category(id = CAT_ID_RECENT, categoryName = application.getString(R.string.nav_recent), isVirtual = true),
-            Category(id = CAT_ID_ALL, categoryName = application.getString(R.string.nav_all_channels), isVirtual = true)
+            Category(id = CAT_ID_RECENT, categoryName = application.getString(R.string.nav_recent), isVirtual = true)
         )
         val customGroupCats = customGroups
             .filter { it.groupType == "live" }
@@ -85,13 +83,24 @@ class LiveViewModel @Inject constructor(
         _searchQuery.debounce(300),
         categoriesFlow
     ) { selectedId, query, allCategories ->
-        val currentId = selectedId ?: CAT_ID_ALL
-        val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.find { it.id == CAT_ID_ALL } ?: allCategories.first()
+        val currentId = selectedId 
+            ?: allCategories.find { it.id == CAT_ID_FAVORITES }?.id 
+            ?: allCategories.firstOrNull()?.id
+            ?: return@combine emptyList<LiveStream>()
+
+        val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull() ?: return@combine emptyList<LiveStream>()
 
         val baseChannels = withContext(Dispatchers.IO) {
             when (currentId) {
-                CAT_ID_ALL -> liveBox.query().build().find()
-                CAT_ID_FAVORITES -> liveBox.query().equal(LiveStream_.isFavorite, true).build().find()
+                CAT_ID_FAVORITES -> {
+                    val favs = liveBox.query().equal(LiveStream_.isFavorite, true).build().find()
+                    if (favs.isEmpty() && selectedId == null) {
+                        val fallback = allCategories.firstOrNull { !it.isVirtual }
+                        if (fallback != null) {
+                            liveBox.query().equal(LiveStream_.remoteCategoryId, fallback.categoryId, StringOrder.CASE_INSENSITIVE).build().find()
+                        } else favs
+                    } else favs
+                }
                 CAT_ID_RECENT -> liveBox.query().notEqual(LiveStream_.lastWatchedAt, 0L).orderDesc(LiveStream_.lastWatchedAt).build().find(0, 50)
                 else -> {
                     if (currentId >= 1000000) {
@@ -119,8 +128,12 @@ class LiveViewModel @Inject constructor(
     ) { allCategories, selectedId, channels, reorderMode, reorderList ->
         
         val categories = if (reorderMode) reorderList else allCategories
-        val currentId = selectedId ?: CAT_ID_ALL
-        val currentSelected = categories.find { it.id == currentId } ?: allCategories.find { it.id == CAT_ID_ALL } ?: allCategories.first()
+        val currentId = selectedId 
+            ?: allCategories.find { it.id == CAT_ID_FAVORITES }?.id 
+            ?: allCategories.firstOrNull()?.id
+            ?: 0L
+            
+        val currentSelected = categories.find { it.id == currentId } ?: categories.firstOrNull()
 
         LiveUiState(
             categories = categories,
@@ -166,8 +179,6 @@ class LiveViewModel @Inject constructor(
         if (preferenceRepository.zapAutoRevert.value) {
             zapRevertJob = viewModelScope.launch {
                 delay(5000)
-                // If the user hasn't confirmed this channel (which would set lastStableChannel)
-                // revert to the last stable one
                 if (lastStableChannel != null && lastStableChannel!!.id != channel.id) {
                     previewChannel(lastStableChannel!!)
                 }

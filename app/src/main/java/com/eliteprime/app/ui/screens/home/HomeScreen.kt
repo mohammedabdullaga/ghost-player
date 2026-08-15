@@ -66,7 +66,7 @@ private object HomeSpacing {
     val xl = 24.dp
 }
 
-private enum class HomeFocusIndex { TRENDING, CONTINUE, DOWNLOADS }
+private enum class HomeFocusIndex { NAV, TRENDING, CONTINUE, DOWNLOADS }
 
 @Composable
 fun HomeScreen(
@@ -90,9 +90,10 @@ fun HomeScreen(
     val trendingFocusRequester = remember { FocusRequester() }
     val continueFocusRequester = remember { FocusRequester() }
     val downloadsFocusRequester = remember { FocusRequester() }
+    val homeNavFocusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
 
-    var lastFocusedIndex by rememberSaveable { mutableStateOf(HomeFocusIndex.TRENDING) }
+    var lastFocusedIndex by rememberSaveable { mutableStateOf(HomeFocusIndex.NAV) }
 
     // Restore focus on initial load AND when returning from other screens
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
@@ -102,11 +103,11 @@ fun HomeScreen(
                 repeat(15) {
                     try {
                         when (lastFocusedIndex) {
+                            HomeFocusIndex.NAV -> homeNavFocusRequester.requestFocus()
                             HomeFocusIndex.TRENDING -> trendingFocusRequester.requestFocus()
                             HomeFocusIndex.CONTINUE -> continueFocusRequester.requestFocus()
                             HomeFocusIndex.DOWNLOADS -> downloadsFocusRequester.requestFocus()
                         }
-                        // If we reached here without exception, focus is likely requested
                     } catch (e: Exception) {}
                     delay(30)
                 }
@@ -140,7 +141,9 @@ fun HomeScreen(
                 onNavigateToSettings = onNavigateToSettings,
                 onNavigateToLiveTv = onNavigateToLiveTv,
                 onNavigateToMovies = onNavigateToMovies,
-                onNavigateToSeries = onNavigateToSeries
+                onNavigateToSeries = onNavigateToSeries,
+                homeNavFocusRequester = homeNavFocusRequester,
+                onHomeNavFocused = { lastFocusedIndex = HomeFocusIndex.NAV }
             )
 
             val lastWatched = uiState.continueWatching.firstOrNull()
@@ -235,7 +238,9 @@ private fun HomeTopNavBar(
     onNavigateToSettings: () -> Unit,
     onNavigateToLiveTv: () -> Unit,
     onNavigateToMovies: () -> Unit,
-    onNavigateToSeries: () -> Unit
+    onNavigateToSeries: () -> Unit,
+    homeNavFocusRequester: FocusRequester,
+    onHomeNavFocused: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -252,7 +257,12 @@ private fun HomeTopNavBar(
             horizontalArrangement = Arrangement.spacedBy(24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            NavTabButton(label = stringResource(R.string.nav_home), isActive = true, onClick = {})
+            NavTabButton(
+                label = stringResource(R.string.nav_home), 
+                isActive = true, 
+                onClick = {},
+                modifier = Modifier.focusRequester(homeNavFocusRequester).onFocusChanged { if (it.isFocused) onHomeNavFocused() }
+            )
             NavTabButton(label = stringResource(R.string.nav_live_tv), isActive = false, onClick = onNavigateToLiveTv)
             NavTabButton(label = stringResource(R.string.nav_movies), isActive = false, onClick = onNavigateToMovies)
             NavTabButton(label = stringResource(R.string.nav_series), isActive = false, onClick = onNavigateToSeries)

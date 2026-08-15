@@ -23,7 +23,9 @@ import com.eliteprime.app.player.GlobalPlayerState
 import com.eliteprime.app.player.PlayerEngine
 import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.MainShell
+import com.eliteprime.app.ui.tv.TvMainShell
 import com.eliteprime.app.ui.theme.ArenaLiveTheme
+import com.eliteprime.app.util.isTelevisionDevice
 import dagger.hilt.android.AndroidEntryPoint
 import io.objectbox.BoxStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -66,12 +68,21 @@ class MainActivity : AppCompatActivity() {
         _pictureInPictureModeFlow.value = isInPictureInPictureMode
 
         setContent {
+            val isTv = isTelevisionDevice()
             ArenaLiveTheme {
-                MainShell(
-                    playerEngine = playerEngine,
-                    globalPlayerState = globalPlayerState,
-                    startDestination = startDest
-                )
+                if (isTv) {
+                    TvMainShell(
+                        playerEngine = playerEngine,
+                        globalPlayerState = globalPlayerState,
+                        startDestination = startDest
+                    )
+                } else {
+                    MainShell(
+                        playerEngine = playerEngine,
+                        globalPlayerState = globalPlayerState,
+                        startDestination = startDest
+                    )
+                }
             }
         }
     }

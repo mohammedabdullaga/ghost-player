@@ -23,14 +23,15 @@ import com.eliteprime.app.util.isTelevisionDevice
 fun NavTabButton(
     label: String,
     isActive: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
     if (isTv) {
         var isFocused by remember { mutableStateOf(false) }
         TvSurface(
             onClick = onClick,
-            modifier = Modifier
+            modifier = modifier
                 .height(40.dp)
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),

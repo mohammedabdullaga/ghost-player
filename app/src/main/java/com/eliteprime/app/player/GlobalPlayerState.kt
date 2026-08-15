@@ -31,8 +31,8 @@ class GlobalPlayerState @Inject constructor() {
     private val _useTransformHandoff = MutableStateFlow(true) 
     val useTransformHandoff: StateFlow<Boolean> = _useTransformHandoff.asStateFlow()
 
-    // STABILITY FIX: Default to SURFACE_VIEW for TV hardware to avoid slow-motion
-    private val _surfaceType = MutableStateFlow(PlayerRenderSurfaceType.SURFACE_VIEW)
+    // STABILITY FIX: Use TextureView for Previews (Z-Order) and SurfaceView for Fullscreen (4K Performance)
+    private val _surfaceType = MutableStateFlow(PlayerRenderSurfaceType.TEXTURE_VIEW)
     val surfaceType: StateFlow<PlayerRenderSurfaceType> = _surfaceType.asStateFlow()
 
     fun setSurfaceType(type: PlayerRenderSurfaceType) {
@@ -43,27 +43,25 @@ class GlobalPlayerState @Inject constructor() {
     }
 
     fun updateSurfaceTypeForResolution(width: Int, height: Int) {
-        // Only trigger swap on zap, not mid-stream to prevent freezes
-        val isUhd = width >= 3000 || height >= 2000
-        val targetType = if (isUhd) PlayerRenderSurfaceType.SURFACE_VIEW else PlayerRenderSurfaceType.TEXTURE_VIEW
-        
-        // Disable mid-stream surface swap as it causes Amlogic freezes
-        /*
-        if (_surfaceType.value != targetType) {
-            Log.i("GlobalPlayerState", "Requesting surface swap to $targetType")
-            _surfaceType.value = targetType
-        }
-        */
+        // Reserved for future resolution-based logic
+    }
+
+    private fun updateSurfaceForMode(mode: PlayerViewMode) {
+        val targetType = if (mode == PlayerViewMode.FULLSCREEN) 
+            PlayerRenderSurfaceType.SURFACE_VIEW else PlayerRenderSurfaceType.TEXTURE_VIEW
+        setSurfaceType(targetType)
     }
 
     fun enterFullScreen(engine: PlayerEngine) {
         Log.d("GlobalPlayerState", "Entering FULLSCREEN mode")
+        updateSurfaceForMode(PlayerViewMode.FULLSCREEN)
         _activeEngine.value = engine
         _mode.value = PlayerViewMode.FULLSCREEN
     }
 
     fun enterPreview(engine: PlayerEngine) {
         Log.d("GlobalPlayerState", "Entering PREVIEW mode")
+        updateSurfaceForMode(PlayerViewMode.PREVIEW)
         _activeEngine.value = engine
         _mode.value = PlayerViewMode.PREVIEW
     }

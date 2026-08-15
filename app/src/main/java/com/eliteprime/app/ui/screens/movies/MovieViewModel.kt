@@ -23,7 +23,6 @@ class MovieViewModel @Inject constructor(
     companion object {
         const val CAT_ID_FAVORITES = -1L
         const val CAT_ID_CONTINUE = -2L
-        const val CAT_ID_ALL = -3L
         private const val FAST_LOAD_LIMIT = 500L
     }
 
@@ -42,8 +41,7 @@ class MovieViewModel @Inject constructor(
         .map { providerCats ->
             val virtualCats = listOf(
                 Category(id = CAT_ID_FAVORITES, categoryName = "★ Favorites", isVirtual = true),
-                Category(id = CAT_ID_CONTINUE, categoryName = "🕒 Continue Watching", isVirtual = true),
-                Category(id = CAT_ID_ALL, categoryName = "All Movies", isVirtual = true)
+                Category(id = CAT_ID_CONTINUE, categoryName = "🕒 Continue Watching", isVirtual = true)
             )
             (virtualCats + providerCats.filter { !it.isHidden }).sortedBy { it.order }
         }
@@ -56,19 +54,18 @@ class MovieViewModel @Inject constructor(
         _searchQuery.debounce(300),
         categoriesFlow
     ) { selectedId, query, allCategories ->
-        val currentId = selectedId ?: CAT_ID_ALL
-        val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.find { it.id == CAT_ID_ALL } ?: allCategories.first()
+        val currentId = selectedId ?: CAT_ID_FAVORITES
+        val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull() ?: return@combine emptyList()
 
         withContext(Dispatchers.IO) {
             if (query.isNotEmpty()) {
                 val qb = movieBox.query().contains(Movie_.name, query, StringOrder.CASE_INSENSITIVE)
-                if (currentId != CAT_ID_ALL && currentId > 0) {
+                if (currentId > 0) {
                     qb.equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
                 }
                 qb.build().find(0, FAST_LOAD_LIMIT)
             } else {
                 when (currentId) {
-                    CAT_ID_ALL -> movieBox.query().build().find(0, FAST_LOAD_LIMIT)
                     CAT_ID_FAVORITES -> movieBox.query().equal(Movie_.isFavorite, true).build().find()
                     CAT_ID_CONTINUE -> {
                         val histories = historyBox.query()
@@ -100,8 +97,8 @@ class MovieViewModel @Inject constructor(
         filteredMoviesFlow
     ) { allCategories, selectedId, movies ->
         
-        val currentId = selectedId ?: CAT_ID_ALL
-        val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.find { it.id == CAT_ID_ALL } ?: allCategories.first()
+        val currentId = selectedId ?: CAT_ID_FAVORITES
+        val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull()
 
         MovieUiState(
             categories = allCategories,

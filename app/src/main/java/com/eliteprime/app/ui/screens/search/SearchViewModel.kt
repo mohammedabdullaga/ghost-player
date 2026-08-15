@@ -25,9 +25,13 @@ class SearchViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query.asStateFlow()
+
     private var searchJob: Job? = null
 
     fun onQueryChange(query: String) {
+        _query.value = query
         val trimmed = query.trim()
         if (trimmed.length < 2) {
             _uiState.value = SearchUiState(isLoading = false)
