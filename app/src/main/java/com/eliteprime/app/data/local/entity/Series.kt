@@ -16,13 +16,13 @@ data class Series(
     @SerializedName("last_modified") var lastModified: String? = null,
     @Index @SerializedName("category_id") var remoteCategoryId: String? = null,
     
-    // Non-persistent metadata (fetched on demand)
-    @Transient var plot: String? = null,
-    @Transient var cast: String? = null,
-    @Transient var director: String? = null,
-    @Transient var genre: String? = null,
-    @Transient var releaseDate: String? = null,
-    @Transient var rating: Double = 0.0,
+    // Persistent metadata (fetched on demand)
+    var plot: String? = null,
+    var cast: String? = null,
+    var director: String? = null,
+    var genre: String? = null,
+    var releaseDate: String? = null,
+    var rating: Double = 0.0,
 
     // TMDB metadata
     var tmdbId: Long = 0,

@@ -29,6 +29,7 @@ import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.search.SearchViewModel
+import com.eliteprime.app.ui.tv.core.*
 import kotlinx.coroutines.delay
 
 @Composable
@@ -51,74 +52,71 @@ fun TvSearchScreen(
         searchFocusRequester.requestFocus()
     }
 
-    AppBackground(isTransparent = true) {
-        Box(modifier = Modifier.fillMaxSize().padding(56.dp)) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Text(
-                    text = stringResource(R.string.nav_search).uppercase(),
-                    style = MaterialTheme.typography.displaySmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = (-0.5).sp
-                )
+    Box(modifier = Modifier.fillMaxSize().padding(horizontal = 56.dp, vertical = 24.dp)) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Text(
+                text = stringResource(R.string.nav_search).uppercase(),
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.sp
+            )
 
-                Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-                // Search Input
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { viewModel.onQueryChange(it) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(searchFocusRequester),
-                    placeholder = { Text(stringResource(R.string.search_placeholder), color = Color.White.copy(alpha = 0.3f)) },
-                    leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.White) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFFFF8C00),
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
-                        focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                        unfocusedContainerColor = Color.White.copy(alpha = 0.05f)
-                    ),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
-                )
+            // Modern Search Input
+            OutlinedTextField(
+                value = query,
+                onValueChange = { viewModel.onQueryChange(it) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(searchFocusRequester),
+                placeholder = { Text(stringResource(R.string.search_placeholder), color = Color.White.copy(alpha = 0.3f)) },
+                leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.White) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = TvColors.Primary,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                    focusedContainerColor = Color.White.copy(alpha = 0.05f),
+                    unfocusedContainerColor = Color.White.copy(alpha = 0.05f)
+                ),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
 
-                Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-                // Results
+            // Results in Glass Pane
+            TvGlassPane(modifier = Modifier.fillMaxSize()) {
                 if (query.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(stringResource(R.string.search_idle_desc), color = Color.White.copy(alpha = 0.3f))
+                        Text(stringResource(R.string.search_idle_desc), color = TvColors.TextTertiary, fontSize = 13.sp)
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(bottom = 32.dp)
+                        contentPadding = PaddingValues(16.dp)
                     ) {
-                        // Channels Section
                         if (uiState.channels.isNotEmpty()) {
-                            item { SearchSectionHeader(stringResource(R.string.generic_channels)) }
+                            item { SearchHeader(stringResource(R.string.generic_channels)) }
                             items(uiState.channels) { channel ->
-                                TvSearchResultRow(channel.name, "Live TV") { onChannelClick(channel) }
+                                TvSearchRow(channel.name, "LIVE TV") { onChannelClick(channel) }
                             }
                         }
 
-                        // Movies Section
                         if (uiState.movies.isNotEmpty()) {
-                            item { SearchSectionHeader(stringResource(R.string.nav_movies)) }
+                            item { SearchHeader(stringResource(R.string.nav_movies)) }
                             items(uiState.movies) { movie ->
-                                TvSearchResultRow(movie.name, "Movie") { onMovieClick(movie) }
+                                TvSearchRow(movie.name, "MOVIE") { onMovieClick(movie) }
                             }
                         }
 
-                        // Series Section
                         if (uiState.series.isNotEmpty()) {
-                            item { SearchSectionHeader(stringResource(R.string.nav_series)) }
+                            item { SearchHeader(stringResource(R.string.nav_series)) }
                             items(uiState.series) { series ->
-                                TvSearchResultRow(series.name, "Series") { onSeriesClick(series) }
+                                TvSearchRow(series.name, "SERIES") { onSeriesClick(series) }
                             }
                         }
                     }
@@ -129,42 +127,38 @@ fun TvSearchScreen(
 }
 
 @Composable
-private fun SearchSectionHeader(title: String) {
+private fun SearchHeader(title: String) {
     Text(
         text = title.uppercase(),
         style = MaterialTheme.typography.labelLarge,
-        color = Color(0xFFFF8C00),
+        color = TvColors.Primary,
         fontWeight = FontWeight.Black,
         modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
     )
 }
 
 @Composable
-private fun TvSearchResultRow(
+private fun TvSearchRow(
     title: String,
     type: String,
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    TvSurface(
+    TvSurfaceCard(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .onFocusChanged { isFocused = it.isFocused },
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+        modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.White.copy(alpha = 0.05f),
+            containerColor = Color.White.copy(alpha = 0.03f),
             focusedContainerColor = Color.White
-        ),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp))
+        )
     ) {
         Row(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(text = title, color = if (isFocused) Color.Black else Color.White, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-            Text(text = type, color = if (isFocused) Color.Black.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.bodySmall)
+            TvBadge(text = type, containerColor = if (isFocused) Color.Black.copy(alpha = 0.1f) else TvColors.Primary.copy(alpha = 0.2f), contentColor = if (isFocused) Color.Black else TvColors.Primary)
         }
     }
 }

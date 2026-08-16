@@ -1,7 +1,7 @@
 package com.eliteprime.app.ui.tv.screens
 
+import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,13 +23,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
-import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.settings.SettingsViewModel
-import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.ui.tv.core.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -51,103 +49,112 @@ fun TvSettingsScreen(
     val scope = rememberCoroutineScope()
     val firstTabRequester = remember { FocusRequester() }
 
-    BackHandler {
-        onBack()
-    }
+    BackHandler { onBack() }
 
     LaunchedEffect(Unit) {
         delay(200)
         firstTabRequester.requestFocus()
     }
 
-    AppBackground(isTransparent = true) {
-        Row(modifier = Modifier.fillMaxSize().padding(32.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
-            
-            // --- LEFT: Tabs ---
-            Column(modifier = Modifier.weight(0.3f)) {
-                Text(
-                    text = stringResource(R.string.nav_settings).uppercase(),
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontWeight = FontWeight.Black,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(bottom = 24.dp)
-                )
+    Box(modifier = Modifier.fillMaxSize().padding(horizontal = 56.dp, vertical = 24.dp)) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Text(
+                text = stringResource(R.string.nav_settings).uppercase(),
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White,
+                fontWeight = FontWeight.Black,
+                letterSpacing = 1.sp
+            )
 
-                SettingTab.entries.forEachIndexed { index, tab ->
-                    TvTabItem(
-                        label = stringResource(tab.labelRes),
-                        icon = tab.icon,
-                        isSelected = selectedTab == tab,
-                        modifier = if (index == 0) Modifier.focusRequester(firstTabRequester) else Modifier,
-                        onFocused = { selectedTab = tab }
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // --- RIGHT: Content ---
-            Column(modifier = Modifier.weight(0.7f).background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(16.dp)).padding(32.dp)) {
-                Text(
-                    text = stringResource(selectedTab.labelRes).uppercase(),
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
-                )
+            Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
                 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 24.dp), color = Color.White.copy(alpha = 0.1f))
+                // --- LEFT: TABS (Glass Sidebar) ---
+                TvGlassPane(modifier = Modifier.weight(0.3f)) {
+                    Box(modifier = Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 20.dp), contentAlignment = Alignment.CenterStart) {
+                        Text(text = "CATEGORIES", color = TvColors.TextTertiary, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 2.sp)
+                    }
+                    HorizontalDivider(color = TvColors.GlassBorder)
 
-                LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    when (selectedTab) {
-                        SettingTab.ACCOUNT -> {
-                            item {
-                                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    TvSettingsButton(
-                                        label = if (uiState.isSyncing) stringResource(R.string.player_buffering) else stringResource(R.string.settings_refresh_data), 
-                                        icon = Icons.Default.Refresh
+                    SettingTab.entries.forEachIndexed { index, tab ->
+                        TvNavItem(
+                            label = stringResource(tab.labelRes),
+                            icon = tab.icon,
+                            isSelected = selectedTab == tab,
+                            modifier = if (index == 0) Modifier.focusRequester(firstTabRequester) else Modifier,
+                            onFocused = { selectedTab = tab }
+                        )
+                    }
+                }
+
+                // --- RIGHT: CONTENT (Dynamic Panel) ---
+                TvGlassPane(modifier = Modifier.weight(0.7f), backgroundColor = Color.White.copy(alpha = 0.03f)) {
+                    Box(modifier = Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 24.dp), contentAlignment = Alignment.CenterStart) {
+                        Text(text = stringResource(selectedTab.labelRes).uppercase(), style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Black)
+                    }
+                    HorizontalDivider(color = TvColors.GlassBorder)
+
+                    LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        when (selectedTab) {
+                            SettingTab.ACCOUNT -> {
+                                item {
+                                    TvSettingsAction(
+                                        label = if (uiState.isSyncing) "Syncing..." else stringResource(R.string.settings_refresh_data), 
+                                        icon = Icons.Default.Refresh,
+                                        subtitle = "Update channels and VOD lists"
                                     ) { viewModel.syncAll() }
-                                    
-                                    TvSettingsButton(label = stringResource(R.string.nav_logout), icon = Icons.Default.Logout, color = Color(0xFFEF5350)) { onLogout() }
+                                }
+                                item {
+                                    TvSettingsAction(
+                                        label = stringResource(R.string.nav_logout), 
+                                        icon = Icons.Default.Logout, 
+                                        color = Color(0xFFEF5350),
+                                        subtitle = "Sign out from this account"
+                                    ) { onLogout() }
                                 }
                             }
-                        }
-                        SettingTab.PLAYBACK -> {
-                            item {
-                                TvToggleItem(
-                                    title = stringResource(R.string.settings_prevent_standby),
-                                    checked = uiState.preventStandby,
-                                    onCheckedChange = { viewModel.setPreventStandby(it) }
-                                )
-                            }
-                            item {
-                                TvToggleItem(
-                                    title = stringResource(R.string.settings_auto_play_next_episode),
-                                    checked = uiState.autoPlayNextEpisode,
-                                    onCheckedChange = { viewModel.setAutoPlayNextEpisode(it) }
-                                )
-                            }
-                            item {
-                                TvToggleItem(
-                                    title = stringResource(R.string.settings_zap_auto_revert),
-                                    checked = uiState.zapAutoRevert,
-                                    onCheckedChange = { viewModel.setZapAutoRevert(it) }
-                                )
-                            }
-                        }
-                        SettingTab.NETWORK -> {
-                            item {
-                                TvToggleItem(
-                                    title = stringResource(R.string.settings_secure_connection),
-                                    checked = uiState.isSecureConnectionEnabled,
-                                    onCheckedChange = { viewModel.setSecureConnectionEnabled(it) }
-                                )
-                            }
-                        }
-                        SettingTab.ABOUT -> {
-                            item {
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    TvInfoRow("App Name", "ArenaLive")
-                                    TvInfoRow("Developed by", "Elit Bahrain")
-                                    TvInfoRow("Build Version", "1.1.0 (Media3 1.11.0)")
+                            SettingTab.PLAYBACK -> {
+                                item {
+                                    TvToggleRow(
+                                        title = stringResource(R.string.settings_prevent_standby), 
+                                        subtitle = "Keep screen active during playback",
+                                        checked = uiState.preventStandby
+                                    ) { viewModel.setPreventStandby(it) }
                                 }
+                                item {
+                                    TvToggleRow(
+                                        title = stringResource(R.string.settings_auto_play_next_episode), 
+                                        subtitle = "Start next episode automatically",
+                                        checked = uiState.autoPlayNextEpisode
+                                    ) { viewModel.setAutoPlayNextEpisode(it) }
+                                }
+                                item {
+                                    TvSelectionRow(
+                                        title = stringResource(R.string.settings_decoder_mode),
+                                        value = uiState.decoderMode,
+                                        icon = Icons.Default.Hardware
+                                    ) { 
+                                        val modes = listOf("AUTO", "HARDWARE", "SOFTWARE")
+                                        val next = modes[(modes.indexOf(uiState.decoderMode) + 1) % modes.size]
+                                        viewModel.setDecoderMode(next)
+                                    }
+                                }
+                            }
+                            SettingTab.NETWORK -> {
+                                item {
+                                    TvToggleRow(
+                                        title = stringResource(R.string.settings_secure_connection), 
+                                        subtitle = "Enable shadowsocks VPN tunnel",
+                                        checked = uiState.isSecureConnectionEnabled
+                                    ) { viewModel.setSecureConnectionEnabled(it) }
+                                }
+                            }
+                            SettingTab.ABOUT -> {
+                                item { TvInfoItem("App Name", "ArenaLive") }
+                                item { TvInfoItem("Hardware", Build.MODEL) }
+                                item { TvInfoItem("OS Version", "Android ${Build.VERSION.RELEASE}") }
+                                item { TvInfoItem("Engine", "Media3 1.11.0 (Stable)") }
                             }
                         }
                     }
@@ -158,85 +165,82 @@ fun TvSettingsScreen(
 }
 
 @Composable
-private fun TvTabItem(
+private fun TvNavItem(
     label: String,
     icon: ImageVector,
     isSelected: Boolean,
     modifier: Modifier = Modifier,
     onFocused: () -> Unit
 ) {
-    TvSurface(
+    var isFocused by remember { mutableStateOf(false) }
+    TvSurfaceCard(
         onClick = { /* Focus handles selection */ },
-        modifier = modifier.fillMaxWidth().padding(vertical = 4.dp).onFocusChanged { if (it.isFocused) onFocused() },
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+        modifier = modifier.padding(vertical = 4.dp).onFocusChanged { 
+            isFocused = it.isFocused
+            if (it.isFocused) onFocused() 
+        },
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.Transparent,
-            focusedContainerColor = AppColors.ArenaOrange
-        ),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp))
+            containerColor = if (isSelected) TvColors.Primary.copy(alpha = 0.2f) else Color.Transparent,
+            focusedContainerColor = Color.White
+        )
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
-            Text(text = label, color = Color.White, fontWeight = FontWeight.Bold)
+        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(icon, null, tint = if (isFocused) Color.Black else Color.White, modifier = Modifier.size(20.dp))
+            Text(text = label, color = if (isFocused) Color.Black else Color.White, fontWeight = FontWeight.Bold)
         }
     }
 }
 
 @Composable
-private fun TvSettingsButton(
-    label: String,
-    icon: ImageVector,
-    color: Color = Color.White,
+private fun TvSettingsAction(
+    label: String, 
+    icon: ImageVector, 
+    subtitle: String,
+    color: Color = Color.White, 
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    TvSurface(
+    TvSurfaceCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().onFocusChanged { isFocused = it.isFocused },
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+        modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.White.copy(alpha = 0.05f),
             focusedContainerColor = Color.White
-        ),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
-        border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, color)))
+        )
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Icon(icon, null, tint = if (isFocused) Color.Black else color)
-            Text(text = label, color = if (isFocused) Color.Black else color, fontWeight = FontWeight.Bold)
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            Box(modifier = Modifier.size(44.dp).background(if(isFocused) Color.Black.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.05f), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = if (isFocused) Color.Black else color)
+            }
+            Column {
+                Text(text = label, color = if (isFocused) Color.Black else color, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                Text(text = subtitle, color = if (isFocused) Color.Black.copy(alpha = 0.6f) else TvColors.TextTertiary, fontSize = 12.sp)
+            }
         }
     }
 }
 
 @Composable
-private fun TvToggleItem(
-    title: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
+private fun TvToggleRow(title: String, subtitle: String, checked: Boolean, onToggle: (Boolean) -> Unit) {
     var isFocused by remember { mutableStateOf(false) }
-    TvSurface(
-        onClick = { onCheckedChange(!checked) },
-        modifier = Modifier.fillMaxWidth().onFocusChanged { isFocused = it.isFocused },
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.White.copy(alpha = 0.05f),
-            focusedContainerColor = Color.White
-        ),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp))
+    TvSurfaceCard(
+        onClick = { onToggle(!checked) },
+        modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
+        colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.05f), focusedContainerColor = Color.White)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(text = title, color = if (isFocused) Color.Black else Color.White, fontWeight = FontWeight.Bold)
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = title, color = if (isFocused) Color.Black else Color.White, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                Text(text = subtitle, color = if (isFocused) Color.Black.copy(alpha = 0.6f) else TvColors.TextTertiary, fontSize = 12.sp)
+            }
             Switch(
-                checked = checked,
+                checked = checked, 
                 onCheckedChange = null,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = AppColors.ArenaOrange,
-                    checkedTrackColor = AppColors.ArenaOrange.copy(alpha = 0.4f)
+                    checkedThumbColor = TvColors.Primary, 
+                    checkedTrackColor = TvColors.Primary.copy(alpha = 0.3f),
+                    uncheckedThumbColor = Color.White.copy(alpha = 0.4f),
+                    uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
                 )
             )
         }
@@ -244,9 +248,26 @@ private fun TvToggleItem(
 }
 
 @Composable
-private fun TvInfoRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(text = label, color = Color.White.copy(alpha = 0.6f))
-        Text(text = value, color = Color.White, fontWeight = FontWeight.Bold)
+private fun TvSelectionRow(title: String, value: String, icon: ImageVector, onClick: () -> Unit) {
+    var isFocused by remember { mutableStateOf(false) }
+    TvSurfaceCard(
+        onClick = onClick,
+        modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
+        colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.05f), focusedContainerColor = Color.White)
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, tint = if (isFocused) Color.Black else TvColors.Primary, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(text = title, color = if (isFocused) Color.Black else Color.White, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
+            Text(text = value, color = if (isFocused) Color.Black else TvColors.Primary, fontWeight = FontWeight.Black, fontSize = 14.sp)
+        }
+    }
+}
+
+@Composable
+private fun TvInfoItem(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(text = label, color = TvColors.TextSecondary, fontSize = 14.sp)
+        Text(text = value, color = Color.White, fontWeight = FontWeight.Black, fontSize = 14.sp)
     }
 }

@@ -58,7 +58,11 @@ class LiveViewModel @Inject constructor(
     private val _isReorderMode = MutableStateFlow(false)
     val isReorderMode = _isReorderMode.asStateFlow()
 
+    private val _isChannelReorderMode = MutableStateFlow(false)
+    val isChannelReorderMode = _isChannelReorderMode.asStateFlow()
+
     private val _reorderCategories = MutableStateFlow<List<Category>>(emptyList())
+    private val _reorderChannels = MutableStateFlow<List<LiveStream>>(emptyList())
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val categoriesFlow = combine(
@@ -81,8 +85,9 @@ class LiveViewModel @Inject constructor(
     private val filteredChannelsFlow = combine(
         _selectedCategoryId,
         _searchQuery.debounce(300),
-        categoriesFlow
-    ) { selectedId, query, allCategories ->
+        categoriesFlow,
+        liveBox.query().build().flow()
+    ) { selectedId, query, allCategories, _ ->
         val currentId = selectedId 
             ?: allCategories.find { it.id == CAT_ID_FAVORITES }?.id 
             ?: allCategories.firstOrNull()?.id
@@ -97,18 +102,34 @@ class LiveViewModel @Inject constructor(
                     if (favs.isEmpty() && selectedId == null) {
                         val fallback = allCategories.firstOrNull { !it.isVirtual }
                         if (fallback != null) {
-                            liveBox.query().equal(LiveStream_.remoteCategoryId, fallback.categoryId, StringOrder.CASE_INSENSITIVE).build().find()
+                            liveBox.query()
+                                .equal(LiveStream_.remoteCategoryId, fallback.categoryId, StringOrder.CASE_INSENSITIVE)
+                                .order(LiveStream_.order)
+                                .build().find()
                         } else favs
                     } else favs
                 }
-                CAT_ID_RECENT -> liveBox.query().notEqual(LiveStream_.lastWatchedAt, 0L).orderDesc(LiveStream_.lastWatchedAt).build().find(0, 50)
+                CAT_ID_RECENT -> {
+                    liveBox.query()
+                        .greater(LiveStream_.lastWatchedAt, 0L)
+                        .orderDesc(LiveStream_.lastWatchedAt)
+                        .build()
+                        .find(0, 50)
+                }
                 else -> {
                     if (currentId >= 1000000) {
                         val realGroupId = currentId - 1000000
-                        val streamIds = groupMembershipBox.query().equal(GroupMembership_.groupId, realGroupId).build().find().map { it.streamId }
+                        val memberships = groupMembershipBox.query()
+                            .equal(GroupMembership_.groupId, realGroupId)
+                            .order(GroupMembership_.order)
+                            .build().find()
+                        val streamIds = memberships.map { it.streamId }
                         liveBox.get(streamIds).filterNotNull()
                     } else {
-                        liveBox.query().equal(LiveStream_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE).build().find()
+                        liveBox.query()
+                            .equal(LiveStream_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+                            .order(LiveStream_.order)
+                            .build().find()
                     }
                 }
             }
@@ -123,9 +144,9 @@ class LiveViewModel @Inject constructor(
         categoriesFlow,
         _selectedCategoryId,
         filteredChannelsFlow,
-        _isReorderMode,
-        _reorderCategories
-    ) { allCategories, selectedId, channels, reorderMode, reorderList ->
+        combine(_isReorderMode, _reorderCategories, _isChannelReorderMode, _reorderChannels) { a, b, c, d -> Quad(a, b, c, d) }
+    ) { allCategories, selectedId, channels, quad ->
+        val (reorderMode, reorderList, channelReorderMode, channelReorderList) = quad
         
         val categories = if (reorderMode) reorderList else allCategories
         val currentId = selectedId 
@@ -138,9 +159,10 @@ class LiveViewModel @Inject constructor(
         LiveUiState(
             categories = categories,
             selectedCategory = currentSelected,
-            filteredChannels = if (reorderMode) emptyList() else channels,
+            filteredChannels = if (channelReorderMode) channelReorderList else (if (reorderMode) emptyList() else channels),
             isLoading = false,
-            isCategoryReorderMode = reorderMode
+            isCategoryReorderMode = reorderMode,
+            isChannelReorderMode = channelReorderMode
         )
     }
     .flowOn(Dispatchers.Default)
@@ -174,6 +196,15 @@ class LiveViewModel @Inject constructor(
         
         _previewChannel.value = channel
         
+        // Update last watched timestamp so it shows in Recents immediately
+        viewModelScope.launch(Dispatchers.IO) {
+            val freshChannel = liveBox.get(channel.id)
+            if (freshChannel != null) {
+                freshChannel.lastWatchedAt = System.currentTimeMillis()
+                liveBox.put(freshChannel)
+            }
+        }
+        
         // Handle Zap Auto Revert
         zapRevertJob?.cancel()
         if (preferenceRepository.zapAutoRevert.value) {
@@ -205,6 +236,12 @@ class LiveViewModel @Inject constructor(
     fun confirmChannel(channel: LiveStream) {
         zapRevertJob?.cancel()
         lastStableChannel = channel
+        
+        // Update last watched timestamp for Recents
+        viewModelScope.launch(Dispatchers.IO) {
+            channel.lastWatchedAt = System.currentTimeMillis()
+            liveBox.put(channel)
+        }
     }
 
     fun toggleFavorite(channel: LiveStream) {
@@ -263,7 +300,7 @@ class LiveViewModel @Inject constructor(
     fun moveCategoryUp(category: Category) {
         val list = _reorderCategories.value.toMutableList()
         val index = list.indexOfFirst { it.id == category.id }
-        if (index > 3) { // Skip Favorites, Recent, All
+        if (index > 2) { // Skip Favorites, Recent (Indices 0, 1)
             Collections.swap(list, index, index - 1)
             _reorderCategories.value = list
         }
@@ -272,7 +309,7 @@ class LiveViewModel @Inject constructor(
     fun moveCategoryDown(category: Category) {
         val list = _reorderCategories.value.toMutableList()
         val index = list.indexOfFirst { it.id == category.id }
-        if (index >= 3 && index < list.size - 1) {
+        if (index >= 2 && index < list.size - 1) {
             Collections.swap(list, index, index + 1)
             _reorderCategories.value = list
         }
@@ -297,6 +334,63 @@ class LiveViewModel @Inject constructor(
         _isReorderMode.value = false
     }
 
+    // --- CHANNEL REORDER LOGIC ---
+
+    fun enterChannelReorderMode() {
+        _reorderChannels.value = uiState.value.filteredChannels
+        _isChannelReorderMode.value = true
+    }
+
+    fun exitChannelReorderMode() {
+        _isChannelReorderMode.value = false
+    }
+
+    fun moveChannelUp(channel: LiveStream) {
+        val list = _reorderChannels.value.toMutableList()
+        val index = list.indexOfFirst { it.id == channel.id }
+        if (index > 0) {
+            Collections.swap(list, index, index - 1)
+            _reorderChannels.value = list
+        }
+    }
+
+    fun moveChannelDown(channel: LiveStream) {
+        val list = _reorderChannels.value.toMutableList()
+        val index = list.indexOfFirst { it.id == channel.id }
+        if (index >= 0 && index < list.size - 1) {
+            Collections.swap(list, index, index + 1)
+            _reorderChannels.value = list
+        }
+    }
+
+    fun saveChannelOrder() {
+        val list = _reorderChannels.value
+        val currentCatId = _selectedCategoryId.value ?: CAT_ID_FAVORITES
+        
+        boxStore.runInTx {
+            list.forEachIndexed { index, channel ->
+                if (currentCatId >= 1000000) {
+                    val groupId = currentCatId - 1000000
+                    val membership = groupMembershipBox.query()
+                        .equal(GroupMembership_.groupId, groupId)
+                        .equal(GroupMembership_.streamId, channel.id)
+                        .build().findFirst()
+                    if (membership != null) {
+                        membership.order = index
+                        groupMembershipBox.put(membership)
+                    }
+                } else {
+                    val stream = liveBox.get(channel.id)
+                    if (stream != null) {
+                        stream.order = index
+                        liveBox.put(stream)
+                    }
+                }
+            }
+        }
+        _isChannelReorderMode.value = false
+    }
+
     fun clearPreview() {
         _previewChannel.value = null
         playerEngine.stop()
@@ -315,5 +409,8 @@ data class LiveUiState(
     val selectedCategory: Category? = null,
     val filteredChannels: List<LiveStream> = emptyList(),
     val isLoading: Boolean = true,
-    val isCategoryReorderMode: Boolean = false
+    val isCategoryReorderMode: Boolean = false,
+    val isChannelReorderMode: Boolean = false
 )
+
+private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)

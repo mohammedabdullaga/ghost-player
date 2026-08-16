@@ -54,7 +54,7 @@ fun TvAppNavigation(
 
     NavHost(navController = navController, startDestination = startDestination, modifier = modifier) {
         composable("login") {
-            LoginScreen(viewModel = hiltViewModel<LoginViewModel>(), onLoginSuccess = {
+            TvLoginScreen(onLoginSuccess = {
                 navController.navigate("home") {
                     popUpTo("login") { inclusive = true }
                 }
@@ -137,6 +137,9 @@ fun TvAppNavigation(
                 onBack = { navController.popBackStack() },
                 onPlayEpisode = { episode, title ->
                     navController.navigate("player/${episode.id}/series/${Uri.encode(title)}")
+                },
+                onSeriesClick = { series ->
+                    navController.navigate("series_details/${series.id}")
                 }
             )
         }
@@ -162,7 +165,7 @@ fun TvAppNavigation(
         }
 
         composable("downloads") {
-            DownloadsScreen(
+            TvDownloadsScreen(
                 onBack = { navController.popBackStack() },
                 onPlayDownload = { download ->
                     val path = download.outputUri ?: download.outputDisplayPath ?: ""
@@ -176,7 +179,7 @@ fun TvAppNavigation(
         }
 
         composable("continue_watching") {
-            ContinueWatchingGridScreen(
+            TvHistoryGridScreen(
                 onBack = { navController.popBackStack() },
                 onNavigateToMovieDetails = { id -> navController.navigate("movie_details/$id") },
                 onNavigateToSeriesDetails = { id -> navController.navigate("series_details/$id") }

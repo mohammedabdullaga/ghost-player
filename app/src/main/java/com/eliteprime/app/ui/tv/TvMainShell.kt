@@ -1,22 +1,24 @@
 package com.eliteprime.app.ui.tv
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -27,8 +29,13 @@ import com.eliteprime.app.player.PlayerEngine
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.GlobalPlayerHost
 import com.eliteprime.app.ui.tv.navigation.TvAppNavigation
+import com.eliteprime.app.ui.tv.core.*
 import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 import androidx.tv.material3.Surface as TvSurface
+import com.eliteprime.app.R
+import com.eliteprime.app.ui.components.ArenaLiveLogo
+import kotlinx.coroutines.delay
 
 @Composable
 fun TvMainShell(
@@ -39,154 +46,181 @@ fun TvMainShell(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: ""
+    
+    val showNavBar = currentRoute in listOf("home", "live", "movies", "series", "search", "settings", "trending", "continue_watching", "downloads")
 
-    // TvSideNavRail is the single navigation rail for the whole app.
-    // "home" and "downloads" are now included here — home previously had
-    // its own separate rail built directly into TvHomeScreen, which
-    // produced two different-looking nav rails depending on which screen
-    // you were on. "downloads" was previously missing from this list
-    // entirely, so navigating there showed no rail at all.
-    val showSidebar = currentRoute in listOf("home", "live", "movies", "series", "downloads", "search", "settings")
+    // Global focus lock state
+    val isOverlayActive = LocalTvFocusManager.current
+    val navHomeFocusRequester = remember { FocusRequester() }
+    val navSettingsFocusRequester = remember { FocusRequester() }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // 1. Static Background (Bottom Layer)
-        AppBackground(modifier = Modifier.fillMaxSize()) { }
+    LaunchedEffect(currentRoute) {
+        if (currentRoute == "home" || currentRoute == "login") {
+            delay(800)
+            try { navHomeFocusRequester.requestFocus() } catch (e: Exception) {}
+        }
+    }
 
-        // 2. Global Player Layer (Middle Layer)
-        GlobalPlayerHost(
-            globalPlayerState = globalPlayerState,
-            modifier = Modifier.fillMaxSize()
-        )
+    ElitPrimeTvTheme {
+        Box(modifier = Modifier.fillMaxSize()) {
+            AppBackground(modifier = Modifier.fillMaxSize()) { }
 
-        // 3. Navigation Content + Sidebar
-        Row(modifier = Modifier.fillMaxSize()) {
-            if (showSidebar) {
-                TvSideNavRail(
-                    currentRoute = currentRoute,
-                    onNavigate = { route ->
-                        if (currentRoute != route) {
-                            // STOP PLAYER ON SECTION CHANGE
-                            globalPlayerState.hide()
-                            playerEngine.stop()
+            GlobalPlayerHost(
+                globalPlayerState = globalPlayerState,
+                modifier = Modifier.fillMaxSize()
+            )
 
-                            navController.navigate(route) {
-                                popUpTo("home") { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (showNavBar) {
+                    TvTopNavBar(
+                        currentRoute = currentRoute,
+                        navHomeFocusRequester = navHomeFocusRequester,
+                        navSettingsFocusRequester = navSettingsFocusRequester,
+                        modifier = Modifier.focusProperties { canFocus = !isOverlayActive.value },
+                        onNavigate = { route ->
+                            if (currentRoute != route) {
+                                globalPlayerState.hide()
+                                playerEngine.stop()
+                                navController.navigate(route) {
+                                    popUpTo("home") { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         }
-                    }
-                )
-            }
+                    )
+                }
 
-            Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                TvAppNavigation(
-                    navController = navController,
-                    playerEngine = playerEngine,
-                    globalPlayerState = globalPlayerState,
-                    startDestination = startDestination,
-                    modifier = Modifier.fillMaxSize()
-                )
+                Box(modifier = Modifier.weight(1f)) {
+                    TvAppNavigation(
+                        navController = navController,
+                        playerEngine = playerEngine,
+                        globalPlayerState = globalPlayerState,
+                        startDestination = startDestination,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun TvSideNavRail(
+private fun TvTopNavBar(
     currentRoute: String,
+    navHomeFocusRequester: FocusRequester,
+    navSettingsFocusRequester: FocusRequester,
+    modifier: Modifier = Modifier,
     onNavigate: (String) -> Unit
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
-
-    val railWidth = if (isExpanded) 240.dp else 80.dp
-    val railBackground = Brush.horizontalGradient(
+    val navBackground = Brush.verticalGradient(
         colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
     )
 
-    Column(
-        modifier = Modifier
-            .fillMaxHeight()
-            .width(railWidth)
-            .background(railBackground)
-            .onFocusChanged { isExpanded = it.hasFocus }
-            .animateContentSize()
-            .padding(vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(navBackground)
+            .padding(horizontal = 48.dp, vertical = 12.dp)
     ) {
-        // Logo or Icon at top
-        Box(modifier = Modifier.size(48.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Default.PlayArrow, null, tint = Color(0xFFFF8C00), modifier = Modifier.size(28.dp))
+        Box(modifier = Modifier.align(Alignment.CenterStart)) {
+            ArenaLiveLogo(textSize = 20.sp)
         }
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        // Nav Items
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = if (isExpanded) Alignment.Start else Alignment.CenterHorizontally
+        
+        Row(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalArrangement = Arrangement.spacedBy(32.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            TvNavItem(Icons.Default.Home, "Home", "home", currentRoute, isExpanded) { onNavigate("home") }
-            TvNavItem(Icons.Default.LiveTv, "Live TV", "live", currentRoute, isExpanded) { onNavigate("live") }
-            TvNavItem(Icons.Default.Movie, "Movies", "movies", currentRoute, isExpanded) { onNavigate("movies") }
-            TvNavItem(Icons.Default.Tv, "Series", "series", currentRoute, isExpanded) { onNavigate("series") }
-            TvNavItem(Icons.Default.FileDownload, "Downloads", "downloads", currentRoute, isExpanded) { onNavigate("downloads") }
-            TvNavItem(Icons.Default.Search, "Search", "search", currentRoute, isExpanded) { onNavigate("search") }
+            TvTopNavItem("Home", Icons.Default.Home, currentRoute == "home", modifier = Modifier.focusRequester(navHomeFocusRequester)) { onNavigate("home") }
+            TvTopNavItem("Live TV", Icons.Default.LiveTv, currentRoute == "live") { onNavigate("live") }
+            TvTopNavItem("Movies", Icons.Default.Movie, currentRoute == "movies") { onNavigate("movies") }
+            TvTopNavItem("Series", Icons.Default.VideoLibrary, currentRoute == "series") { onNavigate("series") }
         }
 
-        TvNavItem(Icons.Default.Settings, "Settings", "settings", currentRoute, isExpanded) { onNavigate("settings") }
+        Row(
+            modifier = Modifier.align(Alignment.CenterEnd),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TvTopNavIcon(Icons.Default.Search, currentRoute == "search") { onNavigate("search") }
+            TvTopNavIcon(Icons.Default.Settings, currentRoute == "settings", modifier = Modifier.focusRequester(navSettingsFocusRequester)) { onNavigate("settings") }
+        }
     }
 }
 
 @Composable
-private fun TvNavItem(
-    icon: ImageVector,
+private fun TvTopNavItem(
     label: String,
-    route: String,
-    currentRoute: String,
-    isExpanded: Boolean,
+    icon: ImageVector,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val isSelected = currentRoute == route
     var isFocused by remember { mutableStateOf(false) }
-
-    TvSurface(
+    
+    TvSurfaceCard(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = if (isExpanded) 16.dp else 12.dp)
-            .height(52.dp)
-            .onFocusChanged { isFocused = it.isFocused },
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+        modifier = modifier
+            .onFocusChanged { isFocused = it.isFocused }
+            .height(36.dp),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) Color.White.copy(alpha = 0.1f) else Color.Transparent,
+            containerColor = if (isSelected) TvColors.Primary.copy(alpha = 0.2f) else Color.Transparent,
             focusedContainerColor = Color.White
         ),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp))
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp))
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+            modifier = Modifier
+                .align(Alignment.Center) // CENTER IN TvSurface BoxScope
+                .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = if (isExpanded) Arrangement.Start else Arrangement.Center
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(
                 imageVector = icon,
-                contentDescription = label,
-                tint = if (isFocused) Color.Black else if (isSelected) Color(0xFFFF8C00) else Color.White.copy(alpha = 0.6f),
-                modifier = Modifier.size(24.dp)
+                contentDescription = null,
+                tint = if (isFocused) Color.Black else Color.White,
+                modifier = Modifier.size(18.dp)
             )
-
-            if (isExpanded) {
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = label,
-                    color = if (isFocused) Color.Black else Color.White,
-                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 15.sp,
-                    maxLines = 1
-                )
-            }
+            Text(
+                text = label.uppercase(),
+                color = if (isFocused) Color.Black else Color.White,
+                fontWeight = if (isSelected || isFocused) FontWeight.Black else FontWeight.Medium,
+                fontSize = 14.sp,
+                letterSpacing = 1.sp
+            )
         }
+    }
+}
+
+@Composable
+private fun TvTopNavIcon(
+    icon: ImageVector,
+    isSelected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    
+    TvSurfaceCard(
+        onClick = onClick,
+        modifier = modifier
+            .size(36.dp)
+            .onFocusChanged { isFocused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(CircleShape),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (isSelected) TvColors.Primary.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f),
+            focusedContainerColor = Color.White
+        )
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = if (isFocused) Color.Black else Color.White,
+            modifier = Modifier
+                .size(18.dp)
+                .align(Alignment.Center) // CENTER IN TvSurface BoxScope
+        )
     }
 }

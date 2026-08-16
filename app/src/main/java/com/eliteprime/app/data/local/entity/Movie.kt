@@ -26,13 +26,13 @@ data class Movie(
     var isTrendingThisWeek: Boolean = false,
     var trendingRank: Int = 0,
     
-    // Non-persistent fields (fetched on demand)
-    @Transient var rating: Double = 0.0,
-    @Transient var plot: String? = null,
-    @Transient var cast: String? = null,
-    @Transient var director: String? = null,
-    @Transient var genre: String? = null,
-    @Transient var duration: String? = null,
+    // Persistent fields (fetched on demand)
+    var rating: Double = 0.0,
+    var plot: String? = null,
+    var cast: String? = null,
+    var director: String? = null,
+    var genre: String? = null,
+    var duration: String? = null,
 
     @Index var isFavorite: Boolean = false,
     var lastWatchedAt: Long = 0,

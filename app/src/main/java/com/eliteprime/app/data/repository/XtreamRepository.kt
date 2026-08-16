@@ -192,6 +192,8 @@ class XtreamRepository @Inject constructor(
                 series.cast = info.cast
                 series.director = info.director
                 series.genre = info.genre
+                series.releaseDate = info.releaseDate
+                info.rating?.toDoubleOrNull()?.let { if (it > 0) series.rating = it }
                 series.backdropUrl = info.backdropPath?.firstOrNull() ?: info.movieImage ?: info.cover
                 seriesBox.put(series)
             }
