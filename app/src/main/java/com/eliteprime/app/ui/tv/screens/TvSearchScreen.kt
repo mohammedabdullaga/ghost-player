@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,7 +23,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,7 +41,6 @@ import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.search.SearchViewModel
 import com.eliteprime.app.ui.tv.core.*
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 private enum class SearchFilter { ALL, MOVIES, SERIES, LIVE_TV }
 
@@ -67,18 +67,25 @@ fun TvSearchScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 24.dp)) {
-            // A. SEARCH HEADER & INPUT
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 48.dp, vertical = 8.dp) // MINIMAL TOP PADDING
+        ) {
+            // A. COMPACT SEARCH HEADER
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.height(55.dp) // Increased height by 15%
+            ) {
                 Text(
                     text = stringResource(R.string.nav_search).uppercase(),
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     color = Color.White,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.sp
                 )
                 
-                Spacer(modifier = Modifier.width(32.dp))
+                Spacer(modifier = Modifier.width(24.dp))
                 
                 OutlinedTextField(
                     value = query,
@@ -86,12 +93,13 @@ fun TvSearchScreen(
                     modifier = Modifier
                         .weight(1f)
                         .focusRequester(searchFocusRequester),
-                    placeholder = { Text(stringResource(R.string.search_placeholder), color = Color.White.copy(alpha = 0.3f)) },
-                    leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.White) },
+                    textStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium),
+                    placeholder = { Text(stringResource(R.string.search_placeholder), color = Color.White.copy(alpha = 0.3f), fontSize = 13.sp) },
+                    leadingIcon = { Icon(Icons.Default.Search, null, tint = Color.White, modifier = Modifier.size(18.dp)) },
                     trailingIcon = {
                         if (query.isNotEmpty()) {
                             IconButton(onClick = { viewModel.onQueryChange("") }) {
-                                Icon(Icons.Default.Close, null, tint = Color.White)
+                                Icon(Icons.Default.Close, null, tint = Color.White, modifier = Modifier.size(18.dp))
                             }
                         }
                     },
@@ -104,15 +112,18 @@ fun TvSearchScreen(
                         unfocusedContainerColor = Color.White.copy(alpha = 0.05f)
                     ),
                     singleLine = true,
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(10.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(10.dp)) // Reduced padding below searchbar
 
-            // B. FILTER CHIPS
+            // B. COMPACT FILTER CHIPS
             if (query.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     TvSearchFilterChip(
                         label = stringResource(R.string.filter_all),
                         icon = Icons.Default.AllInclusive,
@@ -138,22 +149,22 @@ fun TvSearchScreen(
                         onClick = { selectedFilter = SearchFilter.LIVE_TV }
                     )
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp)) // Reduced padding below filters
             }
 
-            // C. RESULTS GRID/LIST
+            // C. CENTERED RESULTS GRID
             TvGlassPane(modifier = Modifier.weight(1f)) {
                 if (query.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Search, null, tint = TvColors.TextTertiary, modifier = Modifier.size(64.dp))
-                            Spacer(Modifier.height(16.dp))
-                            Text(stringResource(R.string.search_idle_desc), color = TvColors.TextTertiary, fontSize = 14.sp)
+                            Icon(Icons.Default.Search, null, tint = TvColors.TextTertiary, modifier = Modifier.size(48.dp))
+                            Spacer(Modifier.height(12.dp))
+                            Text(stringResource(R.string.search_idle_desc), color = TvColors.TextTertiary, fontSize = 13.sp)
                         }
                     }
                 } else if (uiState.isLoading) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = TvColors.Primary)
+                        CircularProgressIndicator(color = TvColors.Primary, modifier = Modifier.size(32.dp))
                     }
                 } else if (uiState.movies.isEmpty() && uiState.series.isEmpty() && uiState.channels.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -163,20 +174,30 @@ fun TvSearchScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                        contentPadding = PaddingValues(vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(40.dp), // Separate sections clearly
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // 1. MOVIES SECTION
                         if ((selectedFilter == SearchFilter.ALL || selectedFilter == SearchFilter.MOVIES) && uiState.movies.isNotEmpty()) {
-                            item { SearchSectionLabel(stringResource(R.string.nav_movies), uiState.movies.size) }
                             item {
-                                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    items(uiState.movies) { movie ->
-                                        TvSearchPosterCard(
-                                            title = movie.name,
-                                            posterUrl = movie.streamIcon ?: movie.backdropUrl,
-                                            onClick = { onMovieClick(movie) }
-                                        )
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    SearchSectionLabelV3(stringResource(R.string.nav_movies), uiState.movies.size)
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                        contentPadding = PaddingValues(horizontal = 24.dp)
+                                    ) {
+                                        items(uiState.movies) { movie ->
+                                            TvSearchPosterCardV3(
+                                                title = movie.name,
+                                                posterUrl = movie.streamIcon ?: movie.backdropUrl,
+                                                onClick = { onMovieClick(movie) }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -184,25 +205,47 @@ fun TvSearchScreen(
 
                         // 2. SERIES SECTION
                         if ((selectedFilter == SearchFilter.ALL || selectedFilter == SearchFilter.SERIES) && uiState.series.isNotEmpty()) {
-                            item { SearchSectionLabel(stringResource(R.string.nav_series), uiState.series.size) }
                             item {
-                                LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    items(uiState.series) { series ->
-                                        TvSearchPosterCard(
-                                            title = series.name,
-                                            posterUrl = series.cover ?: series.backdropUrl,
-                                            onClick = { onSeriesClick(series) }
-                                        )
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    SearchSectionLabelV3(stringResource(R.string.nav_series), uiState.series.size)
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                        contentPadding = PaddingValues(horizontal = 24.dp)
+                                    ) {
+                                        items(uiState.series) { series ->
+                                            TvSearchPosterCardV3(
+                                                title = series.name,
+                                                posterUrl = series.cover ?: series.backdropUrl,
+                                                onClick = { onSeriesClick(series) }
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
 
-                        // 3. LIVE TV SECTION
+                        // 3. LIVE TV SECTION (Now Card Grid just like Movies/Series)
                         if ((selectedFilter == SearchFilter.ALL || selectedFilter == SearchFilter.LIVE_TV) && uiState.channels.isNotEmpty()) {
-                            item { SearchSectionLabel("LIVE TV", uiState.channels.size) }
-                            items(uiState.channels) { channel ->
-                                TvSearchRow(channel.name, "LIVE TV") { onChannelClick(channel) }
+                            item {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    SearchSectionLabelV3("LIVE TV", uiState.channels.size)
+                                    LazyRow(
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                        contentPadding = PaddingValues(horizontal = 24.dp)
+                                    ) {
+                                        items(uiState.channels) { channel ->
+                                            TvSearchChannelCardV3(channel) { onChannelClick(channel) }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -223,22 +266,22 @@ private fun TvSearchFilterChip(
     TvSurfaceCard(
         onClick = onClick,
         modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) TvColors.Primary.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f),
+            containerColor = if (isSelected) TvColors.Primary.copy(alpha = 0.2f) else Color.Transparent,
             focusedContainerColor = Color.White
         )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(icon, null, tint = if (isFocused) Color.Black else if (isSelected) TvColors.Primary else Color.White, modifier = Modifier.size(16.dp))
+            Icon(icon, null, tint = if (isFocused) Color.Black else if (isSelected) TvColors.Primary else Color.White, modifier = Modifier.size(14.dp))
             Text(
                 text = label, 
                 color = if (isFocused) Color.Black else if (isSelected) TvColors.Primary else Color.White,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -246,29 +289,34 @@ private fun TvSearchFilterChip(
 }
 
 @Composable
-private fun SearchSectionLabel(title: String, count: Int) {
+private fun SearchSectionLabelV3(title: String, count: Int) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+        modifier = Modifier.widthIn(max = 800.dp).fillMaxWidth().padding(horizontal = 24.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = title.uppercase(), color = TvColors.Primary, fontWeight = FontWeight.Black, fontSize = 12.sp, letterSpacing = 1.2.sp)
-        Text(text = "$count RESULTS", color = Color.White.copy(alpha = 0.4f), fontWeight = FontWeight.Bold, fontSize = 10.sp)
+        Text(text = "$count RESULTS", color = Color.White.copy(alpha = 0.4f), fontWeight = FontWeight.Bold, fontSize = 9.sp)
     }
 }
 
 @Composable
-private fun TvSearchPosterCard(
+private fun TvSearchPosterCardV3(
     title: String,
     posterUrl: String?,
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    Column(modifier = Modifier.width(130.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        modifier = Modifier.width(134.dp), 
+        // INCREASED SPACING TO ACCOUNT FOR FOCUS SCALE
+        verticalArrangement = Arrangement.spacedBy(if (isFocused) 14.dp else 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         TvSurfaceCard(
             onClick = onClick,
             modifier = Modifier.fillMaxWidth().aspectRatio(2f/3f).onFocusChanged { isFocused = it.isFocused },
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp))
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp))
         ) {
             AsyncImage(
                 model = posterUrl,
@@ -282,34 +330,51 @@ private fun TvSearchPosterCard(
             color = if (isFocused) Color.White else Color.White.copy(alpha = 0.6f),
             fontSize = 11.sp,
             fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            maxLines = 2,
+            textAlign = TextAlign.Center,
+            lineHeight = 14.sp,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
 
 @Composable
-private fun TvSearchRow(
-    title: String,
-    type: String,
+private fun TvSearchChannelCardV3(
+    channel: LiveStream,
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    TvSurfaceCard(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().onFocusChanged { isFocused = it.isFocused },
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.White.copy(alpha = 0.03f),
-            focusedContainerColor = Color.White
-        )
+    Column(
+        modifier = Modifier.width(120.dp), 
+        // INCREASED SPACING TO ACCOUNT FOR FOCUS SCALE
+        verticalArrangement = Arrangement.spacedBy(if (isFocused) 14.dp else 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        TvSurfaceCard(
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth().aspectRatio(4f/3f).onFocusChanged { isFocused = it.isFocused },
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp))
         ) {
-            Text(text = title, color = if (isFocused) Color.Black else Color.White, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-            TvBadge(text = type, containerColor = if (isFocused) Color.Black.copy(alpha = 0.1f) else TvColors.Primary.copy(alpha = 0.2f), contentColor = if (isFocused) Color.Black else TvColors.Primary)
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                AsyncImage(
+                    model = channel.streamIcon,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize().padding(10.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
         }
+        Text(
+            text = channel.name,
+            color = if (isFocused) Color.White else Color.White.copy(alpha = 0.6f),
+            fontSize = 11.sp,
+            fontWeight = if (isFocused) FontWeight.Bold else FontWeight.Medium,
+            maxLines = 2,
+            textAlign = TextAlign.Center,
+            lineHeight = 14.sp,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
