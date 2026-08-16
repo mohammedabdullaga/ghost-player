@@ -1,6 +1,7 @@
 package com.eliteprime.app.ui.tv.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,6 +11,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
@@ -98,7 +101,20 @@ fun TvSeriesDetailsScreen(
     val playFocusRequester = remember { FocusRequester() }
     val seasonButtonFocusRequester = remember { FocusRequester() }
 
+    val listState = rememberLazyListState()
+
     BackHandler { onBack() }
+
+    // Scroll to resume episode on load
+    LaunchedEffect(selectedSeason, resumeEpisode) {
+        if (selectedSeason != null && resumeEpisode != null) {
+            val index = selectedSeason!!.episodes.indexOfFirst { it.id == resumeEpisode!!.id }
+            if (index >= 0) {
+                delay(600) // Wait for list to be ready
+                listState.animateScrollToItem(index)
+            }
+        }
+    }
 
     LaunchedEffect(series) {
         if (series != null) {
@@ -364,13 +380,16 @@ fun TvSeriesDetailsScreen(
 
                         if (currentTab == TvSeriesTab.EPISODES) {
                             LazyColumn(
+                                state = listState,
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 selectedSeason?.episodes?.let { episodes ->
                                     itemsIndexed(episodes) { _, episode ->
+                                        val isHighlighted = resumeEpisode?.id == episode.id
                                         TvEpisodeRowSeriesEnlarged(
                                             episode = episode,
+                                            isHighlighted = isHighlighted,
                                             onClick = { onPlayEpisode(episode, s.name) }
                                         )
                                     }
@@ -442,6 +461,7 @@ private fun InfoGridColumn(label: String, value: String, modifier: Modifier = Mo
 @Composable
 private fun TvEpisodeRowSeriesEnlarged(
     episode: Episode,
+    isHighlighted: Boolean = false,
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
@@ -451,8 +471,12 @@ private fun TvEpisodeRowSeriesEnlarged(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().onFocusChanged { isFocused = it.isFocused },
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.White.copy(alpha = 0.04f),
+            containerColor = if (isHighlighted) TvColors.Primary.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.04f),
             focusedContainerColor = Color.White
+        ),
+        border = ClickableSurfaceDefaults.border(
+            border = if (isHighlighted) Border(BorderStroke(2.dp, TvColors.Primary)) else Border.None,
+            focusedBorder = Border(BorderStroke(2.dp, Color.White))
         )
     ) {
         Row(
@@ -492,12 +516,21 @@ private fun TvEpisodeRowSeriesEnlarged(
                     LinearProgressIndicator(
                         progress = { progress },
                         modifier = Modifier.padding(top = 8.dp).fillMaxWidth(0.7f).height(3.dp),
-                        color = TvColors.Primary,
+                        color = if (isHighlighted) Color.White else TvColors.Primary,
                         trackColor = (if (isFocused) Color.Black else Color.White).copy(alpha = 0.1f)
                     )
                 } else if (!episode.duration.isNullOrBlank()) {
                     Text(text = episode.duration!!, color = if (isFocused) Color.Black.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.4f), fontSize = 12.sp)
                 }
+            }
+
+            if (isHighlighted) {
+                TvBadge(
+                    text = "WATCHING",
+                    containerColor = TvColors.Primary,
+                    contentColor = Color.Black
+                )
+                Spacer(Modifier.width(12.dp))
             }
 
             Spacer(Modifier.width(12.dp))

@@ -73,10 +73,12 @@ fun TvAppNavigation(
                 onMovieClick = { movie -> navController.navigate("movie_details/${movie.id}") },
                 onSeriesClick = { series -> navController.navigate("series_details/${series.id}") },
                 onResumeHistoryItem = { history ->
-                    if (history.type == "movie") {
-                        navController.navigate("movie_details/${history.streamId}")
-                    } else {
-                        navController.navigate("series_details/${history.streamId}")
+                    when (history.type) {
+                        "movie" -> navController.navigate("movie_details/${history.streamId}")
+                        "series_episode", "series" -> {
+                            val seriesId = history.seriesId ?: history.streamId
+                            navController.navigate("series_details/$seriesId")
+                        }
                     }
                 }
             )
