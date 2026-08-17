@@ -147,7 +147,7 @@ fun TvLiveTvScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (uiState.isCategoryReorderMode) "REORDER GROUPS" else stringResource(R.string.generic_groups).uppercase(), 
+                                text = if (uiState.isCategoryReorderMode) stringResource(R.string.group_reorder) else stringResource(R.string.generic_groups), 
                                 color = TvColors.TextSecondary, 
                                 fontWeight = FontWeight.Black, 
                                 fontSize = 11.sp, 
@@ -162,7 +162,7 @@ fun TvLiveTvScreen(
                                     colors = ClickableSurfaceDefaults.colors(containerColor = TvColors.Primary, focusedContainerColor = Color.White)
                                 ) {
                                     Box(modifier = Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
-                                        Text("DONE", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp))
+                                        Text(stringResource(R.string.generic_done), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp))
                                     }
                                 }
                             } else {
@@ -231,7 +231,7 @@ fun TvLiveTvScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (uiState.isChannelReorderMode) "REORDER CHANNELS" else (uiState.selectedCategory?.categoryName ?: "").uppercase(), 
+                                text = if (uiState.isChannelReorderMode) stringResource(R.string.channel_reorder) else (uiState.selectedCategory?.categoryName ?: "").uppercase(), 
                                 color = TvColors.TextSecondary, 
                                 fontWeight = FontWeight.Black, 
                                 fontSize = 11.sp, 
@@ -246,7 +246,7 @@ fun TvLiveTvScreen(
                                     colors = ClickableSurfaceDefaults.colors(containerColor = TvColors.Primary, focusedContainerColor = Color.White)
                                 ) {
                                     Box(modifier = Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
-                                        Text("DONE", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp))
+                                        Text(stringResource(R.string.generic_done), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp))
                                     }
                                 }
                             }
@@ -320,7 +320,7 @@ fun TvLiveTvScreen(
 
                         if (previewChannel != null) {
                             Text(text = previewChannel!!.name, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, maxLines = 1)
-                            TvBadge(text = "LIVE NOW", containerColor = TvColors.Primary.copy(alpha = 0.2f), contentColor = TvColors.Primary)
+                            TvBadge(text = stringResource(R.string.live_now), containerColor = TvColors.Primary.copy(alpha = 0.2f), contentColor = TvColors.Primary)
                             
                             Spacer(modifier = Modifier.height(16.dp))
                             HorizontalDivider(color = TvColors.GlassBorder)
@@ -346,12 +346,12 @@ fun TvLiveTvScreen(
             }
 
             TvOverlayDialog(onDismiss = { showAddGroupDialog = false }) {
-                Text("CREATE NEW GROUP", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White)
+                Text(stringResource(R.string.group_create_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White)
                 Spacer(Modifier.height(24.dp))
                 OutlinedTextField(
                     value = newGroupName,
                     onValueChange = { newGroupName = it },
-                    placeholder = { Text("Group Name", color = Color.White.copy(alpha = 0.3f)) },
+                    placeholder = { Text(stringResource(R.string.group_name_label), color = Color.White.copy(alpha = 0.3f)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth().focusRequester(firstActionRequester),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -373,7 +373,7 @@ fun TvLiveTvScreen(
                         colors = ClickableSurfaceDefaults.colors(containerColor = TvColors.Primary, focusedContainerColor = Color.White)
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("CREATE", color = Color.Black, fontWeight = FontWeight.Black)
+                            Text(stringResource(R.string.generic_create), color = Color.Black, fontWeight = FontWeight.Black)
                         }
                     }
                     TvSurfaceCard(
@@ -382,7 +382,7 @@ fun TvLiveTvScreen(
                         colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("CANCEL", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.generic_cancel), color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -400,7 +400,7 @@ fun TvLiveTvScreen(
 
             TvOverlayDialog(onDismiss = { if (canInteract) selectedChannelForOptions = null }) {
                 Text(channel.name.uppercase(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
-                TvBadge(text = "CHANNEL OPTIONS", containerColor = Color.White.copy(alpha = 0.1f), contentColor = Color.White)
+                TvBadge(text = stringResource(R.string.channel_options), containerColor = Color.White.copy(alpha = 0.1f), contentColor = Color.White)
                 Spacer(Modifier.height(24.dp))
                 
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -417,7 +417,7 @@ fun TvLiveTvScreen(
                     }
                     item {
                         TvDialogActionItem(
-                            label = "REORDER CHANNELS",
+                            label = stringResource(R.string.channel_reorder),
                             icon = Icons.Default.Reorder,
                             enabled = canInteract
                         ) {
@@ -440,7 +440,7 @@ fun TvLiveTvScreen(
                     if (currentCat != null && currentCat.id >= 1000000) {
                         item {
                             TvDialogActionItem(
-                                label = "REMOVE FROM GROUP",
+                                label = stringResource(R.string.channel_remove_from_group),
                                 icon = Icons.Default.DeleteSweep,
                                 color = Color.Red.copy(alpha = 0.8f),
                                 enabled = canInteract
@@ -454,7 +454,7 @@ fun TvLiveTvScreen(
                     val otherCustomGroups = uiState.categories.filter { it.id >= 1000000 && it.id != currentCat?.id }
                     if (otherCustomGroups.isNotEmpty()) {
                         item {
-                            Text("ADD TO GROUP", color = TvColors.Primary, fontWeight = FontWeight.Black, fontSize = 11.sp, modifier = Modifier.padding(top = 16.dp, start = 12.dp))
+                            Text(stringResource(R.string.group_add_to), color = TvColors.Primary, fontWeight = FontWeight.Black, fontSize = 11.sp, modifier = Modifier.padding(top = 16.dp, start = 12.dp))
                         }
                         itemsIndexed(otherCustomGroups) { _, group ->
                             TvDialogActionItem(label = group.categoryName, icon = Icons.Default.FolderOpen, enabled = canInteract) {
@@ -478,11 +478,11 @@ fun TvLiveTvScreen(
 
             TvOverlayDialog(onDismiss = { if (canInteract) selectedCategoryForOptions = null }) {
                 Text(category.categoryName.uppercase(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White)
-                TvBadge(text = "GROUP OPTIONS", containerColor = Color.White.copy(alpha = 0.1f), contentColor = Color.White)
+                TvBadge(text = stringResource(R.string.group_options), containerColor = Color.White.copy(alpha = 0.1f), contentColor = Color.White)
                 Spacer(Modifier.height(24.dp))
                 
                 TvDialogActionItem(
-                    label = "REORDER GROUPS", 
+                    label = stringResource(R.string.group_reorder), 
                     icon = Icons.Default.Reorder, 
                     enabled = canInteract,
                     modifier = Modifier.focusRequester(firstActionRequester)
@@ -491,7 +491,7 @@ fun TvLiveTvScreen(
                     selectedCategoryForOptions = null
                 }
                 if (category.id >= 1000000) {
-                    TvDialogActionItem(label = "DELETE GROUP", icon = Icons.Default.Delete, color = Color.Red, enabled = canInteract) {
+                    TvDialogActionItem(label = stringResource(R.string.group_delete), icon = Icons.Default.Delete, color = Color.Red, enabled = canInteract) {
                         viewModel.deleteCustomGroup(category)
                         selectedCategoryForOptions = null
                     }

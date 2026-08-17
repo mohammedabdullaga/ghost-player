@@ -52,7 +52,7 @@ private data class TvHeroInfo(
     val voteAverage: Double?,
     val year: String?,
     val genre: String?,
-    val typeLabel: String
+    val typeLabelRes: Int // Using resource ID
 )
 
 private fun TrendingItem<*>.toHeroInfo(): TvHeroInfo = TvHeroInfo(
@@ -63,7 +63,7 @@ private fun TrendingItem<*>.toHeroInfo(): TvHeroInfo = TvHeroInfo(
     voteAverage = voteAverage,
     year = releaseDate?.take(4),
     genre = genres.firstOrNull(),
-    typeLabel = if (localMatch is Movie) "MOVIE" else "SERIES"
+    typeLabelRes = if (localMatch is Movie) R.string.generic_movie else R.string.generic_series
 )
 
 private fun PlaybackHistory.toHeroInfo(): TvHeroInfo = TvHeroInfo(
@@ -74,7 +74,7 @@ private fun PlaybackHistory.toHeroInfo(): TvHeroInfo = TvHeroInfo(
     voteAverage = null,
     year = null,
     genre = null,
-    typeLabel = "HISTORY"
+    typeLabelRes = R.string.history_title
 )
 
 @Composable
@@ -176,12 +176,12 @@ fun TvHomeScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     TvTrendingTab(
-                                        label = "Movies",
+                                        label = stringResource(R.string.nav_movies),
                                         isSelected = selectedTrendingType == "movie",
                                         onClick = { selectedTrendingType = "movie" }
                                     )
                                     TvTrendingTab(
-                                        label = "Series",
+                                        label = stringResource(R.string.nav_series),
                                         isSelected = selectedTrendingType == "series",
                                         onClick = { selectedTrendingType = "series" }
                                     )
@@ -296,7 +296,7 @@ private fun TvHeroMetadataPanel(hero: TvHeroInfo) {
                         rating = target.voteAverage,
                         year = target.year,
                         genre = target.genre,
-                        typeLabel = target.typeLabel
+                        typeLabel = stringResource(target.typeLabelRes)
                     )
                 }
 

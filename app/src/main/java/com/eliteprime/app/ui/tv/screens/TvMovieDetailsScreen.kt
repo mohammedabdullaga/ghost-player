@@ -135,7 +135,7 @@ fun TvMovieDetailsScreen(
                                 Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(20.dp), tint = if (isPlayFocused) Color.Black else Color.White)
                                 Spacer(Modifier.width(8.dp))
                                 Text(
-                                    text = if (m.watchProgress > 10000) "RESUME" else "PLAY",
+                                    text = if (m.watchProgress > 10000) stringResource(R.string.generic_resume).uppercase() else stringResource(R.string.generic_watch_now).uppercase(),
                                     color = if (isPlayFocused) Color.Black else Color.White,
                                     fontWeight = FontWeight.Black,
                                     fontSize = 13.sp
@@ -205,7 +205,7 @@ fun TvMovieDetailsScreen(
                             Spacer(Modifier.height(12.dp))
 
                             Text(
-                                text = m.plot ?: "No description available.",
+                                text = m.plot ?: stringResource(R.string.detail_no_related_series),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = Color.White.copy(alpha = 0.8f),
                                 lineHeight = 20.sp,
@@ -218,9 +218,9 @@ fun TvMovieDetailsScreen(
                             Spacer(Modifier.height(12.dp))
 
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                TechnicalItemCompact(label = "DIRECTOR", value = m.director ?: "Unknown")
+                                TechnicalItemCompact(label = stringResource(R.string.metadata_director), value = m.director ?: stringResource(R.string.generic_unknown))
                                 if (!m.cast.isNullOrBlank()) {
-                                    TechnicalItemCompact(label = "STARRING", value = m.cast!!)
+                                    TechnicalItemCompact(label = stringResource(R.string.metadata_cast), value = m.cast!!)
                                 }
                             }
                         }

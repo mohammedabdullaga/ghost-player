@@ -185,7 +185,7 @@ fun TvSeriesDetailsScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f, fill = false)) {
                                     Text(
-                                        text = "SERIES",
+                                        text = stringResource(R.string.nav_series),
                                         color = TvColors.Primary,
                                         fontWeight = FontWeight.Black,
                                         fontSize = 12.sp,
@@ -287,7 +287,7 @@ fun TvSeriesDetailsScreen(
                                             Icon(Icons.Default.History, null, modifier = Modifier.size(20.dp), tint = if (isResFocused) Color.Black else Color.White)
                                             Spacer(Modifier.width(10.dp))
                                             Text(
-                                                text = "RESUME · E${resumeEpisode!!.episodeNumber}",
+                                                text = stringResource(R.string.generic_resume).uppercase() + " · E${resumeEpisode!!.episodeNumber}",
                                                 color = if (isResFocused) Color.Black else Color.White,
                                                 fontWeight = FontWeight.Black,
                                                 fontSize = 13.sp
@@ -302,8 +302,8 @@ fun TvSeriesDetailsScreen(
                             Spacer(Modifier.height(16.dp))
 
                             Row(modifier = Modifier.fillMaxWidth()) {
-                                InfoGridColumn(label = "DIRECTOR", value = s.director ?: "Unknown", modifier = Modifier.weight(1f))
-                                InfoGridColumn(label = "CAST", value = s.cast ?: "Unknown", modifier = Modifier.weight(1f))
+                                InfoGridColumn(label = stringResource(R.string.metadata_director), value = s.director ?: stringResource(R.string.generic_unknown), modifier = Modifier.weight(1f))
+                                InfoGridColumn(label = stringResource(R.string.metadata_cast), value = s.cast ?: stringResource(R.string.generic_unknown), modifier = Modifier.weight(1f))
                             }
                         }
                     }
@@ -322,7 +322,7 @@ fun TvSeriesDetailsScreen(
                         // closes the list again.
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             TvPillButton(
-                                label = selectedSeason?.season?.name ?: "Season",
+                                label = selectedSeason?.season?.name ?: stringResource(R.string.generic_series),
                                 isSelected = currentTab == TvSeriesTab.EPISODES,
                                 modifier = Modifier.focusRequester(seasonButtonFocusRequester),
                                 onClick = {
@@ -332,7 +332,7 @@ fun TvSeriesDetailsScreen(
                             )
                             Spacer(Modifier.width(12.dp))
                             TvPillButton(
-                                label = "Related",
+                                label = stringResource(R.string.detail_tab_related),
                                 isSelected = currentTab == TvSeriesTab.RELATED,
                                 onClick = {
                                     currentTab = TvSeriesTab.RELATED
@@ -343,7 +343,7 @@ fun TvSeriesDetailsScreen(
                             if (currentTab == TvSeriesTab.EPISODES) {
                                 selectedSeason?.episodes?.let { episodes ->
                                     Text(
-                                        text = "${episodes.size} EPISODES",
+                                        text = "${episodes.size} " + stringResource(R.string.detail_tab_episodes).uppercase(),
                                         color = TvColors.Primary,
                                         fontWeight = FontWeight.Black,
                                         fontSize = 11.sp,
@@ -526,7 +526,7 @@ private fun TvEpisodeRowSeriesEnlarged(
 
             if (isHighlighted) {
                 TvBadge(
-                    text = "WATCHING",
+                    text = stringResource(R.string.generic_status_watching),
                     containerColor = TvColors.Primary,
                     contentColor = Color.Black
                 )

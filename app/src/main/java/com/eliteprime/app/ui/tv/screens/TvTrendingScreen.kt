@@ -137,7 +137,7 @@ fun TvTrendingScreen(
                     ) {
                         item {
                             TvTrendingFilterItem(
-                                label = "ALL TRENDING",
+                                label = stringResource(R.string.nav_all_trending),
                                 isSelected = selectedFilter == TrendingFilter.ALL,
                                 modifier = Modifier.focusRequester(firstFilterRequester),
                                 onClick = { 
@@ -148,7 +148,7 @@ fun TvTrendingScreen(
                         }
                         item {
                             TvTrendingFilterItem(
-                                label = "MOVIES",
+                                label = stringResource(R.string.filter_movies),
                                 isSelected = selectedFilter == TrendingFilter.MOVIES,
                                 onClick = { 
                                     selectedFilter = TrendingFilter.MOVIES
@@ -158,7 +158,7 @@ fun TvTrendingScreen(
                         }
                         item {
                             TvTrendingFilterItem(
-                                label = "SERIES",
+                                label = stringResource(R.string.filter_series),
                                 isSelected = selectedFilter == TrendingFilter.SERIES,
                                 onClick = { 
                                     selectedFilter = TrendingFilter.SERIES
@@ -179,7 +179,7 @@ fun TvTrendingScreen(
                 } else if (filteredList.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = "No trending content available.",
+                            text = stringResource(R.string.trending_no_content),
                             color = Color.White.copy(alpha = 0.5f),
                             style = MaterialTheme.typography.bodyLarge
                         )
@@ -255,7 +255,7 @@ private fun TvTrendingPosterCard(
                     modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
                 ) {
                     Text(
-                        "DISCOVER", 
+                        stringResource(R.string.nav_discover), 
                         color = Color.White.copy(alpha = 0.8f), 
                         fontSize = 8.sp, 
                         fontWeight = FontWeight.Black,

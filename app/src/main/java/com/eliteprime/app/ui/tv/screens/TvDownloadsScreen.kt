@@ -127,7 +127,7 @@ private fun TvDownloadItemCard(
             
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = if (item.status == DownloadStatus.COMPLETED) "Ready" else "Downloading",
+                    text = if (item.status == DownloadStatus.COMPLETED) stringResource(R.string.home_downloads_ready) else stringResource(R.string.download_status_downloading),
                     color = if (isFocused) Color.Black.copy(alpha = 0.6f) else TvColors.Primary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Black

@@ -303,7 +303,7 @@ private fun TvNetworkSettingsContent(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = "SECURE CONNECTION",
+                    text = stringResource(R.string.settings_network).uppercase(),
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
@@ -373,7 +373,7 @@ private fun TvNetworkSettingsContent(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = "INTERNET SPEED TEST",
+                    text = stringResource(R.string.settings_speed_test_title).uppercase(),
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
@@ -629,7 +629,7 @@ private fun TvPlaybackSettingsContent(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = stringResource(R.string.settings_subtitle_size),
+                    text = stringResource(R.string.settings_subtitle_size).uppercase(),
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
@@ -657,7 +657,7 @@ private fun TvPlaybackSettingsContent(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = stringResource(R.string.settings_subtitle_text_color),
+                    text = stringResource(R.string.settings_subtitle_text_color).uppercase(),
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
@@ -685,7 +685,7 @@ private fun TvPlaybackSettingsContent(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = stringResource(R.string.settings_subtitle_background),
+                    text = stringResource(R.string.settings_subtitle_background).uppercase(),
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
@@ -1226,18 +1226,18 @@ private fun TvAccountSettingsCard(
                 horizontalArrangement = Arrangement.spacedBy(STSpacing.sm)
             ) {
                 TvSettingsActionButton(
-                    label = if (isSyncing) stringResource(R.string.player_buffering) else stringResource(R.string.settings_refresh_data),
+                    label = if (isSyncing) stringResource(R.string.settings_syncing) else stringResource(R.string.settings_sync_data),
                     onClick = onRefresh,
                     isPrimary = true,
                     modifier = Modifier.weight(1.5f).height(44.dp)
                 )
                 TvSettingsActionButton(
-                    label = stringResource(R.string.settings_edit_account),
+                    label = stringResource(R.string.settings_edit_account_btn),
                     onClick = onEdit,
                     modifier = Modifier.weight(1f).height(44.dp)
                 )
                 TvSettingsActionButton(
-                    label = stringResource(R.string.settings_clear_cache),
+                    label = stringResource(R.string.settings_cache_btn),
                     onClick = onClearCache,
                     modifier = Modifier.weight(1f).height(44.dp)
                 )

@@ -86,6 +86,7 @@
     <string name="generic_coming_soon">قريباً</string>
     <string name="generic_recommended">موصى به</string>
     <string name="generic_watch_now">شاهد الآن</string>
+    <string name="generic_results">النتائج</string>
 
     <!-- Home -->
     <string name="home_history_empty">سجلك فارغ</string>
@@ -108,7 +109,11 @@
     <string name="filter_series">مسلسلات</string>
     <string name="trending_loading">جاري جلب آخر الاتجاهات...</string>
     <string name="trending_not_in_library">غير موجود في مكتبتك</string>
-    <string name="trending_empty">لم يتم العثور على عناصر شائعة في مكتبتك</string>
+    <string name="trending_empty">لم يتم العور على عناصر شائعة في مكتبتك</string>
+    <string name="trending_no_content">لا يوجد محتوى رائج متاح حالياً.</string>
+    <string name="nav_discover">اكتشف</string>
+    <string name="nav_categories">التصنيفات</string>
+    <string name="nav_all_trending">الكل رائج</string>
 
     <!-- Details -->
     <string name="detail_tab_episodes">الحلقات</string>
@@ -136,6 +141,10 @@
     <string name="group_add_to">إضافة إلى المجموعة</string>
     <string name="group_delete">حذف المجموعة</string>
     <string name="group_reorder">إعادة ترتيب المجموعات</string>
+    <string name="channel_reorder">إعادة ترتيب القنوات</string>
+    <string name="channel_remove_from_group">إزالة من المجموعة</string>
+    <string name="channel_options">خيارات القناة</string>
+    <string name="group_options">خيارات المجموعة</string>
     <string name="epg_now">الآن</string>
 
     <!-- Player -->
@@ -185,6 +194,7 @@
     <string name="settings_about_app_info">معلومات التطبيق</string>
     <string name="settings_update_status">حالة التحديث</string>
     <string name="settings_subtitle_preview_text">نص تجريبي للترجمة</string>
+    <string name="settings_subtitle_styling">تصفيف الترجمة</string>
 
     <string name="settings_prevent_standby">منع وضع الاستعداد</string>
     <string name="settings_prevent_standby_subtitle">إبقاء الشاشة قيد التشغيل أثناء التشغيل حتى في حالة عدم النشاط</string>
@@ -219,6 +229,7 @@
     <string name="settings_about_check_updates">التحقق من وجود تحديثات</string>
     <string name="settings_download_folder">مجلد التنزيل</string>
     <string name="settings_download_folder_desc">اختر مكان حفظ المحتوى الذي تم تنزيله</string>
+    <string name="settings_speed_test_title">سرعة الإنترنت</string>
     <string name="settings_speed_test_check">تحقق من سرعة الشبكة الحالية</string>
     <string name="settings_speed_test_run">بدء الفحص</string>
     <string name="settings_speed_test_sd">جيد لدقة SD (480p)</string>
@@ -226,8 +237,23 @@
     <string name="settings_speed_test_fhd">ممتاز لدقة Full HD (1080p)</string>
     <string name="settings_speed_test_4k">مثالي لبث 4K</string>
     <string name="settings_speed_test_max">أداء أقصى</string>
+    <string name="settings_speed_test_desc">اختبر سرعة اتصالك</string>
+    <string name="settings_speed_test_sd_hd">تشغيل بدقة SD/HD</string>
+    <string name="settings_speed_test_4k_optimal">مثالي لدقة 4K Ultra HD</string>
+    <string name="settings_speed_test_fhd_good">جيد لدقة Full HD</string>
     <string name="settings_account_expires">تاريخ الانتهاء: %1$s</string>
     <string name="settings_clear_cache">مسح التخزين المؤقت</string>
+    <string name="settings_clear_cache_desc">توفير مساحة</string>
+    <string name="settings_syncing">جاري التحميل...</string>
+    <string name="settings_sync_data">تحديث البيانات</string>
+    <string name="settings_refresh_data_desc">تحديث القنوات وقوائم الفيديو</string>
+    <string name="settings_clear_all">مسح الكل</string>
+    <string name="settings_edit_account_desc">تعديل بيانات الحساب</string>
+    <string name="settings_edit_account_btn">تعديل</string>
+    <string name="settings_cache_btn">كاش</string>
+
+    <string name="login_qr_pairing">امسح الرمز بهاتفك لتسجيل الدخول فوراً</string>
+    <string name="login_generate_code">إنشاء رمز</string>
 
     <string name="settings_subtitle_size_small">صغير</string>
     <string name="settings_subtitle_size_default">تلقائي</string>

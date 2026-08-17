@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -22,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.ClickableSurfaceDefaults
+import com.eliteprime.app.R
 import com.eliteprime.app.ui.screens.login.LoginState
 import com.eliteprime.app.ui.screens.login.LoginViewModel
 import com.eliteprime.app.ui.tv.core.*
@@ -60,13 +62,13 @@ fun TvLoginScreen(
                 )
                 Spacer(modifier = Modifier.height(32.dp))
                 Text(
-                    "LOGIN VIA PHONE", 
+                    stringResource(R.string.login_qr_title).uppercase(), 
                     color = Color.White, 
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Black
                 )
                 Text(
-                    "Scan with your phone to login instantly", 
+                    stringResource(R.string.login_qr_pairing), 
                     color = TvColors.TextSecondary,
                     textAlign = TextAlign.Center
                 )
@@ -81,7 +83,7 @@ fun TvLoginScreen(
                         focusedContainerColor = Color.White
                     )
                 ) {
-                    Text("GENERATE CODE", color = Color.Black, fontWeight = FontWeight.Black)
+                    Text(stringResource(R.string.login_generate_code), color = Color.Black, fontWeight = FontWeight.Black)
                 }
             }
 
@@ -94,19 +96,19 @@ fun TvLoginScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    "SIGN IN", 
+                    stringResource(R.string.login_title), 
                     style = MaterialTheme.typography.displaySmall, 
                     color = Color.White, 
                     fontWeight = FontWeight.Black
                 )
-                Text("Enter your Xtream credentials", color = TvColors.TextTertiary)
+                Text(stringResource(R.string.login_subtitle), color = TvColors.TextTertiary)
 
                 Spacer(modifier = Modifier.height(48.dp))
 
                 TvLoginTextField(
                     value = username,
                     onValueChange = { username = it },
-                    label = "Username",
+                    label = stringResource(R.string.login_username),
                     icon = Icons.Default.Person
                 )
 
@@ -115,7 +117,7 @@ fun TvLoginScreen(
                 TvLoginTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = "Password",
+                    label = stringResource(R.string.login_password),
                     icon = Icons.Default.Lock,
                     isPassword = true
                 )
@@ -133,7 +135,7 @@ fun TvLoginScreen(
                             focusedContainerColor = Color.White
                         )
                     ) {
-                        Text("LOGIN", color = Color.Black, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                        Text(stringResource(R.string.login_btn), color = Color.Black, fontWeight = FontWeight.Black, fontSize = 18.sp)
                     }
                 }
                 

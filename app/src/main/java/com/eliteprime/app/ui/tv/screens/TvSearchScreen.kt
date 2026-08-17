@@ -174,7 +174,7 @@ fun TvSearchScreen(
                         onClick = { selectedFilter = SearchFilter.SERIES }
                     )
                     TvSearchFilterChip(
-                        label = "LIVE TV",
+                        label = stringResource(R.string.generic_live) + " " + stringResource(R.string.generic_channels),
                         icon = Icons.Default.LiveTv,
                         isSelected = selectedFilter == SearchFilter.LIVE_TV,
                         onClick = { selectedFilter = SearchFilter.LIVE_TV }
@@ -190,6 +190,7 @@ fun TvSearchScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Default.Search, null, tint = TvColors.TextTertiary, modifier = Modifier.size(48.dp))
                             Spacer(Modifier.height(12.dp))
+                            Text(stringResource(R.string.search_idle_title), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             Text(stringResource(R.string.search_idle_desc), color = TvColors.TextTertiary, fontSize = 13.sp)
                         }
                     }
@@ -275,7 +276,7 @@ fun TvSearchScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    SearchSectionLabelV3("LIVE TV", uiState.channels.size)
+                                    SearchSectionLabelV3(stringResource(R.string.generic_live) + " " + stringResource(R.string.generic_channels), uiState.channels.size)
                                     LazyRow(
                                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                                         contentPadding = PaddingValues(horizontal = 24.dp)
@@ -325,7 +326,7 @@ private fun TvSearchFilterChip(
         ) {
             Icon(icon, null, tint = if (isFocused) Color.Black else if (isSelected) TvColors.Primary else Color.White, modifier = Modifier.size(14.dp))
             Text(
-                text = label, 
+                text = label.uppercase(), 
                 color = if (isFocused) Color.Black else if (isSelected) TvColors.Primary else Color.White,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
@@ -342,7 +343,7 @@ private fun SearchSectionLabelV3(title: String, count: Int) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = title.uppercase(), color = TvColors.Primary, fontWeight = FontWeight.Black, fontSize = 12.sp, letterSpacing = 1.2.sp)
-        Text(text = "$count RESULTS", color = Color.White.copy(alpha = 0.4f), fontWeight = FontWeight.Bold, fontSize = 9.sp)
+        Text(text = "$count " + stringResource(R.string.generic_results), color = Color.White.copy(alpha = 0.4f), fontWeight = FontWeight.Bold, fontSize = 9.sp)
     }
 }
 

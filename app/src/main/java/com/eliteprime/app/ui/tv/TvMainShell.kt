@@ -270,10 +270,10 @@ private fun TvTopNavBar(
             horizontalArrangement = Arrangement.spacedBy(32.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TvTopNavItem("Home", Icons.Default.Home, currentRoute == "home", modifier = Modifier.focusRequester(navHomeFocusRequester)) { onNavigate("home") }
-            TvTopNavItem("Live TV", Icons.Default.LiveTv, currentRoute == "live") { onNavigate("live") }
-            TvTopNavItem("Movies", Icons.Default.Movie, currentRoute == "movies") { onNavigate("movies") }
-            TvTopNavItem("Series", Icons.Default.VideoLibrary, currentRoute == "series") { onNavigate("series") }
+            TvTopNavItem(stringResource(R.string.nav_home), Icons.Default.Home, currentRoute == "home", modifier = Modifier.focusRequester(navHomeFocusRequester)) { onNavigate("home") }
+            TvTopNavItem(stringResource(R.string.nav_live_tv), Icons.Default.LiveTv, currentRoute == "live") { onNavigate("live") }
+            TvTopNavItem(stringResource(R.string.nav_movies), Icons.Default.Movie, currentRoute == "movies") { onNavigate("movies") }
+            TvTopNavItem(stringResource(R.string.nav_series), Icons.Default.VideoLibrary, currentRoute == "series") { onNavigate("series") }
         }
 
         Row(

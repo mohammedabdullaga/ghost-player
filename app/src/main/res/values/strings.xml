@@ -86,6 +86,7 @@
     <string name="generic_coming_soon">Coming Soon</string>
     <string name="generic_recommended">Recommended</string>
     <string name="generic_watch_now">WATCH NOW</string>
+    <string name="generic_results">RESULTS</string>
 
     <!-- Home -->
     <string name="home_history_empty">Your history is empty</string>
@@ -109,6 +110,10 @@
     <string name="trending_loading">Fetching latest trends...</string>
     <string name="trending_not_in_library">NOT IN YOUR LIBRARY</string>
     <string name="trending_empty">No trending items found in your library</string>
+    <string name="trending_no_content">No trending content available.</string>
+    <string name="nav_discover">DISCOVER</string>
+    <string name="nav_categories">CATEGORIES</string>
+    <string name="nav_all_trending">ALL TRENDING</string>
 
     <!-- Details -->
     <string name="detail_tab_episodes">EPISODES</string>
@@ -131,11 +136,15 @@
     <string name="live_no_epg_data">No EPG Data</string>
     <string name="fav_remove">Remove from Favorites</string>
     <string name="fav_add">Add to Favorites</string>
-    <string name="group_create_title">Create New Group</string>
+    <string name="group_create_title">CREATE NEW GROUP</string>
     <string name="group_name_label">Group Name</string>
     <string name="group_add_to">ADD TO GROUP</string>
-    <string name="group_delete">Delete Group</string>
-    <string name="group_reorder">Reorder Groups</string>
+    <string name="group_delete">DELETE GROUP</string>
+    <string name="group_reorder">REORDER GROUPS</string>
+    <string name="channel_reorder">REORDER CHANNELS</string>
+    <string name="channel_remove_from_group">REMOVE FROM GROUP</string>
+    <string name="channel_options">CHANNEL OPTIONS</string>
+    <string name="group_options">GROUP OPTIONS</string>
     <string name="epg_now">NOW</string>
 
     <!-- Player -->
@@ -185,6 +194,7 @@
     <string name="settings_about_app_info">APP INFORMATION</string>
     <string name="settings_update_status">UPDATE STATUS</string>
     <string name="settings_subtitle_preview_text">Sample Subtitle Text</string>
+    <string name="settings_subtitle_styling">SUBTITLE STYLING</string>
 
     <string name="settings_prevent_standby">Prevent Standby</string>
     <string name="settings_prevent_standby_subtitle">Keep the screen on during playback even when idle</string>
@@ -219,6 +229,7 @@
     <string name="settings_about_check_updates">Check for Updates</string>
     <string name="settings_download_folder">DOWNLOAD FOLDER</string>
     <string name="settings_download_folder_desc">Select where to save downloaded content</string>
+    <string name="settings_speed_test_title">INTERNET SPEED</string>
     <string name="settings_speed_test_check">Check your current network speed</string>
     <string name="settings_speed_test_run">RUN TEST</string>
     <string name="settings_speed_test_sd">Good for SD (480p)</string>
@@ -226,8 +237,23 @@
     <string name="settings_speed_test_fhd">Excellent for Full HD (1080p)</string>
     <string name="settings_speed_test_4k">Perfect for 4K streaming</string>
     <string name="settings_speed_test_max">Maximum Performance</string>
+    <string name="settings_speed_test_desc">Test your connection speed</string>
+    <string name="settings_speed_test_sd_hd">SD/HD Playback</string>
+    <string name="settings_speed_test_4k_optimal">Optimal for 4K Ultra HD</string>
+    <string name="settings_speed_test_fhd_good">Good for Full HD</string>
     <string name="settings_account_expires">EXPIRES ON: %1$s</string>
     <string name="settings_clear_cache">CLEAR CACHE</string>
+    <string name="settings_clear_cache_desc">Free space</string>
+    <string name="settings_syncing">Syncing...</string>
+    <string name="settings_sync_data">SYNC DATA</string>
+    <string name="settings_refresh_data_desc">Update channels and VOD lists</string>
+    <string name="settings_clear_all">Clear all</string>
+    <string name="settings_edit_account_desc">Edit account credentials</string>
+    <string name="settings_edit_account_btn">EDIT</string>
+    <string name="settings_cache_btn">CACHE</string>
+
+    <string name="login_qr_pairing">Scan with your phone to login instantly</string>
+    <string name="login_generate_code">GENERATE CODE</string>
 
     <string name="settings_subtitle_size_small">Small</string>
     <string name="settings_subtitle_size_default">Default</string>
