@@ -227,7 +227,7 @@ private fun TvNavArrowAffordance(
             .graphicsLayer { translationY = bounce },
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Black.copy(alpha = 0.5f),
+            containerColor = TvColors.Primary,
             focusedContainerColor = Color.White
         ),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
