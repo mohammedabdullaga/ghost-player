@@ -3,10 +3,10 @@ package com.eliteprime.app.ui.screens.series
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.local.entity.*
+import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
-import io.objectbox.query.QueryBuilder
 import io.objectbox.query.QueryBuilder.StringOrder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,7 +17,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SeriesViewModel @Inject constructor(
-    private val boxStore: BoxStore
+    private val boxStore: BoxStore,
+    private val playbackHistoryRepository: PlaybackHistoryRepository
 ) : ViewModel() {
 
     companion object {
@@ -28,7 +29,6 @@ class SeriesViewModel @Inject constructor(
 
     private val categoryBox = boxStore.boxFor(Category::class.java)
     private val seriesBox = boxStore.boxFor(Series::class.java)
-    private val historyBox = boxStore.boxFor(PlaybackHistory::class.java)
 
     private val _selectedCategoryId = MutableStateFlow<Long?>(null)
     private val _searchQuery = MutableStateFlow("")
@@ -52,8 +52,9 @@ class SeriesViewModel @Inject constructor(
     private val filteredSeriesFlow = combine(
         _selectedCategoryId,
         _searchQuery.debounce(300),
-        categoriesFlow
-    ) { selectedId, query, allCategories ->
+        categoriesFlow,
+        playbackHistoryRepository.getRecentlyWatched(50)
+    ) { selectedId, query, allCategories, history ->
         val currentId = selectedId ?: CAT_ID_FAVORITES
         val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull() ?: return@combine emptyList()
 
@@ -68,16 +69,12 @@ class SeriesViewModel @Inject constructor(
                 when (currentId) {
                     CAT_ID_FAVORITES -> seriesBox.query().equal(Series_.isFavorite, true).build().find()
                     CAT_ID_CONTINUE -> {
-                        val histories = historyBox.query()
-                            .equal(PlaybackHistory_.type, "series", StringOrder.CASE_INSENSITIVE)
-                            .order(PlaybackHistory_.lastPlayedAt, QueryBuilder.DESCENDING)
-                            .build()
-                            .find()
+                        val seriesIds = history.filter { it.type == "series" || it.type == "series_episode" }
+                            .mapNotNull { it.seriesId }
                         
-                        val seriesIds = histories.map { it.streamId }
                         val seriesData = seriesBox.get(seriesIds.toLongArray()).filterNotNull()
                         val seriesMap = seriesData.associateBy { it.id }
-                        seriesIds.mapNotNull { seriesMap[it] }
+                        seriesIds.distinct().mapNotNull { seriesMap[it] }
                     }
                     else -> {
                         seriesBox.query()

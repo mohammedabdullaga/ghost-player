@@ -3,10 +3,10 @@ package com.eliteprime.app.ui.screens.movies
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.local.entity.*
+import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
-import io.objectbox.query.QueryBuilder
 import io.objectbox.query.QueryBuilder.StringOrder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -17,7 +17,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MovieViewModel @Inject constructor(
-    private val boxStore: BoxStore
+    private val boxStore: BoxStore,
+    private val playbackHistoryRepository: PlaybackHistoryRepository
 ) : ViewModel() {
 
     companion object {
@@ -28,7 +29,6 @@ class MovieViewModel @Inject constructor(
 
     private val categoryBox = boxStore.boxFor(Category::class.java)
     private val movieBox = boxStore.boxFor(Movie::class.java)
-    private val historyBox = boxStore.boxFor(PlaybackHistory::class.java)
 
     private val _selectedCategoryId = MutableStateFlow<Long?>(null)
     private val _searchQuery = MutableStateFlow("")
@@ -52,8 +52,9 @@ class MovieViewModel @Inject constructor(
     private val filteredMoviesFlow = combine(
         _selectedCategoryId,
         _searchQuery.debounce(300),
-        categoriesFlow
-    ) { selectedId, query, allCategories ->
+        categoriesFlow,
+        playbackHistoryRepository.getRecentlyWatched(50)
+    ) { selectedId, query, allCategories, history ->
         val currentId = selectedId ?: CAT_ID_FAVORITES
         val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull() ?: return@combine emptyList()
 
@@ -68,16 +69,12 @@ class MovieViewModel @Inject constructor(
                 when (currentId) {
                     CAT_ID_FAVORITES -> movieBox.query().equal(Movie_.isFavorite, true).build().find()
                     CAT_ID_CONTINUE -> {
-                        val histories = historyBox.query()
-                            .equal(PlaybackHistory_.type, "movie", StringOrder.CASE_INSENSITIVE)
-                            .order(PlaybackHistory_.lastPlayedAt, QueryBuilder.DESCENDING)
-                            .build()
-                            .find()
+                        val movieIds = history.filter { it.type == "movie" }
+                            .map { it.streamId }
                         
-                        val movieIds = histories.map { it.streamId }
                         val moviesList = movieBox.get(movieIds.toLongArray()).filterNotNull()
                         val movieMap = moviesList.associateBy { it.id }
-                        movieIds.mapNotNull { movieMap[it] }
+                        movieIds.distinct().mapNotNull { movieMap[it] }
                     }
                     else -> {
                         movieBox.query()
