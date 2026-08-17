@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -89,7 +90,7 @@ fun TvMovieScreen(
         // --- 2. CLEAN DUAL-PANE LAYOUT ---
         Row(
             modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp) // Reduced from 24.dp
         ) {
             // --- PANE 1: CATEGORIES (Matched to Live TV Width: 30%) ---
             TvGlassPane(modifier = Modifier.weight(0.30f).fillMaxHeight()) {
@@ -117,7 +118,7 @@ fun TvMovieScreen(
             TvGlassPane(modifier = Modifier.weight(0.70f).fillMaxHeight()) {
                 LazyVerticalGrid(
                     state = gridState,
-                    columns = GridCells.Fixed(5), // 5 columns for smaller posters
+                    columns = GridCells.Fixed(4), // Changed to 4 columns
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -125,7 +126,7 @@ fun TvMovieScreen(
                 ) {
                     itemsIndexed(uiState.filteredMovies, key = { _, m -> m.id }) { index, movie ->
                         val requester = movieFocusRequesters.getOrPut(movie.id) { FocusRequester() }
-                        val isLastInRow = (index + 1) % 5 == 0
+                        val isLastInRow = (index + 1) % 4 == 0 // Updated for 4 columns
                         
                         VodPosterCard(
                             movie = movie,
@@ -165,10 +166,11 @@ private fun TvCategoryItem(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), 
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center // Added to center the content
         ) {
-            Box(modifier = Modifier.width(3.dp).height(20.dp).background(if (isSelected || isFocused) TvColors.Primary else Color.Transparent, CircleShape))
-            Spacer(modifier = Modifier.width(12.dp))
+            // Only show indicator if not centered-text style or keep it very subtle
+            // Given the "centered" requirement, it's cleaner to remove or center the indicator too
             Text(
                 text = label, 
                 color = if (isFocused) Color.Black else Color.White, 
@@ -177,7 +179,8 @@ private fun TvCategoryItem(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 16.sp,
-                modifier = Modifier.weight(1f)
+                textAlign = TextAlign.Center, // Explicitly center the text
+                modifier = Modifier.fillMaxWidth() // Take full width to ensure centering
             )
         }
     }
