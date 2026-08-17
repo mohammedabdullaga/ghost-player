@@ -9,10 +9,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -27,6 +27,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.intl.Locale
+import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -141,6 +143,9 @@ fun TvSearchScreen(
                         unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
                         focusedContainerColor = Color.White.copy(alpha = 0.05f),
                         unfocusedContainerColor = Color.White.copy(alpha = 0.05f)
+                    ),
+                    keyboardOptions = KeyboardOptions(
+                        hintLocales = LocaleList(Locale("en"), Locale("ar"))
                     ),
                     singleLine = true,
                     shape = RoundedCornerShape(10.dp)
