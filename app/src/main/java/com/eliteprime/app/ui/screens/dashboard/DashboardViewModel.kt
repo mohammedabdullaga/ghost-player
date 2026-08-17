@@ -71,9 +71,10 @@ class DashboardViewModel @Inject constructor(
             }
         }
         
-        // Refresh from TMDB only once every 24 hours
+        // Refresh from TMDB
         viewModelScope.launch {
-            fetchTrending(forceRefresh = false)
+            // Force refresh once to ensure the new English-Title/Arabic-Desc logic is applied and cached
+            fetchTrending(forceRefresh = true)
         }
         
         // Re-fetch on language change
@@ -165,22 +166,34 @@ class DashboardViewModel @Inject constructor(
                 return@launch
             }
             
-            val lang = "ar"
+            val langAr = "ar"
+            val langEn = "en"
 
             try {
-                val movieGenres = runCatching { tmdbApiService.getMovieGenres(apiKey, lang).genres }.getOrDefault(emptyList()).associate { it.id to it.name }
-                val tvGenres = runCatching { tmdbApiService.getTvGenres(apiKey, lang).genres }.getOrDefault(emptyList()).associate { it.id to it.name }
+                val movieGenres = runCatching { tmdbApiService.getMovieGenres(apiKey, langEn).genres }.getOrDefault(emptyList()).associate { it.id to it.name }
+                val tvGenres = runCatching { tmdbApiService.getTvGenres(apiKey, langEn).genres }.getOrDefault(emptyList()).associate { it.id to it.name }
 
-                val movieResp = tmdbApiService.getTrendingMovies(apiKey, lang)
-                val trendingMovies = movieResp.results.map { result ->
-                    val displayTitle = result.title ?: ""
-                    val originalTitle = result.original_title ?: ""
+                val movieRespAr = tmdbApiService.getTrendingMovies(apiKey, langAr)
+                val movieRespEn = tmdbApiService.getTrendingMovies(apiKey, langEn)
+                val movieEnMap = movieRespEn.results.associateBy { it.id }
+
+                val trendingMovies = movieRespAr.results.map { resultAr ->
+                    val resultEn = movieEnMap[resultAr.id]
+                    val displayTitle = resultEn?.title ?: resultAr.title ?: ""
+                    val originalTitle = resultAr.original_title ?: ""
                     
                     var matched = movieBox.query()
                         .equal(Movie_.name, displayTitle, StringOrder.CASE_INSENSITIVE)
                         .build()
                         .findFirst()
                     
+                    if (matched == null && resultAr.title != null) {
+                        matched = movieBox.query()
+                            .equal(Movie_.name, resultAr.title!!, StringOrder.CASE_INSENSITIVE)
+                            .build()
+                            .findFirst()
+                    }
+
                     if (matched == null && originalTitle.isNotBlank()) {
                         matched = movieBox.query()
                             .contains(Movie_.name, originalTitle.lowercase(), StringOrder.CASE_INSENSITIVE)
@@ -189,8 +202,8 @@ class DashboardViewModel @Inject constructor(
                     }
 
                     matched?.apply { 
-                        if (result.backdrop_path != null) {
-                            val newBackdrop = "https://image.tmdb.org/t/p/w1280${result.backdrop_path}"
+                        if (resultEn?.backdrop_path != null) {
+                            val newBackdrop = "https://image.tmdb.org/t/p/w1280${resultEn.backdrop_path}"
                             if (backdropUrl != newBackdrop) {
                                 backdropUrl = newBackdrop
                                 movieBox.put(this)
@@ -199,28 +212,39 @@ class DashboardViewModel @Inject constructor(
                     }
 
                     TrendingItem(
-                        tmdbId = result.id,
+                        tmdbId = resultAr.id,
                         title = displayTitle,
-                        overview = result.overview?.takeIf { it.isNotBlank() } ?: matched?.plot ?: "",
-                        posterUrl = result.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" },
-                        backdropUrl = result.backdrop_path?.let { "https://image.tmdb.org/t/p/w1280$it" },
-                        releaseDate = result.release_date,
-                        voteAverage = result.vote_average,
-                        genreIds = result.genre_ids,
-                        genres = result.genre_ids.mapNotNull { movieGenres[it] },
+                        overview = resultAr.overview?.takeIf { it.isNotBlank() } ?: matched?.plot ?: "",
+                        posterUrl = (resultEn?.poster_path ?: resultAr.poster_path)?.let { "https://image.tmdb.org/t/p/w500$it" },
+                        backdropUrl = (resultEn?.backdrop_path ?: resultAr.backdrop_path)?.let { "https://image.tmdb.org/t/p/w1280$it" },
+                        releaseDate = resultAr.release_date,
+                        voteAverage = resultAr.vote_average,
+                        genreIds = resultAr.genre_ids,
+                        genres = resultAr.genre_ids.mapNotNull { movieGenres[it] },
                         localMatch = matched
                     )
                 }.distinctBy { it.tmdbId }.take(20)
 
-                val seriesResp = tmdbApiService.getTrendingTv(apiKey, lang)
-                val trendingSeries = seriesResp.results.map { result ->
-                    val displayName = result.name ?: ""
-                    val originalName = result.original_name ?: ""
+                val seriesRespAr = tmdbApiService.getTrendingTv(apiKey, langAr)
+                val seriesRespEn = tmdbApiService.getTrendingTv(apiKey, langEn)
+                val seriesEnMap = seriesRespEn.results.associateBy { it.id }
+
+                val trendingSeries = seriesRespAr.results.map { resultAr ->
+                    val resultEn = seriesEnMap[resultAr.id]
+                    val displayName = resultEn?.name ?: resultAr.name ?: ""
+                    val originalName = resultAr.original_name ?: ""
 
                     var matched = seriesBox.query()
                         .equal(Series_.name, displayName, StringOrder.CASE_INSENSITIVE)
                         .build()
                         .findFirst()
+
+                    if (matched == null && resultAr.name != null) {
+                        matched = seriesBox.query()
+                            .equal(Series_.name, resultAr.name!!, StringOrder.CASE_INSENSITIVE)
+                            .build()
+                            .findFirst()
+                    }
 
                     if (matched == null && originalName.isNotBlank()) {
                         matched = seriesBox.query()
@@ -230,8 +254,8 @@ class DashboardViewModel @Inject constructor(
                     }
                     
                     matched?.apply {
-                        if (result.backdrop_path != null) {
-                            val newBackdrop = "https://image.tmdb.org/t/p/w1280${result.backdrop_path}"
+                        if (resultEn?.backdrop_path != null) {
+                            val newBackdrop = "https://image.tmdb.org/t/p/w1280${resultEn.backdrop_path}"
                             if (backdropUrl != newBackdrop) {
                                 backdropUrl = newBackdrop
                                 seriesBox.put(this)
@@ -240,15 +264,15 @@ class DashboardViewModel @Inject constructor(
                     }
 
                     TrendingItem(
-                        tmdbId = result.id,
+                        tmdbId = resultAr.id,
                         title = displayName,
-                        overview = result.overview?.takeIf { it.isNotBlank() } ?: matched?.plot ?: "",
-                        posterUrl = result.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" },
-                        backdropUrl = result.backdrop_path?.let { "https://image.tmdb.org/t/p/w1280$it" },
-                        releaseDate = result.first_air_date,
-                        voteAverage = result.vote_average,
-                        genreIds = result.genre_ids,
-                        genres = result.genre_ids.mapNotNull { tvGenres[it] },
+                        overview = resultAr.overview?.takeIf { it.isNotBlank() } ?: matched?.plot ?: "",
+                        posterUrl = (resultEn?.poster_path ?: resultAr.poster_path)?.let { "https://image.tmdb.org/t/p/w500$it" },
+                        backdropUrl = (resultEn?.backdrop_path ?: resultAr.backdrop_path)?.let { "https://image.tmdb.org/t/p/w1280$it" },
+                        releaseDate = resultAr.first_air_date,
+                        voteAverage = resultAr.vote_average,
+                        genreIds = resultAr.genre_ids,
+                        genres = resultAr.genre_ids.mapNotNull { tvGenres[it] },
                         localMatch = matched
                     )
                 }.distinctBy { it.tmdbId }.take(20)
