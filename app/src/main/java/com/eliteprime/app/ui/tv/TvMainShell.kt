@@ -1,6 +1,9 @@
 package com.eliteprime.app.ui.tv
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +20,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -30,12 +34,14 @@ import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.GlobalPlayerHost
 import com.eliteprime.app.ui.tv.navigation.TvAppNavigation
 import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.ui.tv.core.LocalTvFocusManager
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
 import com.eliteprime.app.ui.components.ArenaLiveLogo
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun TvMainShell(
@@ -47,12 +53,29 @@ fun TvMainShell(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: ""
     
-    val showNavBar = currentRoute in listOf("home", "live", "movies", "series", "search", "settings", "trending", "continue_watching", "downloads")
+    // Screens that should have the Navbar available
+    val navBarRoutes = listOf(
+        "home", "live", "movies", "series", "search", "settings", 
+        "trending", "continue_watching", "downloads",
+        "movie_details/{id}", "series_details/{id}"
+    )
+    val showNavBar = currentRoute in navBarRoutes
 
-    // Global focus lock state
-    val isOverlayActive = LocalTvFocusManager.current
+    // Screens that use the Cinematic (Collapsible) Navbar
+    val isCinematicRoute = currentRoute in listOf("movies", "series", "movie_details/{id}", "series_details/{id}")
+    
+    // Advanced UI state: Collapsible Navbar control
+    var isNavBarCollapsed by remember(currentRoute) { mutableStateOf(isCinematicRoute) }
+    // Tracks whether focus is currently (or was just) inside the navbar, so we only
+    // collapse on a real focus *exit*, not when the navbar first appears.
+    var navBarHadFocus by remember(currentRoute) { mutableStateOf(false) }
+
+    // Global focus management
+    val isOverlayActive = remember { mutableStateOf(false) }
     val navHomeFocusRequester = remember { FocusRequester() }
     val navSettingsFocusRequester = remember { FocusRequester() }
+    val arrowFocusRequester = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(currentRoute) {
         if (currentRoute == "home" || currentRoute == "login") {
@@ -61,46 +84,161 @@ fun TvMainShell(
         }
     }
 
-    ElitPrimeTvTheme {
-        Box(modifier = Modifier.fillMaxSize()) {
-            AppBackground(modifier = Modifier.fillMaxSize()) { }
+    CompositionLocalProvider(LocalTvFocusManager provides isOverlayActive) {
+        ElitPrimeTvTheme {
+            Box(modifier = Modifier.fillMaxSize()) {
+                AppBackground(modifier = Modifier.fillMaxSize()) { }
 
-            GlobalPlayerHost(
-                globalPlayerState = globalPlayerState,
-                modifier = Modifier.fillMaxSize()
-            )
+                GlobalPlayerHost(
+                    globalPlayerState = globalPlayerState,
+                    modifier = Modifier.fillMaxSize()
+                )
 
-            Column(modifier = Modifier.fillMaxSize()) {
-                if (showNavBar) {
-                    TvTopNavBar(
-                        currentRoute = currentRoute,
-                        navHomeFocusRequester = navHomeFocusRequester,
-                        navSettingsFocusRequester = navSettingsFocusRequester,
-                        modifier = Modifier.focusProperties { canFocus = !isOverlayActive.value },
-                        onNavigate = { route ->
-                            if (currentRoute != route) {
-                                globalPlayerState.hide()
-                                playerEngine.stop()
-                                navController.navigate(route) {
-                                    popUpTo("home") { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
+                // 1. BASE SCREEN FLOW
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // STATIC NAVBAR (Only for HOME, LIVE, SEARCH, etc.)
+                    if (showNavBar && !isCinematicRoute) {
+                        TvTopNavBar(
+                            currentRoute = currentRoute,
+                            navHomeFocusRequester = navHomeFocusRequester,
+                            navSettingsFocusRequester = navSettingsFocusRequester,
+                            modifier = Modifier.focusProperties { canFocus = !isOverlayActive.value },
+                            onNavigate = { route ->
+                                if (currentRoute != route) {
+                                    globalPlayerState.hide()
+                                    playerEngine.stop()
+                                    navController.navigate(route) {
+                                        popUpTo("home") { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
+
+                    // MAIN SCREEN CONTENT
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        TvAppNavigation(
+                            navController = navController,
+                            playerEngine = playerEngine,
+                            globalPlayerState = globalPlayerState,
+                            startDestination = startDestination,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
 
-                Box(modifier = Modifier.weight(1f)) {
-                    TvAppNavigation(
-                        navController = navController,
-                        playerEngine = playerEngine,
-                        globalPlayerState = globalPlayerState,
-                        startDestination = startDestination,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                // 2. FLOATING UI (Movies, Series, Details - Overlays everything)
+                if (showNavBar && isCinematicRoute) {
+                    // FULL FLOATING NAVBAR
+                    AnimatedVisibility(
+                        visible = !isNavBarCollapsed,
+                        enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                        exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+                    ) {
+                        TvTopNavBar(
+                            currentRoute = currentRoute,
+                            navHomeFocusRequester = navHomeFocusRequester,
+                            navSettingsFocusRequester = navSettingsFocusRequester,
+                            modifier = Modifier
+                                .focusProperties { canFocus = !isOverlayActive.value }
+                                .onFocusChanged { 
+                                    // onFocusChanged observes the focusGroup() node below, whose
+                                    // `isFocused` is always false. `hasFocus` is true while any
+                                    // child is focused, so use it to detect a true exit.
+                                    if (it.hasFocus) {
+                                        navBarHadFocus = true
+                                    } else if (navBarHadFocus) {
+                                        isNavBarCollapsed = true
+                                        navBarHadFocus = false
+                                    }
+                                }
+                                .focusGroup(),
+                            onNavigate = { route ->
+                                if (currentRoute != route) {
+                                    globalPlayerState.hide()
+                                    playerEngine.stop()
+                                    navController.navigate(route) {
+                                        popUpTo("home") { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            }
+                        )
+                    }
+
+                    // FLOATING ARROW AFFORDANCE
+                    AnimatedVisibility(
+                        visible = isNavBarCollapsed,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically(),
+                        modifier = Modifier.align(Alignment.TopCenter)
+                    ) {
+                        TvNavArrowAffordance(
+                            focusRequester = arrowFocusRequester,
+                            onClick = { 
+                                isNavBarCollapsed = false
+                                // High-intensity focus grabber
+                                scope.launch {
+                                    repeat(5) {
+                                        delay(100)
+                                        try {
+                                            navHomeFocusRequester.requestFocus()
+                                            return@launch 
+                                        } catch (_: Exception) {}
+                                    }
+                                }
+                            }
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun TvNavArrowAffordance(
+    focusRequester: FocusRequester,
+    onClick: () -> Unit
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "arrow")
+    val bounce by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bounce"
+    )
+
+    var isFocused by remember { mutableStateOf(false) }
+
+    TvSurface(
+        onClick = onClick,
+        modifier = Modifier
+            .padding(top = 4.dp)
+            .size(48.dp, 28.dp)
+            .focusRequester(focusRequester)
+            .onFocusChanged { isFocused = it.isFocused }
+            .graphicsLayer { translationY = bounce },
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.Black.copy(alpha = 0.5f),
+            focusedContainerColor = Color.White
+        ),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = "Show Menu",
+                tint = if (isFocused) Color.Black else Color.White,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -163,7 +301,8 @@ private fun TvTopNavItem(
         onClick = onClick,
         modifier = modifier
             .onFocusChanged { isFocused = it.isFocused }
-            .height(36.dp),
+            .height(36.dp)
+            .wrapContentWidth(),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (isSelected) TvColors.Primary.copy(alpha = 0.2f) else Color.Transparent,
             focusedContainerColor = Color.White
@@ -172,7 +311,7 @@ private fun TvTopNavItem(
     ) {
         Row(
             modifier = Modifier
-                .align(Alignment.Center) // CENTER IN TvSurface BoxScope
+                .align(Alignment.Center)
                 .padding(horizontal = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -220,7 +359,7 @@ private fun TvTopNavIcon(
             tint = if (isFocused) Color.Black else Color.White,
             modifier = Modifier
                 .size(18.dp)
-                .align(Alignment.Center) // CENTER IN TvSurface BoxScope
+                .align(Alignment.Center)
         )
     }
 }

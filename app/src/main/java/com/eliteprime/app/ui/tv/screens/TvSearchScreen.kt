@@ -13,6 +13,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +32,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
@@ -41,6 +45,7 @@ import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.search.SearchViewModel
 import com.eliteprime.app.ui.tv.core.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private enum class SearchFilter { ALL, MOVIES, SERIES, LIVE_TV }
 
@@ -59,11 +64,37 @@ fun TvSearchScreen(
     val searchFocusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
 
+    // Focus restoration states
+    val itemFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
+    var lastFocusedId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val scope = rememberCoroutineScope()
+
     BackHandler { onBack() }
 
+    // Initial focus on search bar, ONLY if we don't have a restoration target
     LaunchedEffect(Unit) {
-        delay(300)
-        searchFocusRequester.requestFocus()
+        if (lastFocusedId == null) {
+            delay(300)
+            searchFocusRequester.requestFocus()
+        }
+    }
+
+    // Restore focus when returning to the screen
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (lastFocusedId != null) {
+            scope.launch {
+                // More intense retry loop to catch the item when it's ready
+                repeat(10) {
+                    delay(100)
+                    try {
+                        itemFocusRequesters[lastFocusedId]?.requestFocus()
+                        return@launch
+                    } catch (_: Exception) {}
+                }
+                // Final fallback if item never appeared
+                searchFocusRequester.requestFocus()
+            }
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -192,9 +223,13 @@ fun TvSearchScreen(
                                         contentPadding = PaddingValues(horizontal = 24.dp)
                                     ) {
                                         items(uiState.movies) { movie ->
+                                            val requester = itemFocusRequesters.getOrPut(movie.id) { FocusRequester() }
                                             TvSearchPosterCardV3(
                                                 title = movie.name,
                                                 posterUrl = movie.streamIcon ?: movie.backdropUrl,
+                                                modifier = Modifier
+                                                    .focusRequester(requester)
+                                                    .onFocusChanged { if (it.isFocused) lastFocusedId = movie.id },
                                                 onClick = { onMovieClick(movie) }
                                             )
                                         }
@@ -217,9 +252,13 @@ fun TvSearchScreen(
                                         contentPadding = PaddingValues(horizontal = 24.dp)
                                     ) {
                                         items(uiState.series) { series ->
+                                            val requester = itemFocusRequesters.getOrPut(series.id) { FocusRequester() }
                                             TvSearchPosterCardV3(
                                                 title = series.name,
                                                 posterUrl = series.cover ?: series.backdropUrl,
+                                                modifier = Modifier
+                                                    .focusRequester(requester)
+                                                    .onFocusChanged { if (it.isFocused) lastFocusedId = series.id },
                                                 onClick = { onSeriesClick(series) }
                                             )
                                         }
@@ -242,7 +281,14 @@ fun TvSearchScreen(
                                         contentPadding = PaddingValues(horizontal = 24.dp)
                                     ) {
                                         items(uiState.channels) { channel ->
-                                            TvSearchChannelCardV3(channel) { onChannelClick(channel) }
+                                            val requester = itemFocusRequesters.getOrPut(channel.id) { FocusRequester() }
+                                            TvSearchChannelCardV3(
+                                                channel = channel,
+                                                modifier = Modifier
+                                                    .focusRequester(requester)
+                                                    .onFocusChanged { if (it.isFocused) lastFocusedId = channel.id },
+                                                onClick = { onChannelClick(channel) }
+                                            )
                                         }
                                     }
                                 }
@@ -304,11 +350,12 @@ private fun SearchSectionLabelV3(title: String, count: Int) {
 private fun TvSearchPosterCardV3(
     title: String,
     posterUrl: String?,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
     Column(
-        modifier = Modifier.width(134.dp), 
+        modifier = modifier.width(134.dp), 
         // INCREASED SPACING TO ACCOUNT FOR FOCUS SCALE
         verticalArrangement = Arrangement.spacedBy(if (isFocused) 14.dp else 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -342,11 +389,12 @@ private fun TvSearchPosterCardV3(
 @Composable
 private fun TvSearchChannelCardV3(
     channel: LiveStream,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
     Column(
-        modifier = Modifier.width(120.dp), 
+        modifier = modifier.width(120.dp), 
         // INCREASED SPACING TO ACCOUNT FOR FOCUS SCALE
         verticalArrangement = Arrangement.spacedBy(if (isFocused) 14.dp else 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
