@@ -28,13 +28,13 @@ class VlcPlayerEngine @Inject constructor(
     @ApplicationContext private val context: Context
 ) : PlayerEngine {
 
-    private var libVLC: LibVLC? = null
-    private var mediaPlayer: MediaPlayer? = null
-    private var videoLayout: VLCVideoLayout? = null
+    @Volatile private var libVLC: LibVLC? = null
+    @Volatile private var mediaPlayer: MediaPlayer? = null
+    @Volatile private var videoLayout: VLCVideoLayout? = null
     
-    private var pendingUrl: String? = null
-    private var isSurfaceAttached = false
-    private var attachedLayout: VLCVideoLayout? = null
+    @Volatile private var pendingUrl: String? = null
+    @Volatile private var isSurfaceAttached = false
+    @Volatile private var attachedLayout: VLCVideoLayout? = null
     
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val TAG = "VlcPlayerEngine"
@@ -143,6 +143,7 @@ class VlcPlayerEngine @Inject constructor(
                         _isPlaying.value = true
                         _duration.value = mediaPlayer?.length ?: 0L
                         updateTracks()
+                        updateVideoFormat()
                     }
                     MediaPlayer.Event.Paused -> _isPlaying.value = false
                     MediaPlayer.Event.Stopped -> {
@@ -190,6 +191,23 @@ class VlcPlayerEngine @Inject constructor(
         _availableSubtitleTracks.value = spuTracks?.map { 
             PlayerTrack(it.id.toString(), it.name, isSelected = it.id == mediaPlayer?.spuTrack)
         } ?: emptyList()
+    }
+
+    private fun updateVideoFormat() {
+        val track = mediaPlayer?.currentVideoTrack ?: return
+        if (track.width <= 0 || track.height <= 0) return
+        val fps = if (track.frameRateDen > 0) {
+            track.frameRateNum.toFloat() / track.frameRateDen
+        } else {
+            0f
+        }
+        _videoFormat.value = VideoFormat(
+            width = track.width,
+            height = track.height,
+            frameRate = fps,
+            bitrate = track.bitrate,
+            codec = track.codec
+        )
     }
 
     override fun play() { mediaPlayer?.play() }

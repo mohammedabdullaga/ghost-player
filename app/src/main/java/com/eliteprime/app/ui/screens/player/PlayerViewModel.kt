@@ -595,6 +595,10 @@ class PlayerViewModel @Inject constructor(
         if (type == "live") {
             globalPlayerState.enterPreview(playerEngine)
         } else {
+            // Stop the engine and clear its surface so VOD doesn't keep
+            // playing audio / hold a dangling surface after leaving fullscreen.
+            playerEngine.stop()
+            playerEngine.clearRenderBinding()
             globalPlayerState.hide()
         }
     }

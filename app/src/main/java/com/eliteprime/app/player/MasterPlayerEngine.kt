@@ -95,12 +95,14 @@ class MasterPlayerEngine @Inject constructor(
                     Log.i(TAG, "Switching Player Engine to: $type")
                     val oldEngine = _activePlayer.value
                     
-                    // Stop old engine before switching
+                    // Stop old engine and release its surface before switching.
                     oldEngine.stop()
+                    oldEngine.clearRenderBinding()
                     
                     _activePlayer.value = newEngine
                     
-                    // If we were playing something, resume it on the new engine
+                    // If we were playing something, resume it on the new engine.
+                    // The new engine will prepare once its surface is ready.
                     lastStreamInfo?.let { info ->
                         Log.d(TAG, "Restoring playback on new engine: ${info.url}")
                         newEngine.prepare(info)
