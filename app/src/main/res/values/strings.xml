@@ -255,6 +255,11 @@
     <string name="login_qr_pairing">Scan with your phone to login instantly</string>
     <string name="login_generate_code">GENERATE CODE</string>
 
+    <string name="settings_player_engine">Player Engine</string>
+    <string name="settings_player_vlc">libVLC (High Resilience)</string>
+    <string name="settings_player_exo">ExoPlayer (Standard)</string>
+    <string name="settings_select_player_engine">Select Player Engine</string>
+
     <string name="settings_subtitle_size_small">Small</string>
     <string name="settings_subtitle_size_default">Default</string>
     <string name="settings_subtitle_size_large">Large</string>

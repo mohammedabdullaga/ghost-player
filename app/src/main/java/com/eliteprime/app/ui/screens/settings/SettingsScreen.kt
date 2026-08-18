@@ -637,6 +637,7 @@ private fun PlaybackSettingsContent(
     val context = LocalContext.current
     var showBufferDialog by remember { mutableStateOf(false) }
     var showDecoderDialog by remember { mutableStateOf(false) }
+    var showPlayerEngineDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -650,6 +651,13 @@ private fun PlaybackSettingsContent(
                                 text = stringResource(R.string.settings_playback_options),
                                 color = Color.White.copy(alpha = 0.6f),
                                 style = EyebrowStyle
+                            )
+
+                            SettingClickableItem(
+                                title = stringResource(R.string.settings_player_engine),
+                                subtitle = if (uiState.playerEngineMode == "VLC") stringResource(R.string.settings_player_vlc) else stringResource(R.string.settings_player_exo),
+                                icon = Icons.Default.PlayCircle,
+                                onClick = { showPlayerEngineDialog = true }
                             )
                             
                             SettingToggleItem(
@@ -850,6 +858,25 @@ private fun PlaybackSettingsContent(
                     onClick = {
                         viewModel.setDecoderMode(mode)
                         showDecoderDialog = false
+                    }
+                )
+            }
+        }
+    }
+
+    if (showPlayerEngineDialog) {
+        val options = listOf("VLC", "EXO")
+        SettingsSelectionDialog(
+            title = stringResource(R.string.settings_select_player_engine),
+            onDismiss = { showPlayerEngineDialog = false }
+        ) {
+            options.forEach { mode ->
+                RadioOptionRow(
+                    label = if (mode == "VLC") stringResource(R.string.settings_player_vlc) else stringResource(R.string.settings_player_exo),
+                    isSelected = uiState.playerEngineMode == mode,
+                    onClick = {
+                        viewModel.setPlayerEngineMode(mode)
+                        showPlayerEngineDialog = false
                     }
                 )
             }

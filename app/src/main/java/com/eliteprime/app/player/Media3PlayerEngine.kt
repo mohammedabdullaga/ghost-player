@@ -80,6 +80,8 @@ class Media3PlayerEngine @Inject constructor(
     private var playbackStarted: Boolean = false
     private var videoStallRecoveryAttempt: Int = 0
     
+    override val engineType: StateFlow<PlayerType> = MutableStateFlow(PlayerType.EXO).asStateFlow()
+
     // Engine State for Recovery
     private var activeStreamType: ResolvedStreamType = ResolvedStreamType.UNKNOWN
     private var activeStreamInfo: StreamInfo? = null

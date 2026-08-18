@@ -20,6 +20,10 @@ import androidx.annotation.OptIn
 
 const val PLAYER_TRACK_AUTO_ID = "__auto__"
 
+enum class PlayerType {
+    VLC, EXO
+}
+
 enum class PlayerRenderSurfaceType {
     AUTO, SURFACE_VIEW, TEXTURE_VIEW
 }
@@ -35,6 +39,7 @@ data class PlayerTrack(
 )
 
 interface PlayerEngine {
+    val engineType: StateFlow<PlayerType>
     val playbackState: StateFlow<PlaybackState>
     val isPlaying: StateFlow<Boolean>
     val currentPosition: StateFlow<Long>

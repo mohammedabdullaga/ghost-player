@@ -48,6 +48,7 @@ data class SettingsUiState(
     val preventStandby: Boolean = true,
     val liveBufferSize: Int = 0,
     val decoderMode: String = "AUTO",
+    val playerEngineMode: String = "VLC",
     val lastUpdateCheckTimestamp: Long = 0,
     val isCheckingForUpdates: Boolean = false,
     val latestVersion: String? = null,
@@ -108,6 +109,7 @@ class SettingsViewModel @Inject constructor(
         preferenceRepository.preventStandby,
         preferenceRepository.liveBufferSize,
         preferenceRepository.decoderMode,
+        preferenceRepository.playerEngineMode,
         _isCheckingForUpdates,
         _latestVersion,
         _updateStatus,
@@ -132,10 +134,11 @@ class SettingsViewModel @Inject constructor(
             preventStandby = params[15] as Boolean,
             liveBufferSize = params[16] as Int,
             decoderMode = params[17] as String,
-            isCheckingForUpdates = params[18] as Boolean,
-            latestVersion = params[19] as? String,
-            updateStatus = params[20] as String,
-            lastUpdateCheckTimestamp = params[21] as Long
+            playerEngineMode = params[18] as String,
+            isCheckingForUpdates = params[19] as Boolean,
+            latestVersion = params[20] as? String,
+            updateStatus = params[21] as String,
+            lastUpdateCheckTimestamp = params[22] as Long
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
@@ -205,6 +208,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setDecoderMode(mode: String) {
         preferenceRepository.setDecoderMode(mode)
+    }
+
+    fun setPlayerEngineMode(mode: String) {
+        preferenceRepository.setPlayerEngineMode(mode)
     }
 
     fun checkForUpdates() {

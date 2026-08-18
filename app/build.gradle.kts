@@ -123,6 +123,9 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.navigation.compose)
 
+    // libVLC
+    implementation("org.videolan.android:libvlc-all:3.5.1")
+
     // WorkManager
     implementation(libs.work.runtime.ktx)
 

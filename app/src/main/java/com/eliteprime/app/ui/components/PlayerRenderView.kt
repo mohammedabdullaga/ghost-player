@@ -31,6 +31,15 @@ fun PlayerRenderView(
     val globalMode = globalModeState?.value ?: PlayerViewMode.HIDDEN
     
     val videoFormat by playerEngine.videoFormat.collectAsStateWithLifecycle()
+    val currentEngineType by playerEngine.engineType.collectAsStateWithLifecycle()
+
+    // STABILITY FIX: libVLC REQUIRES a SurfaceView for zero-copy hardware decoding.
+    // TextureView will often fail or fallback to software, which is too slow for 4K.
+    val effectiveSurfaceType = if (currentEngineType == PlayerType.VLC) {
+        PlayerRenderSurfaceType.SURFACE_VIEW
+    } else {
+        surfaceType
+    }
     
     // PRE-SIZE: Apply aspect ratio before AndroidView is measured if we know it.
     // PERFORMANCE: We ONLY apply this for non-global views (e.g. if we ever go back to embedded).
@@ -44,44 +53,47 @@ fun PlayerRenderView(
 
     // PERFORMANCE FIX: Apply aspect ratio directly to the AndroidView and remove wrapper Box.
     // This reduces layout passes which can cause decoder drops on Amlogic SOCs.
-    AndroidView(
-        factory = { context ->
-            Log.d("PlayerBinding", "AndroidView.factory: isGlobalHost=$isGlobalHost | surfaceType=$surfaceType")
-            playerEngine.createRenderView(context, resizeMode, surfaceType).apply {
-                if (Build.VERSION.SDK_INT >= 35) {
-                    try {
-                        (this as? PlayerView)?.setRequestedFrameRate(0f)
-                    } catch (e: Exception) {}
+    // Keyed by engine type and surface type to force factory recreation when switching engines or surface requirements
+    key(currentEngineType, effectiveSurfaceType) {
+        AndroidView(
+            factory = { context ->
+                Log.d("PlayerBinding", "AndroidView.factory: isGlobalHost=$isGlobalHost | effectiveSurfaceType=$effectiveSurfaceType | engine=$currentEngineType")
+                playerEngine.createRenderView(context, resizeMode, effectiveSurfaceType).apply {
+                    if (Build.VERSION.SDK_INT >= 35) {
+                        try {
+                            (this as? PlayerView)?.setRequestedFrameRate(0f)
+                        } catch (e: Exception) {}
+                    }
                 }
-            }
-        },
-        update = { view ->
-            val useTransform = globalPlayerState?.useTransformHandoff?.value ?: false
-            
-            val shouldBind = if (isGlobalHost) {
-                // If using transform, GlobalHost handles BOTH Fullscreen and Preview
-                if (useTransform) {
-                    globalMode == PlayerViewMode.FULLSCREEN || globalMode == PlayerViewMode.PREVIEW
+            },
+            update = { view ->
+                val useTransform = globalPlayerState?.useTransformHandoff?.value ?: false
+                
+                val shouldBind = if (isGlobalHost) {
+                    // If using transform, GlobalHost handles BOTH Fullscreen and Preview
+                    if (useTransform) {
+                        globalMode == PlayerViewMode.FULLSCREEN || globalMode == PlayerViewMode.PREVIEW
+                    } else {
+                        globalMode == PlayerViewMode.FULLSCREEN
+                    }
                 } else {
-                    globalMode == PlayerViewMode.FULLSCREEN
+                    // If using transform, Embedded views NEVER bind (they are just "holes" or reporting bounds)
+                    if (useTransform) {
+                        false
+                    } else {
+                        globalMode != PlayerViewMode.FULLSCREEN
+                    }
                 }
-            } else {
-                // If using transform, Embedded views NEVER bind (they are just "holes" or reporting bounds)
-                if (useTransform) {
-                    false
+
+                Log.d("PlayerBinding", "AndroidView.update: isGlobalHost=$isGlobalHost | mode=$globalMode | useTransform=$useTransform | shouldBind=$shouldBind")
+
+                if (shouldBind) {
+                    playerEngine.bindRenderView(view, resizeMode)
                 } else {
-                    globalMode != PlayerViewMode.FULLSCREEN
+                    playerEngine.unbindRenderView(view)
                 }
-            }
-
-            Log.d("PlayerBinding", "AndroidView.update: isGlobalHost=$isGlobalHost | mode=$globalMode | useTransform=$useTransform | shouldBind=$shouldBind")
-
-            if (shouldBind) {
-                playerEngine.bindRenderView(view, resizeMode)
-            } else {
-                playerEngine.unbindRenderView(view)
-            }
-        },
-        modifier = modifier.then(aspectModifier).focusable(false)
-    )
+            },
+            modifier = modifier.then(aspectModifier).focusable(false)
+        )
+    }
 }

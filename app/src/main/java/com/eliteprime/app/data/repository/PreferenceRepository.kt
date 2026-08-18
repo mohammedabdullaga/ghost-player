@@ -45,6 +45,9 @@ class PreferenceRepository @Inject constructor(
     private val _subtitleStyle = MutableStateFlow(loadSubtitleStyle())
     val subtitleStyle: StateFlow<PlayerSubtitleStyle> = _subtitleStyle
 
+    private val _playerEngineMode = MutableStateFlow(prefs.getString("player_engine_mode", "VLC") ?: "VLC")
+    val playerEngineMode: StateFlow<String> = _playerEngineMode
+
     private fun loadSubtitleStyle(): PlayerSubtitleStyle {
         return PlayerSubtitleStyle(
             textScale = prefs.getFloat("subtitle_text_scale", 1.0f),
@@ -115,6 +118,11 @@ class PreferenceRepository @Inject constructor(
     fun setDecoderMode(mode: String) {
         prefs.edit().putString("decoder_mode", mode).apply()
         _decoderMode.value = mode
+    }
+
+    fun setPlayerEngineMode(mode: String) {
+        prefs.edit().putString("player_engine_mode", mode).apply()
+        _playerEngineMode.value = mode
     }
 
     fun getLastUpdateCheckTimestamp(): Long = prefs.getLong("last_update_check_timestamp", 0L)

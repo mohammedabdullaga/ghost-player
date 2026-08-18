@@ -255,6 +255,11 @@
     <string name="login_qr_pairing">امسح الرمز بهاتفك لتسجيل الدخول فوراً</string>
     <string name="login_generate_code">إنشاء رمز</string>
 
+    <string name="settings_player_engine">محرك التشغيل</string>
+    <string name="settings_player_vlc">libVLC (مرونة عالية)</string>
+    <string name="settings_player_exo">ExoPlayer (قياسي)</string>
+    <string name="settings_select_player_engine">اختر محرك التشغيل</string>
+
     <string name="settings_subtitle_size_small">صغير</string>
     <string name="settings_subtitle_size_default">تلقائي</string>
     <string name="settings_subtitle_size_large">كبير</string>
