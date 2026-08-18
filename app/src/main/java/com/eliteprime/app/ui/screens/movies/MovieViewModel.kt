@@ -12,7 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -48,40 +47,47 @@ class MovieViewModel @Inject constructor(
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
 
+    // Debounce only non-empty queries; empty (initial/default) emits immediately
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
+    private val debouncedSearchQuery = _searchQuery
+        .flatMapLatest { query ->
+            if (query.isEmpty()) flowOf(query)
+            else flowOf(query).debounce(300)
+        }
+        .distinctUntilChanged()
+
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val filteredMoviesFlow = combine(
         _selectedCategoryId,
-        _searchQuery.debounce(300),
+        debouncedSearchQuery,
         categoriesFlow,
         playbackHistoryRepository.getRecentlyWatched(50)
     ) { selectedId, query, allCategories, history ->
         val currentId = selectedId ?: CAT_ID_FAVORITES
         val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull() ?: return@combine emptyList()
 
-        withContext(Dispatchers.IO) {
-            if (query.isNotEmpty()) {
-                val qb = movieBox.query().contains(Movie_.name, query, StringOrder.CASE_INSENSITIVE)
-                if (currentId > 0) {
-                    qb.equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+        if (query.isNotEmpty()) {
+            val qb = movieBox.query().contains(Movie_.name, query, StringOrder.CASE_INSENSITIVE)
+            if (currentId > 0) {
+                qb.equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+            }
+            qb.build().find(0, FAST_LOAD_LIMIT)
+        } else {
+            when (currentId) {
+                CAT_ID_FAVORITES -> movieBox.query().equal(Movie_.isFavorite, true).build().find()
+                CAT_ID_CONTINUE -> {
+                    val movieIds = history.filter { it.type == "movie" }
+                        .map { it.streamId }
+                    
+                    val moviesList = movieBox.get(movieIds.toLongArray()).filterNotNull()
+                    val movieMap = moviesList.associateBy { it.id }
+                    movieIds.distinct().mapNotNull { movieMap[it] }
                 }
-                qb.build().find(0, FAST_LOAD_LIMIT)
-            } else {
-                when (currentId) {
-                    CAT_ID_FAVORITES -> movieBox.query().equal(Movie_.isFavorite, true).build().find()
-                    CAT_ID_CONTINUE -> {
-                        val movieIds = history.filter { it.type == "movie" }
-                            .map { it.streamId }
-                        
-                        val moviesList = movieBox.get(movieIds.toLongArray()).filterNotNull()
-                        val movieMap = moviesList.associateBy { it.id }
-                        movieIds.distinct().mapNotNull { movieMap[it] }
-                    }
-                    else -> {
-                        movieBox.query()
-                            .equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
-                            .build()
-                            .find()
-                    }
+                else -> {
+                    movieBox.query()
+                        .equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+                        .build()
+                        .find()
                 }
             }
         }

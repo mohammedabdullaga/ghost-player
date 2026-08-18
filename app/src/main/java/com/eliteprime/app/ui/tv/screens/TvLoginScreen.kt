@@ -1,154 +1,237 @@
 package com.eliteprime.app.ui.tv.screens
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.intl.Locale
-import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.ClickableSurfaceDefaults
 import com.eliteprime.app.R
+import com.eliteprime.app.ui.components.ArenaLiveLogo
 import com.eliteprime.app.ui.screens.login.LoginState
 import com.eliteprime.app.ui.screens.login.LoginViewModel
-import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.ui.screens.login.SyncProgress
+import com.eliteprime.app.ui.tv.core.TvColors
+import com.eliteprime.app.ui.tv.core.TvSurfaceCard
+
+private val ArenaOrange = TvColors.Primary
 
 @Composable
 fun TvLoginScreen(
     onLoginSuccess: () -> Unit,
     viewModel: LoginViewModel = hiltViewModel()
 ) {
-    val loginState by viewModel.loginState.collectAsState()
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(loginState) {
-        if (loginState is LoginState.Success) onLoginSuccess()
+    val state by viewModel.loginState.collectAsState()
+    val syncProgress by viewModel.syncProgress.collectAsState()
+    val pairingState by viewModel.pairingState.collectAsState()
+    val isSecureEnabled by viewModel.isSecureConnectionEnabled.collectAsState()
+
+    LaunchedEffect(state) {
+        if (state is LoginState.Success) {
+            onLoginSuccess()
+        }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(TvColors.Background)) {
-        Row(modifier = Modifier.fillMaxSize()) {
-            
-            // --- LEFT: BRANDING & QR LOGIN ---
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .background(Color.White.copy(alpha = 0.03f))
-                    .padding(56.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
+    LaunchedEffect(Unit) {
+        viewModel.startQrPairing()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(TvColors.Background),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier.widthIn(max = 1100.dp).padding(32.dp),
+            color = Color.Black.copy(alpha = 0.65f),
+            shape = RoundedCornerShape(28.dp),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+        ) {
+            Row(
+                modifier = Modifier.padding(48.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(64.dp)
             ) {
-                Icon(
-                    Icons.Default.QrCodeScanner, 
-                    null, 
-                    tint = TvColors.Primary, 
-                    modifier = Modifier.size(120.dp)
-                )
-                Spacer(modifier = Modifier.height(32.dp))
-                Text(
-                    stringResource(R.string.login_qr_title).uppercase(), 
-                    color = Color.White, 
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Black
-                )
-                Text(
-                    stringResource(R.string.login_qr_pairing), 
-                    color = TvColors.TextSecondary,
-                    textAlign = TextAlign.Center
-                )
-                
-                Spacer(modifier = Modifier.height(48.dp))
-                
-                TvSurfaceCard(
-                    onClick = { viewModel.startQrPairing() },
-                    modifier = Modifier.width(200.dp).height(52.dp),
-                    colors = ClickableSurfaceDefaults.colors(
-                        containerColor = Color.White.copy(alpha = 0.1f),
-                        focusedContainerColor = Color.White
-                    )
-                ) {
-                    Text(stringResource(R.string.login_generate_code), color = Color.Black, fontWeight = FontWeight.Black)
-                }
-            }
+                // ── LEFT: Manual login ──────────────────────────────────
+                Box(modifier = Modifier.weight(1.1f)) {
+                    if (state is LoginState.Loading) {
+                        TvSyncProgressView(syncProgress)
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+                            ArenaLiveLogo(textSize = 28.sp)
 
-            // --- RIGHT: MANUAL LOGIN ---
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .padding(56.dp),
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    stringResource(R.string.login_title), 
-                    style = MaterialTheme.typography.displaySmall, 
-                    color = Color.White, 
-                    fontWeight = FontWeight.Black
-                )
-                Text(stringResource(R.string.login_subtitle), color = TvColors.TextTertiary)
+                            Text(
+                                text = stringResource(R.string.login_title),
+                                color = ArenaOrange,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 22.sp,
+                                letterSpacing = 1.sp
+                            )
 
-                Spacer(modifier = Modifier.height(48.dp))
+                            TvLoginTextField(
+                                value = username,
+                                onValueChange = { username = it },
+                                label = stringResource(R.string.login_username),
+                                icon = Icons.Default.Person
+                            )
 
-                TvLoginTextField(
-                    value = username,
-                    onValueChange = { username = it },
-                    label = stringResource(R.string.login_username),
-                    icon = Icons.Default.Person
-                )
+                            TvLoginTextField(
+                                value = password,
+                                onValueChange = { password = it },
+                                label = stringResource(R.string.login_password),
+                                icon = Icons.Default.Lock,
+                                isPassword = true,
+                                passwordVisible = passwordVisible,
+                                onTogglePasswordVisible = { passwordVisible = !passwordVisible }
+                            )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                            // Login + VPN row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                var isLoginFocused by remember { mutableStateOf(false) }
+                                TvSurfaceCard(
+                                    onClick = { viewModel.login(username, password) },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(60.dp)
+                                        .onFocusChanged { isLoginFocused = it.isFocused },
+                                    colors = ClickableSurfaceDefaults.colors(
+                                        containerColor = ArenaOrange,
+                                        focusedContainerColor = Color.White
+                                    )
+                                ) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            stringResource(R.string.login_btn),
+                                            color = if (isLoginFocused) Color.Black else Color.Black,
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 18.sp
+                                        )
+                                    }
+                                }
 
-                TvLoginTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = stringResource(R.string.login_password),
-                    icon = Icons.Default.Lock,
-                    isPassword = true
-                )
+                                TvVpnToggle(
+                                    isEnabled = isSecureEnabled,
+                                    onToggle = { viewModel.setSecureConnectionEnabled(it) },
+                                    modifier = Modifier.weight(0.7f).height(60.dp)
+                                )
+                            }
 
-                Spacer(modifier = Modifier.height(32.dp))
-
-                if (loginState is LoginState.Loading) {
-                    CircularProgressIndicator(color = TvColors.Primary)
-                } else {
-                    TvSurfaceCard(
-                        onClick = { viewModel.login(username, password) },
-                        modifier = Modifier.fillMaxWidth().height(60.dp),
-                        colors = ClickableSurfaceDefaults.colors(
-                            containerColor = TvColors.Primary,
-                            focusedContainerColor = Color.White
-                        )
-                    ) {
-                        Text(stringResource(R.string.login_btn), color = Color.Black, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                            (state as? LoginState.Error)?.let {
+                                TvErrorBanner(it.message)
+                            }
+                        }
                     }
                 }
-                
-                if (loginState is LoginState.Error) {
-                    Text((loginState as LoginState.Error).message, color = Color.Red, modifier = Modifier.padding(top = 16.dp))
+
+                // ── Separator ───────────────────────────────────────────
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(300.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color.White.copy(alpha = 0.1f), Color.Transparent)
+                            )
+                        )
+                )
+
+                // ── RIGHT: QR pairing ───────────────────────────────────
+                Column(
+                    modifier = Modifier.weight(0.9f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    pairingState.qrBitmap?.let { bitmap ->
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color.White,
+                            modifier = Modifier.size(220.dp)
+                        ) {
+                            Box(modifier = Modifier.padding(16.dp)) {
+                                Image(
+                                    bitmap = bitmap.asImageBitmap(),
+                                    contentDescription = "QR Code",
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(28.dp))
+
+                        Text(
+                            text = stringResource(R.string.login_qr_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = stringResource(R.string.login_qr_msg),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.5f),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.login_qr_footer),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = ArenaOrange.copy(alpha = 0.8f),
+                            fontWeight = FontWeight.Bold
+                        )
+                    } ?: run {
+                        CircularProgressIndicator(
+                            color = ArenaOrange,
+                            modifier = Modifier.size(48.dp),
+                            strokeWidth = 4.dp
+                        )
+                        Text(
+                            stringResource(R.string.login_qr_generating),
+                            color = Color.White.copy(alpha = 0.5f),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(top = 20.dp)
+                        )
+                    }
                 }
             }
         }
     }
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Sub-components
+// ═════════════════════════════════════════════════════════════════════════════
 
 @Composable
 private fun TvLoginTextField(
@@ -156,30 +239,204 @@ private fun TvLoginTextField(
     onValueChange: (String) -> Unit,
     label: String,
     icon: ImageVector,
-    isPassword: Boolean = false
+    isPassword: Boolean = false,
+    passwordVisible: Boolean = false,
+    onTogglePasswordVisible: (() -> Unit)? = null
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    
+
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = Modifier
             .fillMaxWidth()
             .onFocusChanged { isFocused = it.isFocused },
-        label = { Text(label, color = if(isFocused) TvColors.Primary else TvColors.TextTertiary) },
-        leadingIcon = { Icon(icon, null, tint = if(isFocused) TvColors.Primary else Color.White.copy(alpha = 0.3f)) },
-        visualTransformation = if(isPassword) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(
-            hintLocales = LocaleList(Locale("en"), Locale("ar"))
-        ),
+        label = {
+            Text(
+                label,
+                color = if (isFocused) ArenaOrange else Color.White.copy(alpha = 0.4f)
+            )
+        },
+        leadingIcon = {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (isFocused) ArenaOrange else Color.White.copy(alpha = 0.35f)
+            )
+        },
+        trailingIcon = {
+            if (isPassword && onTogglePasswordVisible != null) {
+                IconButton(onClick = onTogglePasswordVisible) {
+                    Icon(
+                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff
+                            else Icons.Default.Visibility,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.4f)
+                    )
+                }
+            }
+        },
+        visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation()
+            else VisualTransformation.None,
+        singleLine = true,
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = Color.White,
             unfocusedTextColor = Color.White,
-            focusedBorderColor = TvColors.Primary,
+            focusedBorderColor = ArenaOrange,
             unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
             focusedContainerColor = Color.White.copy(alpha = 0.05f),
-            unfocusedContainerColor = Color.White.copy(alpha = 0.03f)
+            unfocusedContainerColor = Color.White.copy(alpha = 0.03f),
+            cursorColor = ArenaOrange
         ),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        textStyle = MaterialTheme.typography.bodyLarge
     )
+}
+
+@Composable
+private fun TvVpnToggle(
+    isEnabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var isFocused by remember { mutableStateOf(false) }
+
+    TvSurfaceCard(
+        onClick = { onToggle(!isEnabled) },
+        modifier = modifier.onFocusChanged { isFocused = it.isFocused },
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.White.copy(alpha = 0.05f),
+            focusedContainerColor = Color.White
+        ),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                if (isEnabled) Icons.Default.Shield else Icons.Default.ShieldMoon,
+                contentDescription = null,
+                tint = if (isEnabled) ArenaOrange else Color.White.copy(alpha = 0.4f),
+                modifier = Modifier.size(22.dp)
+            )
+            Text(
+                text = "VPN",
+                color = if (isFocused) Color.Black else Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.weight(1f))
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = null,
+                modifier = Modifier.scale(0.8f),
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = ArenaOrange,
+                    uncheckedThumbColor = Color.White.copy(alpha = 0.4f),
+                    uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
+                )
+            )
+        }
+    }
+}
+
+@Composable
+private fun TvErrorBanner(text: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color(0xFFEF5350).copy(alpha = 0.12f),
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                Icons.Default.ErrorOutline,
+                contentDescription = null,
+                tint = Color(0xFFEF5350),
+                modifier = Modifier.size(22.dp)
+            )
+            Text(
+                text = text,
+                color = Color(0xFFEF5350),
+                fontSize = 14.sp,
+                textAlign = TextAlign.Start,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun TvSyncProgressView(progress: SyncProgress) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(80.dp)) {
+            CircularProgressIndicator(
+                color = ArenaOrange,
+                strokeWidth = 4.dp,
+                modifier = Modifier.fillMaxSize()
+            )
+            if (progress.countdown >= 0) {
+                Text(
+                    text = progress.countdown.toString(),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        Text(
+            text = if (progress.countdown >= 0) stringResource(R.string.login_sync_finishing)
+                else stringResource(R.string.login_sync_preparing),
+            color = Color.White,
+            fontWeight = FontWeight.Black,
+            fontSize = 14.sp,
+            letterSpacing = 2.sp,
+            modifier = Modifier.alpha(0.6f)
+        )
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TvSyncStatItem(label = stringResource(R.string.nav_live_tv), count = progress.liveCount)
+            Box(modifier = Modifier.size(1.dp, 24.dp).background(Color.White.copy(alpha = 0.08f)))
+            TvSyncStatItem(label = stringResource(R.string.nav_movies), count = progress.movieCount)
+            Box(modifier = Modifier.size(1.dp, 24.dp).background(Color.White.copy(alpha = 0.08f)))
+            TvSyncStatItem(label = stringResource(R.string.nav_series), count = progress.seriesCount)
+        }
+    }
+}
+
+@Composable
+private fun TvSyncStatItem(label: String, count: Int) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = count.toString(),
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp
+        )
+        Text(
+            text = label,
+            color = Color.White.copy(alpha = 0.35f),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp
+        )
+    }
 }
