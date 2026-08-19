@@ -1,20 +1,29 @@
 package com.eliteprime.app.ui.screens.player
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,40 +32,104 @@ import androidx.compose.ui.window.Dialog
 import com.eliteprime.app.R
 import com.eliteprime.app.player.PlayerTrack
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.util.isTelevisionDevice
+import kotlinx.coroutines.delay
 
 @Composable
 fun PlayerTrackSelectionDialog(
     title: String,
+    icon: ImageVector = Icons.Default.Subtitles,
     tracks: List<PlayerTrack>,
     onTrackSelected: (PlayerTrack) -> Unit,
     onDismissRequest: () -> Unit
 ) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    val initialFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        if (isTv) {
+            delay(200)
+            try {
+                initialFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+    }
+
     Dialog(onDismissRequest = onDismissRequest) {
         Surface(
             modifier = Modifier
-                .width(320.dp)
+                .widthIn(max = 420.dp)
+                .fillMaxWidth()
                 .wrapContentHeight(),
-            shape = RoundedCornerShape(24.dp),
-            color = Color(0xFF12151B),
-            tonalElevation = 8.dp
+            shape = RoundedCornerShape(28.dp),
+            color = Color(0xFF1A1A1A),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+            tonalElevation = 24.dp
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Header with Icon & Title
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(AppColors.ArenaOrange.copy(alpha = 0.15f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = AppColors.ArenaOrange,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Text(
+                            text = title,
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
 
+                    IconButton(
+                        onClick = onDismissRequest,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.generic_close),
+                            tint = Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+
+                // Track Options List
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.heightIn(max = 400.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 340.dp)
                 ) {
                     items(tracks) { track ->
+                        val isFirst = tracks.firstOrNull() == track
                         TrackItem(
                             track = track,
-                            onClick = { 
+                            modifier = if (isFirst) Modifier.focusRequester(initialFocusRequester) else Modifier,
+                            onClick = {
                                 onTrackSelected(track)
                                 onDismissRequest()
                             }
@@ -64,13 +137,23 @@ fun PlayerTrackSelectionDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                TextButton(
+                // Footer button
+                Button(
                     onClick = onDismissRequest,
-                    modifier = Modifier.align(Alignment.End)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White.copy(alpha = 0.08f),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
                 ) {
-                    Text(stringResource(R.string.generic_close).uppercase(), color = AppColors.ArenaOrange, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = stringResource(R.string.generic_close).uppercase(),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp
+                    )
                 }
             }
         }
@@ -80,34 +163,274 @@ fun PlayerTrackSelectionDialog(
 @Composable
 private fun TrackItem(
     track: PlayerTrack,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+
     Surface(
         onClick = onClick,
-        color = if (track.isSelected) AppColors.ArenaOrange.copy(alpha = 0.12f) else Color.Transparent,
-        shape = RoundedCornerShape(12.dp)
+        color = when {
+            isFocused -> Color.White.copy(alpha = 0.18f)
+            track.isSelected -> AppColors.ArenaOrange.copy(alpha = 0.16f)
+            else -> Color.White.copy(alpha = 0.04f)
+        },
+        border = BorderStroke(
+            width = if (isFocused) 1.5.dp else 1.dp,
+            color = when {
+                isFocused -> AppColors.ArenaOrange
+                track.isSelected -> AppColors.ArenaOrange.copy(alpha = 0.4f)
+                else -> Color.White.copy(alpha = 0.06f)
+            }
+        ),
+        shape = RoundedCornerShape(14.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .onFocusChanged { isFocused = it.isFocused }
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = track.label,
-                color = if (track.isSelected) Color.White else Color.White.copy(alpha = 0.7f),
-                fontWeight = if (track.isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (track.isSelected || isFocused) Color.White else Color.White.copy(alpha = 0.75f),
+                fontWeight = if (track.isSelected || isFocused) FontWeight.Bold else FontWeight.Medium,
                 fontSize = 14.sp
             )
             if (track.isSelected) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = AppColors.ArenaOrange,
-                    modifier = Modifier.size(18.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(AppColors.ArenaOrange, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
         }
     }
 }
+
+@Composable
+fun PlayerAudioSyncDialog(
+    currentDelayMs: Long,
+    onAdjustDelay: (Long) -> Unit,
+    onResetDelay: () -> Unit,
+    onDismissRequest: () -> Unit
+) {
+    val isTv = LocalContext.current.isTelevisionDevice()
+    val initialFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        if (isTv) {
+            delay(200)
+            try {
+                initialFocusRequester.requestFocus()
+            } catch (_: Exception) {}
+        }
+    }
+
+    Dialog(onDismissRequest = onDismissRequest) {
+        Surface(
+            modifier = Modifier
+                .widthIn(max = 420.dp)
+                .fillMaxWidth()
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(28.dp),
+            color = Color(0xFF1A1A1A),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+            tonalElevation = 24.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .background(AppColors.ArenaOrange.copy(alpha = 0.15f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Audiotrack,
+                                contentDescription = null,
+                                tint = AppColors.ArenaOrange,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Text(
+                            text = stringResource(R.string.player_audio_sync),
+                            color = Color.White,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onDismissRequest,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.generic_close),
+                            tint = Color.White.copy(alpha = 0.6f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+
+                // Delay Display Badge
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color.White.copy(alpha = 0.05f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.player_audio_sync_ms, currentDelayMs),
+                            color = if (currentDelayMs == 0L) Color.White else AppColors.ArenaOrange,
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                        Text(
+                            text = when {
+                                currentDelayMs > 0 -> "Audio is delayed"
+                                currentDelayMs < 0 -> "Audio is advanced"
+                                else -> "Audio and Video in sync"
+                            },
+                            color = Color.White.copy(alpha = 0.5f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                // Adjust Controls (+ / - steps)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    AudioDelayStepButton(
+                        label = "-250ms",
+                        modifier = Modifier.weight(1f).focusRequester(initialFocusRequester),
+                        onClick = { onAdjustDelay(-250L) }
+                    )
+                    AudioDelayStepButton(
+                        label = "-50ms",
+                        modifier = Modifier.weight(1f),
+                        onClick = { onAdjustDelay(-50L) }
+                    )
+                    AudioDelayStepButton(
+                        label = "+50ms",
+                        modifier = Modifier.weight(1f),
+                        onClick = { onAdjustDelay(50L) }
+                    )
+                    AudioDelayStepButton(
+                        label = "+250ms",
+                        modifier = Modifier.weight(1f),
+                        onClick = { onAdjustDelay(250L) }
+                    )
+                }
+
+                // Actions: Reset & Done
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onResetDelay,
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f)),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.player_audio_sync_reset).uppercase(),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    Button(
+                        onClick = onDismissRequest,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AppColors.ArenaOrange,
+                            contentColor = Color.Black
+                        ),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.weight(1f).height(44.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.generic_done).uppercase(),
+                            fontWeight = FontWeight.Black,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AudioDelayStepButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = if (isFocused) Color.White.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.06f),
+        border = BorderStroke(
+            width = if (isFocused) 1.5.dp else 1.dp,
+            color = if (isFocused) AppColors.ArenaOrange else Color.White.copy(alpha = 0.08f)
+        ),
+        modifier = modifier
+            .height(42.dp)
+            .onFocusChanged { isFocused = it.isFocused }
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                color = if (isFocused) AppColors.ArenaOrange else Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+

@@ -26,8 +26,8 @@ object PlaybackBufferPolicies {
     private const val VOD_MAX_BUFFER_MS = 90_000
     private const val PLAYBACK_BUFFER_MS = 2_000
     private const val REBUFFER_MS = 5_000
-    private const val VOD_PLAYBACK_BUFFER_MS = 3_000
-    private const val VOD_REBUFFER_MS = 8_000
+    private const val VOD_PLAYBACK_BUFFER_MS = 5_000
+    private const val VOD_REBUFFER_MS = 12_000
 
     private const val LARGE_LIVE_MIN_BUFFER_MS = 25_000
     private const val LARGE_LIVE_MAX_BUFFER_MS = 75_000

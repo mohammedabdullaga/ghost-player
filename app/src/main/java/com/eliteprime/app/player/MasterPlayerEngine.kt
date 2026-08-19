@@ -27,11 +27,11 @@ class MasterPlayerEngine @Inject constructor(
     private val TAG = "MasterPlayerEngine"
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     
-    // We use a StateFlow to track which engine is currently active
-    private val _activePlayer = MutableStateFlow<PlayerEngine>(vlcEngine)
+    // We use a StateFlow to track which engine is currently active (Default: ExoPlayer / Media3)
+    private val _activePlayer = MutableStateFlow<PlayerEngine>(media3Engine)
     
     override val engineType: StateFlow<PlayerType> = _activePlayer.flatMapLatest { it.engineType }
-        .stateIn(scope, SharingStarted.Eagerly, PlayerType.VLC)
+        .stateIn(scope, SharingStarted.Eagerly, PlayerType.EXO)
 
     // Delegated properties that always point to the active engine
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -132,6 +132,7 @@ class MasterPlayerEngine @Inject constructor(
     override fun selectVideoTrack(trackId: String) = _activePlayer.value.selectVideoTrack(trackId)
     override fun selectSubtitleTrack(trackId: String?) = _activePlayer.value.selectSubtitleTrack(trackId)
     override fun setSubtitleStyle(style: PlayerSubtitleStyle) = _activePlayer.value.setSubtitleStyle(style)
+    override fun setAudioDelay(delayMs: Long) = _activePlayer.value.setAudioDelay(delayMs)
     override fun renewStreamUrl(streamInfo: StreamInfo) {
         lastStreamInfo = streamInfo
         _activePlayer.value.renewStreamUrl(streamInfo)

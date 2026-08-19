@@ -48,6 +48,9 @@
 
     <string name="player_audio">Audio</string>
     <string name="player_subs">Subs</string>
+    <string name="player_audio_sync">Audio Sync</string>
+    <string name="player_audio_sync_reset">Reset</string>
+    <string name="player_audio_sync_ms">%1$+d ms</string>
     <string name="player_live_now">Now Playing</string>
     <string name="player_resume_title">Resume Playback</string>
     <string name="player_resume_at_format">Resume at %1$s</string>

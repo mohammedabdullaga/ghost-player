@@ -67,6 +67,7 @@ fun MobilePlayerControls(
     onSeekToPosition: (Long) -> Unit,
     onOpenSubtitleTracks: () -> Unit,
     onOpenAudioTracks: () -> Unit,
+    onOpenAudioSync: () -> Unit = {},
     onToggleAspectRatio: () -> Unit,
     onEnterPiP: () -> Unit,
     onToggleVisibility: () -> Unit,
@@ -246,6 +247,12 @@ fun MobilePlayerControls(
                                         onInteraction = onInteraction
                                     )
                                 }
+                                PlayerTopIconButton(
+                                    icon = Icons.Default.Tune,
+                                    contentDescription = stringResource(R.string.player_audio_sync),
+                                    onClick = onOpenAudioSync,
+                                    onInteraction = onInteraction
+                                )
                                 if (subtitleTrackCount > 0) {
                                     PlayerTopIconButton(
                                         icon = Icons.Default.Subtitles,

@@ -31,8 +31,9 @@ class GlobalPlayerState @Inject constructor() {
     private val _useTransformHandoff = MutableStateFlow(true) 
     val useTransformHandoff: StateFlow<Boolean> = _useTransformHandoff.asStateFlow()
 
-    // STABILITY FIX: Use TextureView for Previews (Z-Order) and SurfaceView for Fullscreen (4K Performance)
-    private val _surfaceType = MutableStateFlow(PlayerRenderSurfaceType.TEXTURE_VIEW)
+    // TV & 4K STABILITY FIX: SurfaceView is always required for hardware decoding on Android TV.
+    // TextureView causes software rendering / memory-bandwidth throttling on 4K HEVC streams.
+    private val _surfaceType = MutableStateFlow(PlayerRenderSurfaceType.SURFACE_VIEW)
     val surfaceType: StateFlow<PlayerRenderSurfaceType> = _surfaceType.asStateFlow()
 
     fun setSurfaceType(type: PlayerRenderSurfaceType) {
@@ -47,9 +48,8 @@ class GlobalPlayerState @Inject constructor() {
     }
 
     private fun updateSurfaceForMode(mode: PlayerViewMode) {
-        val targetType = if (mode == PlayerViewMode.FULLSCREEN) 
-            PlayerRenderSurfaceType.SURFACE_VIEW else PlayerRenderSurfaceType.TEXTURE_VIEW
-        setSurfaceType(targetType)
+        // Always maintain SURFACE_VIEW to keep zero-copy direct hardware overlays active
+        setSurfaceType(PlayerRenderSurfaceType.SURFACE_VIEW)
     }
 
     fun enterFullScreen(engine: PlayerEngine) {

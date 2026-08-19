@@ -21,6 +21,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import androidx.media3.exoplayer.video.VideoRendererEventListener
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
@@ -248,8 +249,8 @@ class Media3PlayerEngine @Inject constructor(
              DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER 
              else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
 
-        // Disable audio track params for Xiaomi sync issues
-        renderersFactory.setEnableAudioTrackPlaybackParams(false)
+        // FIX: Ensure AudioTrack playback params and clock sync are fully enabled for real-time live TS streams
+        renderersFactory.setEnableAudioTrackPlaybackParams(true)
 
         val playerToRelease = exoPlayer
         exoPlayer = null
@@ -258,8 +259,9 @@ class Media3PlayerEngine @Inject constructor(
             scope.launch { try { old.release() } catch (e: Exception) {} }
         }
 
+        // Live speed control without artificial slow down
         val speedControl = DefaultLivePlaybackSpeedControl.Builder()
-            .setFallbackMinPlaybackSpeed(0.95f)
+            .setFallbackMinPlaybackSpeed(1.0f)
             .setFallbackMaxPlaybackSpeed(1.05f)
             .build()
 
@@ -268,7 +270,6 @@ class Media3PlayerEngine @Inject constructor(
             .setLoadControl(loadControl)
             .setBandwidthMeter(bandwidthMeter)
             .setLivePlaybackSpeedControl(speedControl)
-            .enablePerStreamMediaProgression(true)
             .build()
             .apply {
                 addListener(PlayerListener())
@@ -281,7 +282,8 @@ class Media3PlayerEngine @Inject constructor(
                     .setViewportSizeToPhysicalDisplaySize(context, true)
                     .build()
                 
-                videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+                videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT
+                setSeekParameters(SeekParameters.CLOSEST_SYNC)
             }
 
         val view = boundPlayerView ?: pendingRenderView
@@ -294,7 +296,7 @@ class Media3PlayerEngine @Inject constructor(
         hasRenderedFirstFrame = false
         playbackStarted = false
         videoStallRecoveryAttempt = 0
-        stallDetector.reset()
+        stallDetector.reset(0)
     }
 
     override fun prepare(streamInfo: StreamInfo) {
@@ -326,7 +328,12 @@ class Media3PlayerEngine @Inject constructor(
         positionUpdateJob?.cancel()
     }
 
-    override fun seekTo(positionMs: Long) { exoPlayer?.seekTo(positionMs) }
+    override fun seekTo(positionMs: Long) {
+        Log.d(TAG, "seekTo: $positionMs")
+        stallDetector.reset(positionMs)
+        _currentPosition.value = positionMs
+        exoPlayer?.seekTo(positionMs)
+    }
     override fun setVolume(volume: Float) { exoPlayer?.volume = volume }
     override fun setMuted(muted: Boolean) { exoPlayer?.volume = if (muted) 0f else 1f }
     override fun toggleMute() { setMuted(exoPlayer?.volume == 0f) }
@@ -368,6 +375,10 @@ class Media3PlayerEngine @Inject constructor(
         boundPlayerView?.let { subtitleStyleController.apply(it) }
     }
 
+    override fun setAudioDelay(delayMs: Long) {
+        // Media3 audio stream offset adjustment via renderer message if supported
+    }
+
     override fun renewStreamUrl(streamInfo: StreamInfo) {
         activeStreamInfo = streamInfo
         _prepareStatus.value = streamInfo
@@ -389,12 +400,24 @@ class Media3PlayerEngine @Inject constructor(
             useController = false
             setShutterBackgroundColor(Color.BLACK)
             isFocusable = false
-            this.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
+            this.resizeMode = when (resizeMode) {
+                PlayerSurfaceResizeMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                PlayerSurfaceResizeMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                PlayerSurfaceResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            }
         }
     }
 
     override fun bindRenderView(renderView: View, resizeMode: PlayerSurfaceResizeMode) {
         val playerView = renderView as? PlayerView ?: return
+        
+        // Dynamically apply resize mode according to user selection
+        playerView.resizeMode = when (resizeMode) {
+            PlayerSurfaceResizeMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+            PlayerSurfaceResizeMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+            PlayerSurfaceResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+        }
+
         if (exoPlayer == null) {
             pendingRenderView = playerView
             return
@@ -470,6 +493,14 @@ class Media3PlayerEngine @Inject constructor(
         }
         override fun onPlayerError(e: PlaybackException) {
             Log.e(TAG, "Error: ${e.message}", e)
+            
+            val rootCause = generateSequence<Throwable>(e) { it.cause }.lastOrNull()
+            if (rootCause?.message?.contains("Player stuck", ignoreCase = true) == true) {
+                Log.w(TAG, "Media3 detected STUCK player (root cause). Triggering automatic recovery.")
+                handleStall()
+                return
+            }
+
             _error.tryEmit(PlayerError.fromException(e))
         }
         override fun onRenderedFirstFrame() {
@@ -512,11 +543,12 @@ class Media3PlayerEngine @Inject constructor(
             while (isActive) {
                 val player = exoPlayer
                 if (player != null && !isRecoveringFromStall) {
+                    val currentPos = player.currentPosition
                     val stalled = stallDetector.shouldReportStall(
                         playbackState = _playbackState.value,
                         isPlaying = _isPlaying.value,
                         playbackStarted = playbackStarted,
-                        currentPositionMs = _currentPosition.value,
+                        currentPositionMs = currentPos,
                         bufferedDurationMs = _playerStats.value.bufferedDurationMs,
                         playWhenReady = player.playWhenReady,
                         recoverBufferingStalls = activeStreamType.isLive,
@@ -531,7 +563,6 @@ class Media3PlayerEngine @Inject constructor(
                     }
 
                     if (stalled) {
-                        Log.e(TAG, "STALL! Triggering recovery.")
                         handleStall()
                     }
                 }
@@ -557,6 +588,8 @@ class Media3PlayerEngine @Inject constructor(
         val info = activeStreamInfo ?: return
         videoStallRecoveryAttempt++
         
+        Log.e(TAG, "STALL DETECTED! State=${_playbackState.value} | Pos=${_currentPosition.value} | Buf=${_playerStats.value.bufferedDurationMs} | Attempt=$videoStallRecoveryAttempt")
+
         if (shouldReconnectLiveStall(_playbackState.value, activeStreamType, videoStallRecoveryAttempt)) {
             Log.w(TAG, "Reconnecting live stall, attempt $videoStallRecoveryAttempt")
             prepare(info)
@@ -571,17 +604,18 @@ class Media3PlayerEngine @Inject constructor(
         val info = activeStreamInfo ?: return
         val pos = exoPlayer?.currentPosition ?: 0L
         val view = boundPlayerView
+        Log.w(TAG, "Initiating recovery at position: $pos")
         scope.launch {
             isRecoveringFromStall = true
             try {
                 initializePlayer(currentBufferPolicy!!)
                 view?.let { it.player = exoPlayer; boundPlayerView = it }
                 prepare(info)
-                if (activeStreamType != ResolvedStreamType.MPEG_TS_LIVE) exoPlayer?.seekTo(pos)
+                if (activeStreamType != ResolvedStreamType.MPEG_TS_LIVE) seekTo(pos)
                 exoPlayer?.play()
             } finally {
                 isRecoveringFromStall = false
-                stallDetector.reset()
+                stallDetector.reset(pos)
             }
         }
     }

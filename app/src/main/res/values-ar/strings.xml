@@ -48,6 +48,9 @@
 
     <string name="player_audio">الصوت</string>
     <string name="player_subs">الترجمة</string>
+    <string name="player_audio_sync">مزامنة الصوت</string>
+    <string name="player_audio_sync_reset">إعادة ضبط</string>
+    <string name="player_audio_sync_ms">%1$+d مللي ثانية</string>
     <string name="player_live_now">يعرض الآن</string>
     <string name="player_resume_title">استئناف التشغيل</string>
     <string name="player_resume_at_format">استئناف عند %1$s</string>

@@ -17,12 +17,12 @@ class VideoStallDetector(
     private var stalled = false
 
     @Synchronized
-    fun reset() {
+    fun reset(initialPositionMs: Long = 0L) {
         val now = nowMs()
         startedAtMs = now
         lastFrameAtMs = 0L
-        firstFramePositionMs = 0L
-        lastPositionMs = 0L
+        firstFramePositionMs = initialPositionMs.coerceAtLeast(0L)
+        lastPositionMs = initialPositionMs
         lastPositionCheckMs = now
         stalled = false
     }
@@ -31,6 +31,7 @@ class VideoStallDetector(
     fun onVideoFrameRendered(currentPositionMs: Long = 0L) {
         if (lastFrameAtMs <= 0L) {
             firstFramePositionMs = currentPositionMs.coerceAtLeast(0L)
+            lastPositionMs = currentPositionMs
         }
         lastFrameAtMs = nowMs()
         stalled = false
@@ -79,7 +80,15 @@ class VideoStallDetector(
             if (!frameSilent) stalled = false
             return false
         }
-        if (lastFrameAtMs <= 0L) return false
+        if (lastFrameAtMs <= 0L) {
+            // Special case: Player is READY but no video frame rendered for a long time
+            val silentWaitMs = now - startedAtMs
+            if (silentWaitMs >= initialGraceMs && !stalled) {
+                stalled = true
+                return true
+            }
+            return false
+        }
         val frameSilent = now - lastFrameAtMs >= stallThresholdMs
         val requestedButNotAdvancing = playWhenReady && !isPlaying && frameSilent
         val frameSilentReadyRecovery = recoverFrameSilentReadyStalls && frameSilent

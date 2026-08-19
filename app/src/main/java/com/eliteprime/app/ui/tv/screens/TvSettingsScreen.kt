@@ -559,6 +559,7 @@ private fun TvPlaybackSettingsContent(
     viewModel: SettingsViewModel,
     context: android.content.Context
 ) {
+    var showPlayerEngineDialog by remember { mutableStateOf(false) }
     var showBufferDialog by remember { mutableStateOf(false) }
     var showDecoderDialog by remember { mutableStateOf(false) }
 
@@ -575,6 +576,13 @@ private fun TvPlaybackSettingsContent(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 1.sp
+                )
+
+                TvSettingClickableItem(
+                    title = stringResource(R.string.settings_player_engine),
+                    subtitle = if (uiState.playerEngineMode == "VLC") stringResource(R.string.settings_player_vlc) else stringResource(R.string.settings_player_exo),
+                    icon = Icons.Default.PlayCircle,
+                    onClick = { showPlayerEngineDialog = true }
                 )
 
                 TvSettingToggleItem(
@@ -766,6 +774,25 @@ private fun TvPlaybackSettingsContent(
                     onClick = {
                         viewModel.setLiveBufferSize(size)
                         showBufferDialog = false
+                    }
+                )
+            }
+        }
+    }
+
+    if (showPlayerEngineDialog) {
+        val options = listOf("VLC", "EXO")
+        TvSettingsSelectionDialog(
+            title = stringResource(R.string.settings_player_engine),
+            onDismiss = { showPlayerEngineDialog = false }
+        ) {
+            options.forEach { mode ->
+                TvRadioOptionRow(
+                    label = if (mode == "VLC") stringResource(R.string.settings_player_vlc) else stringResource(R.string.settings_player_exo),
+                    isSelected = uiState.playerEngineMode == mode,
+                    onClick = {
+                        viewModel.setPlayerEngineMode(mode)
+                        showPlayerEngineDialog = false
                     }
                 )
             }

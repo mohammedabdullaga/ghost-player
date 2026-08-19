@@ -116,12 +116,17 @@ class VlcPlayerEngine @Inject constructor(
         if (libVLC == null) {
             Log.d(TAG, "Initializing LibVLC Context")
             val args = arrayListOf(
+                // FORCE VLC NATIVE MEDIACODEC HARDWARE MODULE OVER AVCODEC/FFMPEG
+                "--codec=mediacodec_ndk,mediacodec_jni,all",
+                "--network-caching=3000",
+                "--live-caching=3000",
+                "--file-caching=3000",
+                "--clock-jitter=0",
+                "--clock-synchro=0",
                 "--drop-late-frames",
                 "--skip-frames",
-                "--codec=mediacodec,all",
-                "--freetype-font=/system/fonts/Roboto-Regular.ttf",
-                "--network-caching=3000",
-                "--clock-jitter=300",
+                "--avcodec-skiploopfilter=4",
+                "--avcodec-threads=4",
                 "--no-stats",
                 "--no-osd"
             )
@@ -172,8 +177,12 @@ class VlcPlayerEngine @Inject constructor(
         Log.i(TAG, "Executing load for: $url")
         
         val media = Media(libVLC, Uri.parse(url))
-        // REVERTING TO (true, true) for 4K performance, but letting VLC handle VOUT automatically
-        media.setHWDecoderEnabled(true, true)
+        // Direct zero-copy MediaCodec hardware decoding on SurfaceView
+        media.setHWDecoderEnabled(true, false)
+        // Tune stream flags per media instance
+        media.addOption(":clock-synchro=0")
+        media.addOption(":network-caching=3000")
+        media.addOption(":live-caching=3000")
         mediaPlayer?.media = media
         media.release()
 
@@ -235,6 +244,10 @@ class VlcPlayerEngine @Inject constructor(
     override fun selectVideoTrack(trackId: String) { /* VLC doesn't easily support dynamic video track switching same way */ }
     override fun selectSubtitleTrack(trackId: String?) { mediaPlayer?.setSpuTrack(trackId?.toInt() ?: -1) }
     override fun setSubtitleStyle(style: PlayerSubtitleStyle) { /* VLC uses its own styling system */ }
+    override fun setAudioDelay(delayMs: Long) {
+        // VLC audio delay is in microseconds
+        mediaPlayer?.setAudioDelay(delayMs * 1000L)
+    }
     override fun renewStreamUrl(streamInfo: StreamInfo) { prepare(streamInfo) }
 
     override fun release() {
@@ -255,14 +268,34 @@ class VlcPlayerEngine @Inject constructor(
         val layout = VLCVideoLayout(context)
         videoLayout = layout
         attachVlcViews(layout)
+        applyAspectRatio(resizeMode)
         return layout
     }
 
     override fun bindRenderView(renderView: View, resizeMode: PlayerSurfaceResizeMode) {
         val layout = renderView as? VLCVideoLayout ?: return
-        if (videoLayout === layout) return
-        Log.d(TAG, "bindRenderView: surface layout record only — re-attach deferred to prepare()")
         videoLayout = layout
+        attachVlcViews(layout)
+        applyAspectRatio(resizeMode)
+    }
+
+    private fun applyAspectRatio(resizeMode: PlayerSurfaceResizeMode) {
+        mediaPlayer?.let { player ->
+            when (resizeMode) {
+                PlayerSurfaceResizeMode.FIT -> {
+                    player.aspectRatio = null
+                    player.scale = 0f
+                }
+                PlayerSurfaceResizeMode.FILL -> {
+                    player.aspectRatio = "16:9"
+                    player.scale = 0f
+                }
+                PlayerSurfaceResizeMode.ZOOM -> {
+                    player.aspectRatio = null
+                    player.scale = 1.25f
+                }
+            }
+        }
     }
 
     override fun unbindRenderView(renderView: View) {

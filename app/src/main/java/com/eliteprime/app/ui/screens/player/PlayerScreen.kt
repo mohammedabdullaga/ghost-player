@@ -52,11 +52,14 @@ fun PlayerScreen(
     val aspectRatio by viewModel.aspectRatio.collectAsStateWithLifecycle()
     val showDiagnostics by viewModel.showDiagnostics.collectAsStateWithLifecycle()
     val stats by viewModel.playerStats.collectAsStateWithLifecycle()
+    val audioDelayMs by viewModel.audioDelayMs.collectAsStateWithLifecycle()
     val resumePrompt by viewModel.resumePrompt.collectAsStateWithLifecycle()
     val hasNextEpisode by viewModel.hasNextEpisode.collectAsStateWithLifecycle()
     val hasPreviousEpisode by viewModel.hasPreviousEpisode.collectAsStateWithLifecycle()
     val seekAccumulator by viewModel.seekAccumulator.collectAsStateWithLifecycle()
     val preventStandby by viewModel.preventStandby.collectAsStateWithLifecycle()
+
+    var showAudioSyncDialog by remember { mutableStateOf(false) }
 
     val isInPip by (activity as? MainActivity)?.pictureInPictureModeFlow?.collectAsStateWithLifecycle() ?: remember { mutableStateOf(false) }
     val videoFormat by viewModel.videoFormat.collectAsStateWithLifecycle()
@@ -177,6 +180,7 @@ fun PlayerScreen(
                 onSeekToPosition = { viewModel.seekTo(it) },
                 onOpenSubtitleTracks = { showSubtitleDialog = true },
                 onOpenAudioTracks = { showAudioDialog = true },
+                onOpenAudioSync = { showAudioSyncDialog = true },
                 onToggleAspectRatio = { viewModel.toggleAspectRatio() },
                 onEnterPiP = { viewModel.enterPip(activity) },
                 onToggleVisibility = { viewModel.toggleControls() },
@@ -252,9 +256,19 @@ fun PlayerScreen(
             if (showAudioDialog) {
                 PlayerTrackSelectionDialog(
                     title = stringResource(R.string.player_audio).uppercase(),
+                    icon = Icons.Default.Audiotrack,
                     tracks = audioTracks,
                     onTrackSelected = { viewModel.selectAudioTrack(it.id) },
                     onDismissRequest = { showAudioDialog = false }
+                )
+            }
+
+            if (showAudioSyncDialog) {
+                PlayerAudioSyncDialog(
+                    currentDelayMs = audioDelayMs,
+                    onAdjustDelay = { viewModel.adjustAudioDelay(it) },
+                    onResetDelay = { viewModel.resetAudioDelay() },
+                    onDismissRequest = { showAudioSyncDialog = false }
                 )
             }
 
@@ -262,6 +276,7 @@ fun PlayerScreen(
                 val subOptions = listOf(PlayerTrack(id = "none", label = stringResource(R.string.generic_done).uppercase(), isSelected = !subtitleTracks.any { it.isSelected })) + subtitleTracks
                 PlayerTrackSelectionDialog(
                     title = stringResource(R.string.player_subs).uppercase(),
+                    icon = Icons.Default.Subtitles,
                     tracks = subOptions,
                     onTrackSelected = { 
                         if (it.id == "none") viewModel.selectSubtitleTrack(null)

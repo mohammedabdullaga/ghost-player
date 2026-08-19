@@ -19,6 +19,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import androidx.media3.extractor.mkv.MatroskaExtractor
 import com.eliteprime.app.domain.model.StreamInfo
 import com.eliteprime.app.domain.model.StreamType
 
@@ -50,20 +51,20 @@ class PlayerMediaSourceFactory(
             )
             .build()
 
-        // ALIGNED WITH ORIGINAL APP FLAGS + MEDIA3 1.11.0 MEMORY FIXES
+        // Extractor configuration for IPTV broadcast and VOD (MKV/MP4/TS)
         val extractorsFactory = if (resolvedStreamType == ResolvedStreamType.MPEG_TS_LIVE) {
             DefaultExtractorsFactory()
                 .setTsExtractorMode(TsExtractor.MODE_SINGLE_PMT)
                 .setTsExtractorFlags(
-                    DefaultTsPayloadReaderFactory.FLAG_DETECT_ACCESS_UNITS
-                        or DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES
+                    DefaultTsPayloadReaderFactory.FLAG_ALLOW_NON_IDR_KEYFRAMES
                         or DefaultTsPayloadReaderFactory.FLAG_IGNORE_SPLICE_INFO_STREAM
+                        or DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS
                 )
+                .setTsExtractorTimestampSearchBytes(TsExtractor.DEFAULT_TIMESTAMP_SEARCH_BYTES * 4)
                 .setTsSubtitleFormats(TS_SUBTITLE_FORMATS)
                 .setDisableArtworkMetadata(true) // MEDIA3 1.11.0: REDUCE RAM FOOTPRINT
         } else {
             DefaultExtractorsFactory()
-                .setConstantBitrateSeekingEnabled(true)
                 .setDisableArtworkMetadata(true) // MEDIA3 1.11.0: REDUCE RAM FOOTPRINT
         }
 

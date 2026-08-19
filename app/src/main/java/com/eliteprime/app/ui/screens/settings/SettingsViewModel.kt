@@ -48,7 +48,7 @@ data class SettingsUiState(
     val preventStandby: Boolean = true,
     val liveBufferSize: Int = 0,
     val decoderMode: String = "AUTO",
-    val playerEngineMode: String = "VLC",
+    val playerEngineMode: String = "EXO",
     val lastUpdateCheckTimestamp: Long = 0,
     val isCheckingForUpdates: Boolean = false,
     val latestVersion: String? = null,

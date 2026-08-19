@@ -45,7 +45,7 @@ class PreferenceRepository @Inject constructor(
     private val _subtitleStyle = MutableStateFlow(loadSubtitleStyle())
     val subtitleStyle: StateFlow<PlayerSubtitleStyle> = _subtitleStyle
 
-    private val _playerEngineMode = MutableStateFlow(prefs.getString("player_engine_mode", "VLC") ?: "VLC")
+    private val _playerEngineMode = MutableStateFlow(prefs.getString("player_engine_mode", "EXO") ?: "EXO")
     val playerEngineMode: StateFlow<String> = _playerEngineMode
 
     private fun loadSubtitleStyle(): PlayerSubtitleStyle {

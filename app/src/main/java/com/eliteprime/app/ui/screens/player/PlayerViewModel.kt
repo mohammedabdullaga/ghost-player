@@ -73,6 +73,9 @@ class PlayerViewModel @Inject constructor(
     private val _showDiagnostics = MutableStateFlow(false)
     val showDiagnostics = _showDiagnostics.asStateFlow()
 
+    private val _audioDelayMs = MutableStateFlow(0L)
+    val audioDelayMs = _audioDelayMs.asStateFlow()
+
     private val _seekAccumulator = MutableStateFlow(0)
     val seekAccumulator = _seekAccumulator.asStateFlow()
 
@@ -440,31 +443,17 @@ class PlayerViewModel @Inject constructor(
                 }
 
                 if (url.isNotEmpty()) {
-                    val currentInfo = playerEngine.prepareStatus.value
-                    val currentState = playerEngine.playbackState.value
-
-                    if (currentInfo?.url == url && (currentState == PlaybackState.READY || currentState == PlaybackState.BUFFERING)) {
-                        if (resumeAt != null) {
-                            playerEngine.seekTo(resumeAt)
-                            playerEngine.pause()
-                        } else {
-                            playerEngine.play()
-                        }
-                    } else {
-                        playerEngine.prepare(StreamInfo(
-                            streamId = targetStreamId, 
-                            name = targetTitle, 
-                            url = url, 
-                            streamType = if (type == "live") StreamType.MPEG_TS else StreamType.fromContainerExtension(extension)
-                        ))
-                        
-                        if (resumeAt != null) {
-                            playerEngine.seekTo(resumeAt)
-                            playerEngine.pause()
-                        } else {
-                            playerEngine.play()
-                        }
+                    playerEngine.prepare(StreamInfo(
+                        streamId = targetStreamId, 
+                        name = targetTitle, 
+                        url = url, 
+                        streamType = if (type == "live") StreamType.MPEG_TS else StreamType.fromContainerExtension(extension)
+                    ))
+                    
+                    if (resumeAt != null) {
+                        playerEngine.seekTo(resumeAt)
                     }
+                    playerEngine.play()
                 }
 
                 launch {
@@ -563,6 +552,17 @@ class PlayerViewModel @Inject constructor(
 
     fun selectSubtitleTrack(trackId: String?) {
         playerEngine.selectSubtitleTrack(trackId)
+    }
+
+    fun adjustAudioDelay(deltaMs: Long) {
+        val newDelay = (_audioDelayMs.value + deltaMs).coerceIn(-5000L, 5000L)
+        _audioDelayMs.value = newDelay
+        playerEngine.setAudioDelay(newDelay)
+    }
+
+    fun resetAudioDelay() {
+        _audioDelayMs.value = 0L
+        playerEngine.setAudioDelay(0L)
     }
 
     fun toggleAspectRatio() {
