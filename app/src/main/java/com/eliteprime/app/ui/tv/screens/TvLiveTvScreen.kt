@@ -23,6 +23,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
@@ -60,6 +61,21 @@ private const val CATEGORIES_PANE_WEIGHT = 0.30f
 private const val CHANNELS_PANE_WEIGHT = 0.32f
 private const val PREVIEW_PANE_WEIGHT = 0.38f
 
+// Shared spacing/radius scale for this screen — keeps every row, gap,
+// and corner consistent instead of scattered magic numbers.
+private object LiveSpacing {
+    val xs = 6.dp
+    val sm = 10.dp
+    val md = 14.dp
+    val lg = 20.dp
+}
+
+private object LiveRadius {
+    val row = 16.dp
+    val pane = 24.dp
+    val chip = 8.dp
+}
+
 @Composable
 fun TvLiveTvScreen(
     onBack: () -> Unit,
@@ -69,12 +85,12 @@ fun TvLiveTvScreen(
     val uiState by viewModel.uiState.collectAsState()
     val previewChannel by viewModel.previewChannel.collectAsState()
     val epgList by viewModel.currentEpg.collectAsState()
-    
+
     var showAddGroupDialog by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
     var selectedChannelForOptions by remember { mutableStateOf<LiveStream?>(null) }
     var selectedCategoryForOptions by remember { mutableStateOf<Category?>(null) }
-    
+
     var lastFocusedCategoryId by remember { mutableStateOf<Long?>(null) }
     var lastFocusedChannelId by remember { mutableStateOf<Long?>(null) }
 
@@ -89,7 +105,7 @@ fun TvLiveTvScreen(
     val addGroupFocusRequester = remember { FocusRequester() }
 
     val isAnyPopupOpen = showAddGroupDialog || selectedChannelForOptions != null || selectedCategoryForOptions != null
-    
+
     // COMMUNICATE WITH SHELL TO LOCK NAVBAR
     val focusManager = LocalTvFocusManager.current
     LaunchedEffect(isAnyPopupOpen) {
@@ -106,7 +122,7 @@ fun TvLiveTvScreen(
         }
     }
 
-    BackHandler { 
+    BackHandler {
         if (isAnyPopupOpen) {
             showAddGroupDialog = false
             selectedChannelForOptions = null
@@ -137,23 +153,28 @@ fun TvLiveTvScreen(
         Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             TvGlassPane(
                 modifier = Modifier.fillMaxSize(),
-                shape = RoundedCornerShape(24.dp)
+                shape = RoundedCornerShape(LiveRadius.pane)
             ) {
                 Row(modifier = Modifier.fillMaxSize()) {
-                    // --- 1. CATEGORIES ---
-                    Column(modifier = Modifier.weight(CATEGORIES_PANE_WEIGHT).fillMaxHeight()) {
+                    // --- 1. CATEGORIES (tonal rail) ---
+                    Column(
+                        modifier = Modifier
+                            .weight(CATEGORIES_PANE_WEIGHT)
+                            .fillMaxHeight()
+                            .background(Color.Black.copy(alpha = 0.18f))
+                    ) {
                         Box(
                             modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (uiState.isCategoryReorderMode) stringResource(R.string.group_reorder) else stringResource(R.string.generic_groups), 
-                                color = TvColors.TextSecondary, 
-                                fontWeight = FontWeight.Black, 
-                                fontSize = 11.sp, 
+                                text = if (uiState.isCategoryReorderMode) stringResource(R.string.group_reorder) else stringResource(R.string.generic_groups),
+                                color = TvColors.TextSecondary,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 11.sp,
                                 letterSpacing = 1.5.sp
                             )
-                            
+
                             if (uiState.isCategoryReorderMode) {
                                 TvSurfaceCard(
                                     onClick = { viewModel.saveCategoryOrder() },
@@ -173,9 +194,9 @@ fun TvLiveTvScreen(
                                     colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Add, 
-                                        contentDescription = null, 
-                                        tint = TvColors.Primary, 
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = null,
+                                        tint = TvColors.Primary,
                                         modifier = Modifier.size(18.dp).align(Alignment.Center)
                                     )
                                 }
@@ -185,8 +206,9 @@ fun TvLiveTvScreen(
 
                         LazyColumn(
                             state = categoryListState,
-                            modifier = Modifier.fillMaxSize(), 
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = LiveSpacing.sm, vertical = LiveSpacing.sm),
+                            verticalArrangement = Arrangement.spacedBy(LiveSpacing.xs)
                         ) {
                             itemsIndexed(uiState.categories, key = { _, cat -> cat.id }) { index, category ->
                                 val requester = if (index == 0) firstCategoryRequester else categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
@@ -223,21 +245,21 @@ fun TvLiveTvScreen(
                         }
                     }
 
-                    VerticalDivider(modifier = Modifier.fillMaxHeight(0.9f).align(Alignment.CenterVertically), color = TvColors.Primary, thickness = 1.dp)
+                    Spacer(modifier = Modifier.width(4.dp))
 
                     // --- 2. CHANNELS ---
                     Column(modifier = Modifier.weight(CHANNELS_PANE_WEIGHT).fillMaxHeight()) {
-                        Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp), 
+                        Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = if (uiState.isChannelReorderMode) stringResource(R.string.channel_reorder) else (uiState.selectedCategory?.categoryName ?: "").uppercase(), 
-                                color = TvColors.TextSecondary, 
-                                fontWeight = FontWeight.Black, 
-                                fontSize = 11.sp, 
+                                text = if (uiState.isChannelReorderMode) stringResource(R.string.channel_reorder) else (uiState.selectedCategory?.categoryName ?: "").uppercase(),
+                                color = TvColors.TextSecondary,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 11.sp,
                                 letterSpacing = 1.5.sp
                             )
-                            
+
                             if (uiState.isChannelReorderMode) {
                                 TvSurfaceCard(
                                     onClick = { viewModel.saveChannelOrder() },
@@ -254,13 +276,14 @@ fun TvLiveTvScreen(
                         HorizontalDivider(color = TvColors.GlassBorder)
 
                         LazyColumn(
-                            state = channelListState, 
-                            modifier = Modifier.fillMaxSize(), 
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                            state = channelListState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = LiveSpacing.sm, vertical = LiveSpacing.sm),
+                            verticalArrangement = Arrangement.spacedBy(LiveSpacing.xs)
                         ) {
                             itemsIndexed(uiState.filteredChannels, key = { _, c -> c.id }) { index, channel ->
                                 val requester = if (index == 0) firstChannelRequester else channelFocusRequesters.getOrPut(channel.id) { FocusRequester() }
-                                
+
                                 if (uiState.isChannelReorderMode) {
                                     TvReorderRow(
                                         label = channel.name,
@@ -294,38 +317,74 @@ fun TvLiveTvScreen(
                         }
                     }
 
-                    VerticalDivider(modifier = Modifier.fillMaxHeight(0.9f).align(Alignment.CenterVertically), color = TvColors.Primary, thickness = 1.dp)
+                    Spacer(modifier = Modifier.width(4.dp))
 
-                    // --- 3. PREVIEW & EPG ---
-                    Column(modifier = Modifier.weight(PREVIEW_PANE_WEIGHT).fillMaxHeight().padding(16.dp)) {
+                    // --- 3. PREVIEW & EPG (hero style) ---
+                    Column(modifier = Modifier.weight(PREVIEW_PANE_WEIGHT).fillMaxHeight()) {
+                        // Video fills the width; title/badge live ON the
+                        // image via a bottom gradient scrim, instead of a
+                        // separate text block below a bordered box.
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(16f / 9f)
+                                .clip(RoundedCornerShape(bottomStart = LiveRadius.row, bottomEnd = LiveRadius.row))
+                                .border(1.dp, TvColors.GlassBorder, RoundedCornerShape(bottomStart = LiveRadius.row, bottomEnd = LiveRadius.row))
                                 .onGloballyPositioned { coords ->
                                     viewModel.globalPlayerState.updatePreviewBounds(coords.boundsInRoot())
                                 }
-                                .border(1.dp, TvColors.GlassBorder, RoundedCornerShape(12.dp))
                         ) {
                             if (previewChannel != null) {
                                 LaunchedEffect(previewChannel) {
                                     viewModel.globalPlayerState.enterPreview(viewModel.playerEngine)
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.BottomStart)
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                                            )
+                                        )
+                                        .padding(horizontal = LiveSpacing.md, vertical = LiveSpacing.sm)
+                                ) {
+                                    Column {
+                                        Surface(
+                                            color = TvColors.Primary,
+                                            shape = RoundedCornerShape(4.dp)
+                                        ) {
+                                            Text(
+                                                text = stringResource(R.string.live_now).uppercase(),
+                                                color = Color.Black,
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Black,
+                                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = previewChannel!!.name,
+                                            color = Color.White,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Black,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                             } else {
                                 Icon(Icons.Default.PlayCircle, null, modifier = Modifier.align(Alignment.Center).size(48.dp), tint = TvColors.TextTertiary)
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        if (previewChannel != null) {
-                            Text(text = previewChannel!!.name, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black, maxLines = 1)
-                            TvBadge(text = stringResource(R.string.live_now), containerColor = TvColors.Primary.copy(alpha = 0.2f), contentColor = TvColors.Primary)
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                            HorizontalDivider(color = TvColors.GlassBorder)
-
-                            LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        if (previewChannel != null && epgList.isNotEmpty()) {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize().padding(horizontal = LiveSpacing.lg),
+                                contentPadding = PaddingValues(vertical = LiveSpacing.md),
+                                verticalArrangement = Arrangement.spacedBy(LiveSpacing.md)
+                            ) {
                                 itemsIndexed(epgList) { _, program ->
                                     TvEpgItem(program)
                                 }
@@ -364,7 +423,7 @@ fun TvLiveTvScreen(
                 Spacer(Modifier.height(32.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     TvSurfaceCard(
-                        onClick = { 
+                        onClick = {
                             viewModel.addCustomGroup(newGroupName)
                             showAddGroupDialog = false
                             newGroupName = ""
@@ -392,9 +451,9 @@ fun TvLiveTvScreen(
         selectedChannelForOptions?.let { channel ->
             var canInteract by remember { mutableStateOf(false) }
             val firstActionRequester = remember { FocusRequester() }
-            LaunchedEffect(channel) { 
+            LaunchedEffect(channel) {
                 delay(400)
-                canInteract = true 
+                canInteract = true
                 try { firstActionRequester.requestFocus() } catch (e: Exception) {}
             }
 
@@ -402,7 +461,7 @@ fun TvLiveTvScreen(
                 Text(channel.name.uppercase(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
                 TvBadge(text = stringResource(R.string.channel_options), containerColor = Color.White.copy(alpha = 0.1f), contentColor = Color.White)
                 Spacer(Modifier.height(24.dp))
-                
+
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     item {
                         TvDialogActionItem(
@@ -470,9 +529,9 @@ fun TvLiveTvScreen(
         selectedCategoryForOptions?.let { category ->
             var canInteract by remember { mutableStateOf(false) }
             val firstActionRequester = remember { FocusRequester() }
-            LaunchedEffect(category) { 
+            LaunchedEffect(category) {
                 delay(400)
-                canInteract = true 
+                canInteract = true
                 try { firstActionRequester.requestFocus() } catch (e: Exception) {}
             }
 
@@ -480,10 +539,10 @@ fun TvLiveTvScreen(
                 Text(category.categoryName.uppercase(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White)
                 TvBadge(text = stringResource(R.string.group_options), containerColor = Color.White.copy(alpha = 0.1f), contentColor = Color.White)
                 Spacer(Modifier.height(24.dp))
-                
+
                 TvDialogActionItem(
-                    label = stringResource(R.string.group_reorder), 
-                    icon = Icons.Default.Reorder, 
+                    label = stringResource(R.string.group_reorder),
+                    icon = Icons.Default.Reorder,
                     enabled = canInteract,
                     modifier = Modifier.focusRequester(firstActionRequester)
                 ) {
@@ -561,34 +620,41 @@ private fun TvCategoryItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    // Every row is its own soft bubble at rest; selection indicator is
+    // now a full-height accent bar (not a small fixed box), which reads
+    // more like a proper nav-rail selection than a decorative tick.
     var isFocused by remember { mutableStateOf(false) }
     TvSurfaceCard(
         onClick = onClick,
         onLongClick = onLongClick,
         modifier = modifier
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-            .heightIn(min = 40.dp)
+            .heightIn(min = 44.dp)
             .onFocusChanged { isFocused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(LiveRadius.row)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) TvColors.Primary.copy(alpha = 0.25f) else Color.Transparent,
+            containerColor = if (isSelected) TvColors.Primary.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.045f),
             focusedContainerColor = Color.White
         )
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), 
+            modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.width(3.dp).height(20.dp).background(if (isSelected || isFocused) TvColors.Primary else Color.Transparent, CircleShape))
-            Spacer(modifier = Modifier.width(12.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(3.dp)
+                    .background(if (isSelected || isFocused) TvColors.Primary else Color.Transparent)
+            )
             Text(
-                text = category.categoryName, 
-                color = if (isFocused) Color.Black else Color.White, 
-                style = MaterialTheme.typography.bodyMedium, 
+                text = category.categoryName,
+                color = if (isFocused) Color.Black else Color.White,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 16.sp,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f).padding(horizontal = LiveSpacing.md, vertical = 10.dp)
             )
         }
     }
@@ -602,34 +668,44 @@ private fun TvChannelItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    // Larger logo tile and bigger type — easier to read at TV viewing
+    // distance. Selected (previewed) channel gets a bright outlined
+    // border layered over its resting bubble fill.
     var isFocused by remember { mutableStateOf(false) }
     TvSurfaceCard(
         onClick = onClick,
         onLongClick = onLongClick,
         modifier = modifier
-            .padding(horizontal = 8.dp, vertical = 1.dp)
+            .heightIn(min = 52.dp)
             .onFocusChanged { isFocused = it.isFocused }
-            .focusProperties { 
-                right = FocusRequester.Cancel 
+            .focusProperties {
+                right = FocusRequester.Cancel
             },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(LiveRadius.row)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) TvColors.Primary.copy(alpha = 0.2f) else Color.Transparent,
+            containerColor = Color.White.copy(alpha = 0.045f),
             focusedContainerColor = Color.White
+        ),
+        border = ClickableSurfaceDefaults.border(
+            border = if (isSelected)
+                Border(BorderStroke(2.dp, TvColors.Primary))
+            else
+                Border(BorderStroke(0.dp, Color.Transparent))
         )
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), 
+            modifier = Modifier.fillMaxWidth().padding(horizontal = LiveSpacing.md, vertical = LiveSpacing.sm),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.size(36.dp).clip(RoundedCornerShape(6.dp)).background(Color.White.copy(alpha = 0.05f)), contentAlignment = Alignment.Center) {
-                AsyncImage(model = channel.streamIcon, contentDescription = null, modifier = Modifier.fillMaxSize().padding(4.dp))
+            Box(modifier = Modifier.size(40.dp).clip(RoundedCornerShape(LiveRadius.chip)).background(Color.White.copy(alpha = 0.07f)), contentAlignment = Alignment.Center) {
+                AsyncImage(model = channel.streamIcon, contentDescription = null, modifier = Modifier.fillMaxSize().padding(5.dp))
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(LiveSpacing.md))
             Text(
-                text = channel.name, 
-                color = if (isFocused) Color.Black else Color.White, 
-                fontSize = 14.sp, 
-                fontWeight = FontWeight.Bold, 
+                text = channel.name,
+                color = if (isFocused) Color.Black else Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -646,26 +722,25 @@ private fun TvReorderRow(
 ) {
     TvGlassPane(
         modifier = modifier
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-            .heightIn(min = 40.dp),
+            .heightIn(min = 44.dp),
         backgroundColor = Color.White.copy(alpha = 0.05f),
         borderColor = Color.White.copy(alpha = 0.1f),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(LiveRadius.row)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = LiveSpacing.md, vertical = LiveSpacing.xs),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = label, 
-                color = Color.White, 
-                modifier = Modifier.weight(1f), 
-                maxLines = 1, 
+                text = label,
+                color = Color.White,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold
             )
-            
+
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 var isUpFocused by remember { mutableStateOf(false) }
                 TvSurfaceCard(
@@ -681,7 +756,7 @@ private fun TvReorderRow(
                         Icon(Icons.Default.ArrowUpward, null, tint = if (isUpFocused) Color.Black else TvColors.Primary, modifier = Modifier.size(16.dp))
                     }
                 }
-                
+
                 var isDownFocused by remember { mutableStateOf(false) }
                 TvSurfaceCard(
                     onClick = onMoveDown,
@@ -703,9 +778,9 @@ private fun TvReorderRow(
 
 @Composable
 private fun TvDialogActionItem(
-    label: String, 
-    icon: ImageVector, 
-    color: Color = Color.White, 
+    label: String,
+    icon: ImageVector,
+    color: Color = Color.White,
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -722,8 +797,8 @@ private fun TvDialogActionItem(
         Row(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(horizontal = 16.dp), 
-            verticalAlignment = Alignment.CenterVertically, 
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(icon, null, tint = if (isFocused) Color.Black else color, modifier = Modifier.size(20.dp))
@@ -736,7 +811,7 @@ private fun TvDialogActionItem(
 private fun TvEpgItem(program: EPGProgram) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         val time = remember(program.startTimestamp) {
-             SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(program.startTimestamp))
+            SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(program.startTimestamp))
         }
         Text(text = time, color = TvColors.Primary, fontSize = 12.sp, fontWeight = FontWeight.Black)
         Text(text = program.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
