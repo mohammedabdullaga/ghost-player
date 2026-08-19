@@ -34,8 +34,11 @@ import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.details.MovieDetailViewModel
+import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
 import com.eliteprime.app.util.formatPositionMs
+import androidx.tv.material3.Border
+import androidx.compose.foundation.BorderStroke
 import kotlinx.coroutines.delay
 
 @Composable
@@ -124,8 +127,11 @@ fun TvMovieDetailsScreen(
                                 .height(48.dp)
                                 .focusRequester(playFocusRequester)
                                 .onFocusChanged { isPlayFocused = it.isFocused },
-                            colors = ClickableSurfaceDefaults.colors(containerColor = TvColors.Primary, focusedContainerColor = Color.White),
-                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp))
+                            colors = ClickableSurfaceDefaults.colors(containerColor = AppColors.ArenaOrange.copy(alpha = 0.25f), focusedContainerColor = Color.White),
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
+                            border = ClickableSurfaceDefaults.border(
+                                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                            )
                         ) {
                             // Explicit Centering
                             Row(

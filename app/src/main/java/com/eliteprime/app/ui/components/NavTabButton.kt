@@ -36,20 +36,20 @@ fun NavTabButton(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f),
-                focusedContainerColor = AppColors.ArenaOrange,
-                pressedContainerColor = AppColors.ArenaOrange
+                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.05f),
+                focusedContainerColor = Color.White,
+                pressedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             border = ClickableSurfaceDefaults.border(
-                border = Border(BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.1f))),
+                border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent)),
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
             Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {
                 Text(
                     text = label,
-                    color = Color.White,
+                    color = if (isFocused) Color.Black else Color.White,
                     fontWeight = if (isActive || isFocused) FontWeight.Black else FontWeight.Bold,
                     fontSize = 12.sp,
                     letterSpacing = 0.5.sp
@@ -61,8 +61,8 @@ fun NavTabButton(
             onClick = onClick,
             modifier = Modifier.height(38.dp),
             shape = RoundedCornerShape(10.dp),
-            color = if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.08f),
-            border = BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.12f))
+            color = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f),
+            border = BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.12f))
         ) {
             Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
                 Text(

@@ -248,15 +248,16 @@ private fun PosterPanel(posterUrl: String?, onBack: () -> Unit, modifier: Modifi
                 scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
                 colors = ClickableSurfaceDefaults.colors(
                     containerColor = Color.Black.copy(alpha = 0.45f),
-                    focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                    focusedContainerColor = Color.White
                 ),
                 shape = ClickableSurfaceDefaults.shape(CircleShape),
                 border = ClickableSurfaceDefaults.border(
                     focusedBorder = Border(BorderStroke(2.dp, Color.White))
                 )
             ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                var isFocused by remember { mutableStateOf(false) }
+                Box(modifier = Modifier.fillMaxSize().onFocusChanged { isFocused = it.isFocused }, contentAlignment = Alignment.Center) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = if (isFocused) Color.Black else Color.White, modifier = Modifier.size(20.dp))
                 }
             }
         } else {
@@ -289,18 +290,19 @@ private fun DetailFavButton(isFavorite: Boolean, onClick: () -> Unit, isTv: Bool
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = Color.White.copy(alpha = 0.1f),
-                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             border = ClickableSurfaceDefaults.border(
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            var isFocused by remember { mutableStateOf(false) }
+            Box(modifier = Modifier.fillMaxSize().onFocusChanged { isFocused = it.isFocused }, contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = null,
-                    tint = if (isFavorite) AppColors.ArenaOrange else Color.White,
+                    tint = if (isFocused) Color.Black else if (isFavorite) AppColors.ArenaOrange else Color.White,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -519,7 +521,7 @@ private fun RelatedPosterCard(imageUrl: String?, title: String, onClick: () -> U
                 shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(DetailRadius.md)),
                 colors = ClickableSurfaceDefaults.colors(
                     containerColor = Color.Black.copy(alpha = 0.2f),
-                    focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                    focusedContainerColor = Color.White
                 ),
                 border = ClickableSurfaceDefaults.border(
                     focusedBorder = Border(BorderStroke(2.dp, Color.White))

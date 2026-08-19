@@ -51,6 +51,7 @@ import com.eliteprime.app.data.local.entity.LiveStream
 import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.live.LiveViewModel
+import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -176,27 +177,33 @@ fun TvLiveTvScreen(
                             )
 
                             if (uiState.isCategoryReorderMode) {
+                                var isDoneFocused by remember { mutableStateOf(false) }
                                 TvSurfaceCard(
                                     onClick = { viewModel.saveCategoryOrder() },
-                                    modifier = Modifier.align(Alignment.CenterEnd).height(32.dp),
+                                    modifier = Modifier.align(Alignment.CenterEnd).height(32.dp).onFocusChanged { isDoneFocused = it.isFocused },
                                     shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
-                                    colors = ClickableSurfaceDefaults.colors(containerColor = TvColors.Primary, focusedContainerColor = Color.White)
+                                    colors = ClickableSurfaceDefaults.colors(containerColor = AppColors.ArenaOrange.copy(alpha = 0.25f), focusedContainerColor = Color.White),
+                                    border = ClickableSurfaceDefaults.border(
+                                        focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                                        border = Border(BorderStroke(2.dp, AppColors.ArenaOrange.copy(alpha = 0.85f)))
+                                    )
                                 ) {
                                     Box(modifier = Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
-                                        Text(stringResource(R.string.generic_done), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp))
+                                        Text(stringResource(R.string.generic_done), color = if (isDoneFocused) Color.Black else Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp))
                                     }
                                 }
                             } else {
+                                var isAddFocused by remember { mutableStateOf(false) }
                                 TvSurfaceCard(
                                     onClick = { showAddGroupDialog = true },
-                                    modifier = Modifier.align(Alignment.CenterEnd).size(32.dp).focusRequester(addGroupFocusRequester),
+                                    modifier = Modifier.align(Alignment.CenterEnd).size(32.dp).focusRequester(addGroupFocusRequester).onFocusChanged { isAddFocused = it.isFocused },
                                     shape = ClickableSurfaceDefaults.shape(CircleShape),
                                     colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Add,
                                         contentDescription = null,
-                                        tint = TvColors.Primary,
+                                        tint = if (isAddFocused) Color.Black else AppColors.ArenaOrange,
                                         modifier = Modifier.size(18.dp).align(Alignment.Center)
                                     )
                                 }
@@ -261,14 +268,19 @@ fun TvLiveTvScreen(
                             )
 
                             if (uiState.isChannelReorderMode) {
+                                var isDoneFocused by remember { mutableStateOf(false) }
                                 TvSurfaceCard(
                                     onClick = { viewModel.saveChannelOrder() },
-                                    modifier = Modifier.align(Alignment.CenterEnd).height(32.dp),
+                                    modifier = Modifier.align(Alignment.CenterEnd).height(32.dp).onFocusChanged { isDoneFocused = it.isFocused },
                                     shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
-                                    colors = ClickableSurfaceDefaults.colors(containerColor = TvColors.Primary, focusedContainerColor = Color.White)
+                                    colors = ClickableSurfaceDefaults.colors(containerColor = AppColors.ArenaOrange.copy(alpha = 0.25f), focusedContainerColor = Color.White),
+                                    border = ClickableSurfaceDefaults.border(
+                                        focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                                        border = Border(BorderStroke(2.dp, AppColors.ArenaOrange.copy(alpha = 0.85f)))
+                                    )
                                 ) {
                                     Box(modifier = Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
-                                        Text(stringResource(R.string.generic_done), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp))
+                                        Text(stringResource(R.string.generic_done), color = if (isDoneFocused) Color.Black else Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp))
                                     }
                                 }
                             }
@@ -422,26 +434,32 @@ fun TvLiveTvScreen(
                 )
                 Spacer(Modifier.height(32.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    var isCreateFocused by remember { mutableStateOf(false) }
                     TvSurfaceCard(
                         onClick = {
                             viewModel.addCustomGroup(newGroupName)
                             showAddGroupDialog = false
                             newGroupName = ""
                         },
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        colors = ClickableSurfaceDefaults.colors(containerColor = TvColors.Primary, focusedContainerColor = Color.White)
+                        modifier = Modifier.weight(1f).height(52.dp).onFocusChanged { isCreateFocused = it.isFocused },
+                        colors = ClickableSurfaceDefaults.colors(containerColor = AppColors.ArenaOrange.copy(alpha = 0.25f), focusedContainerColor = Color.White),
+                        border = ClickableSurfaceDefaults.border(
+                            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                            border = Border(BorderStroke(2.dp, AppColors.ArenaOrange.copy(alpha = 0.85f)))
+                        )
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.generic_create), color = Color.Black, fontWeight = FontWeight.Black)
+                            Text(stringResource(R.string.generic_create), color = if (isCreateFocused) Color.Black else Color.White, fontWeight = FontWeight.Black)
                         }
                     }
+                    var isCancelFocused by remember { mutableStateOf(false) }
                     TvSurfaceCard(
                         onClick = { showAddGroupDialog = false },
-                        modifier = Modifier.weight(1f).height(52.dp),
+                        modifier = Modifier.weight(1f).height(52.dp).onFocusChanged { isCancelFocused = it.isFocused },
                         colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)
                     ) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.generic_cancel), color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.generic_cancel), color = if (isCancelFocused) Color.Black else Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -632,8 +650,12 @@ private fun TvCategoryItem(
             .onFocusChanged { isFocused = it.isFocused },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(LiveRadius.row)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) TvColors.Primary.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.045f),
+            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.045f),
             focusedContainerColor = Color.White
+        ),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+            border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
         )
     ) {
         Row(
@@ -644,7 +666,7 @@ private fun TvCategoryItem(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(3.dp)
-                    .background(if (isSelected || isFocused) TvColors.Primary else Color.Transparent)
+                    .background(if (isSelected || isFocused) AppColors.ArenaOrange else Color.Transparent)
             )
             Text(
                 text = category.categoryName,
@@ -683,14 +705,12 @@ private fun TvChannelItem(
             },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(LiveRadius.row)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.White.copy(alpha = 0.045f),
+            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.045f),
             focusedContainerColor = Color.White
         ),
         border = ClickableSurfaceDefaults.border(
-            border = if (isSelected)
-                Border(BorderStroke(2.dp, TvColors.Primary))
-            else
-                Border(BorderStroke(0.dp, Color.Transparent))
+            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+            border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
         )
     ) {
         Row(

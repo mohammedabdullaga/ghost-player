@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.tv.material3.Border
+import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.PlaybackHistory
 import com.eliteprime.app.ui.components.*
@@ -195,29 +198,61 @@ private fun FilterItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth().height(48.dp),
-        color = if (isSelected) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Transparent,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+    val isTv = LocalContext.current.isTelevisionDevice()
+    if (isTv) {
+        var isFocused by remember { mutableStateOf(false) }
+        TvSurface(
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth().height(48.dp).onFocusChanged { isFocused = it.isFocused },
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Transparent,
+                focusedContainerColor = Color.White
+            ),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+            )
         ) {
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(18.dp)
-                    .background(if (isSelected) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(50))
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = label,
-                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
-                fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
-                fontSize = 13.sp
-            )
+            FilterItemContent(label, isSelected, isFocused)
         }
+    } else {
+        Surface(
+            onClick = onClick,
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Transparent,
+            shape = RoundedCornerShape(12.dp),
+            border = if (isSelected) BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.85f)) else null
+        ) {
+            FilterItemContent(label, isSelected, false)
+        }
+    }
+}
+
+@Composable
+private fun FilterItemContent(label: String, isSelected: Boolean, isFocused: Boolean) {
+    val contentColor = when {
+        isFocused -> Color.Black
+        isSelected -> Color.White
+        else -> Color.White.copy(alpha = 0.6f)
+    }
+    Row(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(18.dp)
+                .background(if (isSelected || isFocused) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(50))
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Text(
+            text = label,
+            color = contentColor,
+            fontWeight = if (isSelected || isFocused) FontWeight.Black else FontWeight.Bold,
+            fontSize = 13.sp
+        )
     }
 }

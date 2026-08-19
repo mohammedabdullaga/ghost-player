@@ -157,13 +157,13 @@ private fun DownloadTabButton(
             modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.Transparent,
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Transparent,
                 focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             border = ClickableSurfaceDefaults.border(
-                border = if (isSelected && !isFocused) Border(BorderStroke(1.dp, AppColors.ArenaOrange)) else Border.None,
-                focusedBorder = Border(BorderStroke(3.dp, Color.White))
+                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent)),
+                focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
             Row(
@@ -173,14 +173,14 @@ private fun DownloadTabButton(
             ) {
                 Text(
                     text = label,
-                    color = if (isFocused) Color.Black else if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
+                    color = if (isFocused) Color.Black else Color.White,
                     fontWeight = FontWeight.Black,
                     fontSize = 13.sp,
                     letterSpacing = 1.sp
                 )
                 if (count > 0) {
                     Surface(
-                        color = if (isFocused) Color.Black.copy(alpha = 0.1f) else AppColors.ArenaOrange.copy(alpha = 0.2f),
+                        color = if (isFocused) Color.Black.copy(alpha = 0.1f) else AppColors.ArenaOrange.copy(alpha = 0.25f),
                         shape = CircleShape
                     ) {
                         Text(
@@ -338,7 +338,7 @@ private fun TvDownloadCard(
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = Color.Black.copy(alpha = 0.45f),
-            focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+            focusedContainerColor = Color.White
         ),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(BorderStroke(2.dp, Color.White))
@@ -370,7 +370,7 @@ private fun TvDownloadCard(
                     } else {
                         item.contentName
                     }
-                    Text(displayName, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
+                    Text(displayName, color = if (isFocused) Color.Black else Color.White, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
                     Text(formatDownloadStatus(item.status), color = statusColor(item.status), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }

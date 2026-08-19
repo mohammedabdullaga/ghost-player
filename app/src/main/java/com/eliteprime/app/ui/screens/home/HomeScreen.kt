@@ -306,12 +306,13 @@ private fun HomeRoundIconButton(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.White.copy(alpha = 0.05f),
+                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.05f),
                 focusedContainerColor = Color.White,
                 pressedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             border = ClickableSurfaceDefaults.border(
+                border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent)),
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {

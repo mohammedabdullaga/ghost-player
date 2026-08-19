@@ -205,15 +205,16 @@ fun MobileLiveTvScreen(
                                         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.2f),
                                         colors = ClickableSurfaceDefaults.colors(
                                             containerColor = Color.White.copy(alpha = 0.05f),
-                                            focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.9f)
+                                            focusedContainerColor = Color.White
                                         ),
                                         shape = ClickableSurfaceDefaults.shape(CircleShape),
                                         border = ClickableSurfaceDefaults.border(
                                             focusedBorder = Border(BorderStroke(2.dp, Color.White))
                                         )
                                     ) {
-                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            Icon(Icons.Default.Add, contentDescription = "Add Group", tint = AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
+                                        var isFocused by remember { mutableStateOf(false) }
+                                        Box(modifier = Modifier.fillMaxSize().onFocusChanged { isFocused = it.isFocused }, contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Default.Add, contentDescription = "Add Group", tint = if (isFocused) Color.Black else AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
                                         }
                                     }
                                 } else {
@@ -550,15 +551,16 @@ private fun CategoryTabWithLongClick(
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
-                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f),
-                pressedContainerColor = AppColors.FocusBrown
+                focusedContainerColor = Color.White,
+                pressedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
             )
         ) {
-            CategoryTabContent(category, isSelected || isFocused)
+            CategoryTabContent(category, isSelected, isFocused)
         }
     } else {
         Surface(
@@ -580,17 +582,22 @@ private fun CategoryTabWithLongClick(
 }
 
 @Composable
-private fun CategoryTabContent(category: Category, isActive: Boolean) {
+private fun CategoryTabContent(category: Category, isActive: Boolean, isFocused: Boolean = false) {
+    val contentColor = when {
+        isFocused -> Color.Black
+        isActive -> Color.White
+        else -> Color.White.copy(alpha = 0.6f)
+    }
     Row(
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.width(3.dp).height(18.dp).clip(CircleShape).background(if (isActive) AppColors.ArenaOrange else Color.Transparent))
+        Box(modifier = Modifier.width(3.dp).height(18.dp).clip(CircleShape).background(if (isActive || isFocused) AppColors.ArenaOrange else Color.Transparent))
         Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = category.categoryName,
-            color = if (isActive) Color.White else Color.White.copy(alpha = 0.6f),
-            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+            color = contentColor,
+            fontWeight = if (isActive || isFocused) FontWeight.Bold else FontWeight.Normal,
             fontSize = 13.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -650,16 +657,17 @@ private fun ChannelRowWithLongClick(
                 .focusRequester(focusRequester),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.45f),
-                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f),
-                pressedContainerColor = AppColors.FocusBrown
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = Color.White,
+                pressedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
             )
         ) {
-            ChannelRowContent(channel, isSelected || isFocused)
+            ChannelRowContent(channel, isSelected, isFocused)
         }
     } else {
         Surface(
@@ -681,7 +689,18 @@ private fun ChannelRowWithLongClick(
 }
 
 @Composable
-private fun ChannelRowContent(channel: LiveStream, isActive: Boolean) {
+private fun ChannelRowContent(channel: LiveStream, isActive: Boolean, isFocused: Boolean = false) {
+    val contentColor = when {
+        isFocused -> Color.Black
+        isActive -> Color.White
+        else -> Color.White.copy(alpha = 0.9f)
+    }
+    val secondaryContentColor = when {
+        isFocused -> Color.Black.copy(alpha = 0.6f)
+        isActive -> Color.White.copy(alpha = 0.6f)
+        else -> Color.White.copy(alpha = 0.4f)
+    }
+
     Row(
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -693,7 +712,7 @@ private fun ChannelRowContent(channel: LiveStream, isActive: Boolean) {
             if (channel.streamIcon != null) {
                 AsyncImage(model = channel.streamIcon, contentDescription = null, modifier = Modifier.fillMaxSize().padding(6.dp), contentScale = ContentScale.Fit)
             } else {
-                Icon(Icons.Default.Tv, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White.copy(alpha = 0.4f))
+                Icon(Icons.Default.Tv, contentDescription = null, modifier = Modifier.size(18.dp), tint = secondaryContentColor)
             }
             if (channel.isFavorite) {
                 Box(modifier = Modifier.align(Alignment.TopEnd).offset(x=4.dp, y=(-4).dp).size(14.dp).background(AppColors.ArenaOrange, CircleShape), contentAlignment = Alignment.Center) {
@@ -705,8 +724,8 @@ private fun ChannelRowContent(channel: LiveStream, isActive: Boolean) {
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(channel.name, color = if (isActive) Color.White else Color.White.copy(alpha = 0.9f), fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(stringResource(R.string.live_no_epg_data), color = if (isActive) Color.White.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.4f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(channel.name, color = contentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(stringResource(R.string.live_no_epg_data), color = secondaryContentColor, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -838,11 +857,12 @@ private fun LiveRoundIconButton(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
-                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             border = ClickableSurfaceDefaults.border(
+                border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent)),
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
@@ -850,7 +870,7 @@ private fun LiveRoundIconButton(
                 Icon(
                     icon, 
                     contentDescription = contentDescription, 
-                    tint = if (isActive || isFocused) Color.White else Color.White.copy(alpha = 0.8f), 
+                    tint = if (isFocused) Color.Black else if (isActive) Color.White else Color.White.copy(alpha = 0.8f), 
                     modifier = Modifier.size(20.dp)
                 )
             }

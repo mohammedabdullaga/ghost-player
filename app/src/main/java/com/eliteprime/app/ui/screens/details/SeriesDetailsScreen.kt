@@ -411,21 +411,38 @@ private fun DetailTabSection(
             }
 
             if (isTv) {
+                var isFocused by remember { mutableStateOf(false) }
                 TvSurface(
                     onClick = { 
                         if (isActive) expanded = true
                         else onTabChange(SeriesDetailTab.EPISODES)
                     },
-                    modifier = Modifier.height(42.dp).focusRequester(episodesTabFocusRequester),
+                    modifier = Modifier.height(42.dp).focusRequester(episodesTabFocusRequester).onFocusChanged { isFocused = it.isFocused },
                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
                     colors = ClickableSurfaceDefaults.colors(
-                        containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.08f),
-                        focusedContainerColor = AppColors.FocusBrown
+                        containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f),
+                        focusedContainerColor = Color.White
                     ),
                     shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-                    border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+                    border = ClickableSurfaceDefaults.border(
+                        focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                        border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+                    )
                 ) {
-                    content()
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = if (isActive && selectedSeason != null) selectedSeason.season.name else stringResource(R.string.detail_tab_episodes),
+                            color = if (isFocused) Color.Black else Color.White,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 13.sp,
+                            maxLines = 1
+                        )
+                        Icon(Icons.Default.ArrowDropDown, null, tint = if (isFocused) Color.Black else Color.White, modifier = Modifier.size(18.dp))
+                    }
                 }
             } else {
                 Surface(
@@ -463,19 +480,23 @@ private fun DetailTabSection(
 
         val isRelatedActive = currentTab == SeriesDetailTab.RELATED
         if (isTv) {
+            var isFocused by remember { mutableStateOf(false) }
             TvSurface(
                 onClick = { onTabChange(SeriesDetailTab.RELATED) },
-                modifier = Modifier.height(42.dp),
+                modifier = Modifier.height(42.dp).onFocusChanged { isFocused = it.isFocused },
                 scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
                 colors = ClickableSurfaceDefaults.colors(
-                    containerColor = if (isRelatedActive) AppColors.FocusBrown.copy(alpha = 0.9f) else Color.Transparent,
-                    focusedContainerColor = AppColors.FocusBrown
+                    containerColor = if (isRelatedActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Transparent,
+                    focusedContainerColor = Color.White
                 ),
                 shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-                border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+                border = ClickableSurfaceDefaults.border(
+                    focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                    border = Border(BorderStroke(2.dp, if (isRelatedActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+                )
             ) {
                 Box(modifier = Modifier.padding(horizontal = 16.dp).fillMaxHeight(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.detail_tab_related), color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    Text(stringResource(R.string.detail_tab_related), color = if (isFocused) Color.Black else Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
                 }
             }
         } else {
@@ -546,15 +567,16 @@ private fun PosterPanel(posterUrl: String?, onBack: () -> Unit, modifier: Modifi
                 scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
                 colors = ClickableSurfaceDefaults.colors(
                     containerColor = Color.Black.copy(alpha = 0.45f),
-                    focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                    focusedContainerColor = Color.White
                 ),
                 shape = ClickableSurfaceDefaults.shape(CircleShape),
                 border = ClickableSurfaceDefaults.border(
                     focusedBorder = Border(BorderStroke(2.dp, Color.White))
                 )
             ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                var isFocused by remember { mutableStateOf(false) }
+                Box(modifier = Modifier.fillMaxSize().onFocusChanged { isFocused = it.isFocused }, contentAlignment = Alignment.Center) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = if (isFocused) Color.Black else Color.White, modifier = Modifier.size(20.dp))
                 }
             }
         } else {
@@ -587,18 +609,19 @@ private fun DetailFavButton(isFavorite: Boolean, onClick: () -> Unit, isTv: Bool
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = Color.White.copy(alpha = 0.1f),
-                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             border = ClickableSurfaceDefaults.border(
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            var isFocused by remember { mutableStateOf(false) }
+            Box(modifier = Modifier.fillMaxSize().onFocusChanged { isFocused = it.isFocused }, contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = null,
-                    tint = if (isFavorite) AppColors.ArenaOrange else Color.White,
+                    tint = if (isFocused) Color.Black else if (isFavorite) AppColors.ArenaOrange else Color.White,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -703,16 +726,19 @@ private fun EpisodeRow(
                 .onFocusChanged { if (it.isFocused) onFocused() },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isHighlighted) AppColors.ArenaOrange.copy(alpha = 0.1f) else DetailSurface.cardFill,
-                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                containerColor = if (isHighlighted) AppColors.ArenaOrange.copy(alpha = 0.25f) else DetailSurface.cardFill,
+                focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(DetailRadius.md)),
             border = ClickableSurfaceDefaults.border(
-                border = if (isHighlighted) Border(BorderStroke(1.dp, AppColors.ArenaOrange)) else Border.None,
+                border = if (isHighlighted) Border(BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.85f))) else Border.None,
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
-            EpisodeRowContent(episode, index, isHighlighted, downloadItem, fallbackImageUrl, onDownloadClick, onClick)
+            var isFocused by remember { mutableStateOf(false) }
+            Box(modifier = Modifier.fillMaxSize().onFocusChanged { isFocused = it.isFocused }) {
+                EpisodeRowContent(episode, index, isHighlighted, downloadItem, fallbackImageUrl, onDownloadClick, onClick, isFocused)
+            }
         }
     } else {
         Surface(
@@ -728,9 +754,10 @@ private fun EpisodeRow(
 }
 
 @Composable
-private fun EpisodeRowContent(episode: Episode, index: Int, isHighlighted: Boolean, downloadItem: DownloadItem?, fallbackImageUrl: String?, onDownloadClick: () -> Unit, onPlayClick: () -> Unit) {
+private fun EpisodeRowContent(episode: Episode, index: Int, isHighlighted: Boolean, downloadItem: DownloadItem?, fallbackImageUrl: String?, onDownloadClick: () -> Unit, onPlayClick: () -> Unit, isFocused: Boolean = false) {
     val isDownloaded = downloadItem?.status == DownloadStatus.COMPLETED
     val isDownloading = downloadItem?.status == DownloadStatus.DOWNLOADING || downloadItem?.status == DownloadStatus.PENDING
+    val contentColor = if (isFocused) Color.Black else if (isHighlighted) AppColors.ArenaOrange else DetailSurface.textPrimary
 
     Row(modifier = Modifier.fillMaxSize().padding(DetailSpacing.xs), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(DetailSpacing.sm)) {
         Box(modifier = Modifier.fillMaxHeight().aspectRatio(1.6f).clip(RoundedCornerShape(DetailRadius.sm)).background(Color.Black)) {
@@ -738,16 +765,16 @@ private fun EpisodeRowContent(episode: Episode, index: Int, isHighlighted: Boole
                 model = episode.coverUrl ?: fallbackImageUrl,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().alpha(if (isHighlighted) 1f else 0.8f)
+                modifier = Modifier.fillMaxSize().alpha(if (isHighlighted || isFocused) 1f else 0.8f)
             )
             Surface(
-                color = if (isHighlighted) AppColors.ArenaOrange else Color.Black.copy(alpha = 0.55f),
+                color = if (isFocused) Color.White else if (isHighlighted) AppColors.ArenaOrange else Color.Black.copy(alpha = 0.55f),
                 shape = RoundedCornerShape(bottomEnd = DetailRadius.sm),
                 modifier = Modifier.align(Alignment.TopStart)
             ) {
                 Text(
                     text = index.toString(),
-                    color = Color.White,
+                    color = if (isFocused) Color.Black else Color.White,
                     fontWeight = FontWeight.Black,
                     fontSize = 10.sp,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -757,8 +784,8 @@ private fun EpisodeRowContent(episode: Episode, index: Int, isHighlighted: Boole
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "E${episode.episodeNumber} · ${episode.title}",
-                color = if (isHighlighted) AppColors.ArenaOrange else DetailSurface.textPrimary,
-                fontWeight = if (isHighlighted) FontWeight.Black else FontWeight.Bold,
+                color = contentColor,
+                fontWeight = if (isHighlighted || isFocused) FontWeight.Black else FontWeight.Bold,
                 fontSize = 13.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -769,8 +796,8 @@ private fun EpisodeRowContent(episode: Episode, index: Int, isHighlighted: Boole
                 LinearProgressIndicator(
                     progress = { dlProgress },
                     modifier = Modifier.fillMaxWidth(0.8f).height(2.dp).padding(top = 4.dp),
-                    color = AppColors.ArenaOrange,
-                    trackColor = Color.White.copy(alpha = 0.1f)
+                    color = if (isFocused) Color.Black else AppColors.ArenaOrange,
+                    trackColor = (if (isFocused) Color.Black else Color.White).copy(alpha = 0.1f)
                 )
             } else if (episode.watchProgress > 0 && episode.totalDuration > 0) {
                 val epProgress = (episode.watchProgress.toFloat() / episode.totalDuration).coerceIn(0f, 1f)
@@ -778,34 +805,34 @@ private fun EpisodeRowContent(episode: Episode, index: Int, isHighlighted: Boole
                 LinearProgressIndicator(
                     progress = { epProgress },
                     modifier = Modifier.fillMaxWidth(0.6f).height(2.dp),
-                    color = AppColors.ArenaOrange,
-                    trackColor = Color.White.copy(alpha = 0.1f)
+                    color = if (isFocused) Color.Black else AppColors.ArenaOrange,
+                    trackColor = (if (isFocused) Color.Black else Color.White).copy(alpha = 0.1f)
                 )
             } else if (!episode.duration.isNullOrBlank()) {
                 Spacer(Modifier.height(2.dp))
-                Text(text = episode.duration!!, color = DetailSurface.textTertiary, fontSize = 11.sp)
+                Text(text = episode.duration!!, color = if (isFocused) Color.Black.copy(alpha = 0.6f) else DetailSurface.textTertiary, fontSize = 11.sp)
             }
         }
 
-        if (isHighlighted) {
+        if (isHighlighted && !isFocused) {
             StatusPill(label = stringResource(R.string.generic_status_watching), containerColor = AppColors.ArenaOrange.copy(alpha = 0.2f), contentColor = AppColors.ArenaOrange)
         }
 
         if (isDownloaded) {
             Box(modifier = Modifier.size(36.dp), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.CheckCircle, null, tint = if (isFocused) Color.Black else Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
             }
         } else if (!isDownloading) {
             IconButton(onClick = {
                 onDownloadClick()
             }, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.Download, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Download, null, tint = (if (isFocused) Color.Black else Color.White).copy(alpha = 0.7f), modifier = Modifier.size(20.dp))
             }
         }
 
-        Surface(onClick = onPlayClick, modifier = Modifier.size(32.dp), shape = CircleShape, color = if (isDownloaded) Color(0xFF4CAF50) else AppColors.ArenaOrange) {
+        Surface(onClick = onPlayClick, modifier = Modifier.size(32.dp), shape = CircleShape, color = if (isFocused) Color.Black else if (isDownloaded) Color(0xFF4CAF50) else AppColors.ArenaOrange) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(imageVector = if (isDownloaded) Icons.Default.FileDownloadDone else Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Icon(imageVector = if (isDownloaded) Icons.Default.FileDownloadDone else Icons.Default.PlayArrow, null, tint = if (isFocused) Color.White else Color.White, modifier = Modifier.size(16.dp))
             }
         }
     }
@@ -826,7 +853,7 @@ private fun RelatedPosterCard(imageUrl: String?, title: String, onClick: () -> U
                 shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(DetailRadius.md)),
                 colors = ClickableSurfaceDefaults.colors(
                     containerColor = Color.Black.copy(alpha = 0.2f),
-                    focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                    focusedContainerColor = Color.White
                 ),
                 border = ClickableSurfaceDefaults.border(
                     focusedBorder = Border(BorderStroke(2.dp, Color.White))

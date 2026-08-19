@@ -45,6 +45,7 @@ import com.eliteprime.app.data.local.entity.Episode
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.details.SeriesDetailsViewModel
+import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
 import com.eliteprime.app.util.formatPositionMs
 import kotlinx.coroutines.delay
@@ -280,8 +281,11 @@ fun TvSeriesDetailsScreen(
                                             .focusRequester(playFocusRequester)
                                             .onFocusChanged { isResFocused = it.isFocused }
                                             .height(52.dp),
-                                        colors = ClickableSurfaceDefaults.colors(containerColor = TvColors.Primary, focusedContainerColor = Color.White),
-                                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(26.dp))
+                                        colors = ClickableSurfaceDefaults.colors(containerColor = AppColors.ArenaOrange.copy(alpha = 0.25f), focusedContainerColor = Color.White),
+                                        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(26.dp)),
+                                        border = ClickableSurfaceDefaults.border(
+                                            focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                                        )
                                     ) {
                                         Row(modifier = Modifier.align(Alignment.Center), verticalAlignment = Alignment.CenterVertically) {
                                             Icon(Icons.Default.History, null, modifier = Modifier.size(20.dp), tint = if (isResFocused) Color.Black else Color.White)
@@ -426,15 +430,19 @@ private fun TvPillButton(
         onClick = onClick,
         modifier = modifier.onFocusChanged { isFocused = it.isFocused },
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) TvColors.Primary else Color.Transparent,
+            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Transparent,
             focusedContainerColor = Color.White
         ),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp))
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+            border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+        )
     ) {
         Text(
             text = label.uppercase(),
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp).align(Alignment.Center),
-            color = if (isFocused) Color.Black else if (isSelected) Color.White else Color.White.copy(alpha = 0.6f),
+            color = if (isFocused) Color.Black else Color.White,
             fontWeight = FontWeight.Black,
             fontSize = 13.sp,
             maxLines = 1
@@ -471,11 +479,11 @@ private fun TvEpisodeRowSeriesEnlarged(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().onFocusChanged { isFocused = it.isFocused },
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isHighlighted) TvColors.Primary.copy(alpha = 0.1f) else Color.White.copy(alpha = 0.04f),
+            containerColor = if (isHighlighted) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.04f),
             focusedContainerColor = Color.White
         ),
         border = ClickableSurfaceDefaults.border(
-            border = if (isHighlighted) Border(BorderStroke(2.dp, TvColors.Primary)) else Border.None,
+            border = if (isHighlighted) Border(BorderStroke(2.dp, AppColors.ArenaOrange.copy(alpha = 0.85f))) else Border.None,
             focusedBorder = Border(BorderStroke(2.dp, Color.White))
         )
     ) {
@@ -544,10 +552,10 @@ private fun TvEpisodeRowSeriesEnlarged(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(if (isFocused) Color.Black.copy(alpha = 0.15f) else TvColors.Primary),
+                    .background(if (isFocused) Color.Black.copy(alpha = 0.15f) else AppColors.ArenaOrange),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.PlayArrow, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.PlayArrow, null, tint = if (isFocused) Color.Black else Color.White, modifier = Modifier.size(20.dp))
             }
         }
     }

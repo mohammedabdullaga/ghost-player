@@ -241,15 +241,16 @@ private fun SearchTopNavBar(onBack: () -> Unit) {
                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
                     colors = ClickableSurfaceDefaults.colors(
                         containerColor = Color.Black.copy(alpha = 0.45f),
-                        focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                        focusedContainerColor = Color.White
                     ),
                     shape = ClickableSurfaceDefaults.shape(CircleShape),
                     border = ClickableSurfaceDefaults.border(
                         focusedBorder = Border(BorderStroke(2.dp, Color.White))
                     )
                 ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Home, contentDescription = "Home", tint = Color.White, modifier = Modifier.size(20.dp))
+                    var isFocused by remember { mutableStateOf(false) }
+                    Box(modifier = Modifier.fillMaxSize().onFocusChanged { isFocused = it.isFocused }, contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Home, contentDescription = "Home", tint = if (isFocused) Color.Black else Color.White, modifier = Modifier.size(20.dp))
                     }
                 }
             } else {

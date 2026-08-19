@@ -536,11 +536,14 @@ private fun TvLanguageChip(
             .onFocusChanged { isFocused = it.isFocused },
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f),
+            containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.05f),
             focusedContainerColor = Color.White
         ),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.sm)),
-        border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+            border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+        )
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text(
@@ -906,11 +909,14 @@ private fun TvRadioOptionRow(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().onFocusChanged { isFocused = it.isFocused },
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.1f) else Color.Transparent,
-            focusedContainerColor = AppColors.ArenaOrange.copy(alpha = 0.25f)
+            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Transparent,
+            focusedContainerColor = Color.White
         ),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
-        border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+            border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+        )
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
@@ -919,7 +925,7 @@ private fun TvRadioOptionRow(
         ) {
             Text(
                 text = label,
-                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.7f),
+                color = if (isFocused) Color.Black else if (isSelected) Color.White else Color.White.copy(alpha = 0.7f),
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                 fontSize = 15.sp
             )
@@ -927,8 +933,8 @@ private fun TvRadioOptionRow(
                 selected = isSelected,
                 onClick = null,
                 colors = RadioButtonDefaults.colors(
-                    selectedColor = AppColors.ArenaOrange,
-                    unselectedColor = Color.White.copy(alpha = 0.2f)
+                    selectedColor = if (isFocused) Color.Black else AppColors.ArenaOrange,
+                    unselectedColor = (if (isFocused) Color.Black else Color.White).copy(alpha = 0.2f)
                 )
             )
         }
@@ -1001,18 +1007,21 @@ private fun TvSubFilterChip(
         onClick = onClick,
         modifier = modifier.onFocusChanged { isFocused = it.isFocused },
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f),
+            containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.05f),
             focusedContainerColor = Color.White
         ),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-        border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+            border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+        )
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(icon, null, tint = if (isFocused) Color.Black else if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
+            Icon(icon, null, tint = if (isFocused) Color.Black else if (isActive) Color.White else Color.White.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
             Text(
                 text = label,
                 color = if (isFocused) Color.Black else if (isActive) Color.White else Color.White.copy(alpha = 0.6f),
@@ -1037,11 +1046,14 @@ private fun TvSubtitleColorChip(
         modifier = modifier.onFocusChanged { isFocused = it.isFocused },
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.Black.copy(alpha = 0.85f),
+            containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.85f),
             focusedContainerColor = Color.White
         ),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-        border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+            border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+        )
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -1089,11 +1101,14 @@ private fun TvSidebarItem(
             },
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.20f) else Color.Transparent,
+            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Transparent,
             focusedContainerColor = Color.White
         ),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.md)),
-        border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+            border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+        )
     ) {
         Row(
             modifier = Modifier
@@ -1106,14 +1121,14 @@ private fun TvSidebarItem(
                 modifier = Modifier
                     .width(4.dp)
                     .height(24.dp)
-                    .background(if (isSelected) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(50))
+                    .background(if (isSelected || isFocused) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(50))
             )
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = when {
                     isFocused -> Color.Black
-                    isSelected -> AppColors.ArenaOrange
+                    isSelected -> Color.White
                     else -> Color.White.copy(alpha = 0.6f)
                 },
                 modifier = Modifier.size(20.dp)

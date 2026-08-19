@@ -282,11 +282,12 @@ private fun VodRoundIconButton(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Black.copy(alpha = 0.45f),
-                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+                focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             border = ClickableSurfaceDefaults.border(
+                border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent)),
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
@@ -294,7 +295,7 @@ private fun VodRoundIconButton(
                 Icon(
                     icon, 
                     contentDescription = contentDescription, 
-                    tint = if (isActive || isFocused) Color.White else Color.White.copy(alpha = 0.8f), 
+                    tint = if (isFocused) Color.Black else if (isActive) Color.White else Color.White.copy(alpha = 0.8f), 
                     modifier = Modifier.size(20.dp)
                 )
             }

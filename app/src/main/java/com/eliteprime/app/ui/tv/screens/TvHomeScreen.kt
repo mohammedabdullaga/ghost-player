@@ -41,7 +41,10 @@ import com.eliteprime.app.data.local.entity.PlaybackHistory
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
 import com.eliteprime.app.ui.screens.dashboard.TrendingItem
+import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
+import androidx.compose.foundation.BorderStroke
+import androidx.tv.material3.Border
 import kotlinx.coroutines.delay
 
 private data class TvHeroInfo(
@@ -257,14 +260,18 @@ private fun TvTrendingTab(
             .onFocusChanged { isFocused = it.isFocused }
             .height(32.dp),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) TvColors.Primary.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f),
+            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.05f),
             focusedContainerColor = Color.White
         ),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp))
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+            border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+        )
     ) {
         Text(
             text = label,
-            color = if (isFocused) Color.Black else if (isSelected) TvColors.Primary else Color.White.copy(alpha = 0.6f),
+            color = if (isFocused) Color.Black else Color.White,
             fontWeight = if (isSelected || isFocused) FontWeight.Black else FontWeight.Bold,
             fontSize = 11.sp,
             modifier = Modifier.padding(horizontal = 16.dp)

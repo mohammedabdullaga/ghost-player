@@ -132,15 +132,16 @@ fun SettingsScreen(
                                 scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
                                 colors = ClickableSurfaceDefaults.colors(
                                     containerColor = Color.White.copy(alpha = 0.05f),
-                                    focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                                    focusedContainerColor = Color.White
                                 ),
                                 shape = ClickableSurfaceDefaults.shape(CircleShape),
                                 border = ClickableSurfaceDefaults.border(
                                     focusedBorder = Border(BorderStroke(2.dp, Color.White))
                                 )
                             ) {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(18.dp))
+                                var isFocused by remember { mutableStateOf(false) }
+                                Box(modifier = Modifier.fillMaxSize().onFocusChanged { isFocused = it.isFocused }, contentAlignment = Alignment.Center) {
+                                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = if (isFocused) Color.Black else Color.White, modifier = Modifier.size(18.dp))
                                 }
                             }
                         } else {
@@ -593,16 +594,19 @@ private fun LanguageChip(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.FocusBrown.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.05f),
-                focusedContainerColor = AppColors.FocusBrown
+                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.05f),
+                focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.sm)),
-            border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+            )
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     text = label,
-                    color = Color.White,
+                    color = if (isFocused) Color.Black else Color.White,
                     fontWeight = if (isActive || isFocused) FontWeight.Black else FontWeight.Bold,
                     fontSize = 14.sp
                 )
@@ -1081,28 +1085,36 @@ private fun SubtitleColorChip(
             modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.FocusBrown else Color.Black.copy(alpha = 0.85f),
-                focusedContainerColor = AppColors.FocusBrown
+                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.85f),
+                focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-            border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+            )
         ) {
-            SubtitleColorChipContent(label, color, isActive || isFocused)
+            SubtitleColorChipContent(label, color, isActive, isFocused)
         }
     } else {
         Surface(
             onClick = onClick,
-            color = if (isActive) AppColors.ArenaOrange else Color.Black.copy(alpha = 0.85f),
+            color = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.85f),
             shape = RoundedCornerShape(10.dp),
-            border = BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange else Color.White.copy(alpha = 0.15f))
+            border = BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.15f))
         ) {
-            SubtitleColorChipContent(label, color, isActive)
+            SubtitleColorChipContent(label, color, isActive, false)
         }
     }
 }
 
 @Composable
-private fun SubtitleColorChipContent(label: String, color: Color, active: Boolean) {
+private fun SubtitleColorChipContent(label: String, color: Color, active: Boolean, isFocused: Boolean) {
+    val contentColor = when {
+        isFocused -> Color.Black
+        active -> Color.White
+        else -> Color.White.copy(alpha = 0.6f)
+    }
     Row(
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -1117,8 +1129,8 @@ private fun SubtitleColorChipContent(label: String, color: Color, active: Boolea
         )
         Text(
             text = label,
-            color = if (active) Color.White else Color.White.copy(alpha = 0.6f),
-            fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+            color = contentColor,
+            fontWeight = if (active || isFocused) FontWeight.Bold else FontWeight.Medium,
             fontSize = 12.sp
         )
     }
@@ -1141,29 +1153,36 @@ private fun SidebarItem(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isSelected) AppColors.FocusBrown.copy(alpha = 0.8f) else Color.Transparent,
-                focusedContainerColor = AppColors.FocusBrown
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Transparent,
+                focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.md)),
             border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
             )
         ) {
-            SidebarItemContent(label, icon, isSelected || isFocused)
+            SidebarItemContent(label, icon, isSelected, isFocused)
         }
     } else {
         Surface(
             onClick = onClick,
-            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.12f) else Color.Transparent,
-            shape = RoundedCornerShape(STRadius.md)
+            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Transparent,
+            shape = RoundedCornerShape(STRadius.md),
+            border = if (isSelected) BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.85f)) else null
         ) {
-            SidebarItemContent(label, icon, isSelected)
+            SidebarItemContent(label, icon, isSelected, false)
         }
     }
 }
 
 @Composable
-private fun SidebarItemContent(label: String, icon: ImageVector, isActive: Boolean) {
+private fun SidebarItemContent(label: String, icon: ImageVector, isActive: Boolean, isFocused: Boolean) {
+    val contentColor = when {
+        isFocused -> Color.Black
+        isActive -> Color.White
+        else -> Color.White.copy(alpha = 0.6f)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1175,18 +1194,18 @@ private fun SidebarItemContent(label: String, icon: ImageVector, isActive: Boole
             modifier = Modifier
                 .width(3.dp)
                 .height(18.dp)
-                .background(if (isActive) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(50))
+                .background(if (isActive || isFocused) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(50))
         )
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = if (isActive) Color.White else Color.White.copy(alpha = 0.6f),
+            tint = contentColor,
             modifier = Modifier.size(18.dp)
         )
         Text(
             text = label,
-            color = if (isActive) Color.White else Color.White.copy(alpha = 0.6f),
-            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+            color = contentColor,
+            fontWeight = if (isActive || isFocused) FontWeight.Bold else FontWeight.Medium,
             fontSize = 14.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -1359,12 +1378,12 @@ private fun SubscriptionMetricCard(
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = Color.White.copy(alpha = 0.04f),
-                focusedContainerColor = AppColors.FocusBrown.copy(alpha = 0.8f)
+                focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.md)),
             border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
         ) {
-            SubscriptionMetricCardContent(title, count, icon, accentColor)
+            SubscriptionMetricCardContent(title, count, icon, accentColor, isFocused)
         }
     } else {
         Surface(
@@ -1383,23 +1402,24 @@ private fun SubscriptionMetricCardContent(
     title: String,
     count: Int,
     icon: ImageVector,
-    accentColor: Color
+    accentColor: Color,
+    isFocused: Boolean = false
 ) {
     Column(
         modifier = Modifier.padding(STSpacing.sm),
         verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = accentColor.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
+        Icon(imageVector = icon, contentDescription = null, tint = if (isFocused) Color.Black else accentColor.copy(alpha = 0.8f), modifier = Modifier.size(16.dp))
         Column {
             Text(
                 text = String.format(Locale.getDefault(), "%,d", count),
-                color = Color.White,
+                color = if (isFocused) Color.Black else Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = title.uppercase(),
-                color = Color.White.copy(alpha = 0.4f),
+                color = if (isFocused) Color.Black.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.4f),
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 0.5.sp
@@ -1423,16 +1443,19 @@ private fun SettingsActionButton(
             modifier = modifier.onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isPrimary) AppColors.ArenaOrange else Color.White.copy(alpha = 0.08f),
-                focusedContainerColor = if (isPrimary) Color.White else AppColors.FocusBrown.copy(alpha = 0.8f)
+                containerColor = if (isPrimary) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f),
+                focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.sm)),
-            border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+            border = ClickableSurfaceDefaults.border(
+                focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                border = Border(BorderStroke(2.dp, if (isPrimary) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+            )
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     text = label.uppercase(),
-                    color = if (isPrimary && isFocused) AppColors.ArenaOrange else Color.White,
+                    color = if (isFocused) Color.Black else Color.White,
                     fontWeight = FontWeight.Black,
                     fontSize = 11.sp
                 )
