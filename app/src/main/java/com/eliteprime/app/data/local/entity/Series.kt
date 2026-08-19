@@ -30,6 +30,7 @@ data class Series(
     var isTrendingThisWeek: Boolean = false,
     var trendingRank: Int = 0,
     @Index var isFavorite: Boolean = false,
+    var order: Int = 0,
     var lastWatchedAt: Long = 0
 ) {
     lateinit var category: ToOne<Category>

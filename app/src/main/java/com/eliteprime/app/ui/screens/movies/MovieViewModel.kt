@@ -71,10 +71,13 @@ class MovieViewModel @Inject constructor(
             if (currentId > 0) {
                 qb.equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
             }
-            qb.build().find(0, FAST_LOAD_LIMIT)
+            qb.order(Movie_.order).build().find(0, FAST_LOAD_LIMIT)
         } else {
             when (currentId) {
-                CAT_ID_FAVORITES -> movieBox.query().equal(Movie_.isFavorite, true).build().find()
+                CAT_ID_FAVORITES -> movieBox.query()
+                    .equal(Movie_.isFavorite, true)
+                    .order(Movie_.order)
+                    .build().find()
                 CAT_ID_CONTINUE -> {
                     val movieIds = history.filter { it.type == "movie" }
                         .map { it.streamId }
@@ -86,6 +89,7 @@ class MovieViewModel @Inject constructor(
                 else -> {
                     movieBox.query()
                         .equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+                        .order(Movie_.order)
                         .build()
                         .find()
                 }

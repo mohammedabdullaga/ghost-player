@@ -105,7 +105,10 @@ class LiveViewModel @Inject constructor(
 
         val baseChannels = when (currentId) {
             CAT_ID_FAVORITES -> {
-                val favs = liveBox.query().equal(LiveStream_.isFavorite, true).build().find()
+                val favs = liveBox.query()
+                    .equal(LiveStream_.isFavorite, true)
+                    .order(LiveStream_.order)
+                    .build().find()
                 if (favs.isEmpty() && selectedId == null) {
                     val fallback = allCategories.firstOrNull { !it.isVirtual }
                     if (fallback != null) {

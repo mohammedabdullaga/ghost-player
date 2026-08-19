@@ -89,7 +89,9 @@ class LoginViewModel @Inject constructor(
 
     private fun startSync() {
         viewModelScope.launch {
-            // 1. Sync initial data
+            _syncProgress.update { it.copy(countdown = 15) }
+            
+            // 1. Run sync
             xtreamRepository.syncCategories()
             xtreamRepository.syncAllStreams(
                 onLiveProgress = { count -> _syncProgress.update { it.copy(liveCount = count) } },
@@ -97,13 +99,24 @@ class LoginViewModel @Inject constructor(
                 onSeriesProgress = { count -> _syncProgress.update { it.copy(seriesCount = count) } }
             )
             
-            // 2. UX Countdown (15 seconds)
-            for (i in 15 downTo 0) {
+            // 2. Dynamic Finalization: If sync was fast, don't make user wait the full 15s
+            // We show a quick "Finishing" countdown
+            for (i in 3 downTo 0) {
                 _syncProgress.update { it.copy(countdown = i) }
-                delay(1000)
+                delay(400)
             }
             
             _loginState.value = LoginState.Success
+        }
+        
+        // Background countdown just to keep the UI number ticking if sync is slow
+        viewModelScope.launch {
+            while (_loginState.value is LoginState.Loading && _syncProgress.value.countdown > 3) {
+                delay(1000)
+                _syncProgress.update { 
+                    if (it.countdown > 3) it.copy(countdown = it.countdown - 1) else it 
+                }
+            }
         }
     }
 

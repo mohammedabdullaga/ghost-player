@@ -8,6 +8,9 @@ import com.eliteprime.app.data.remote.XtreamSeasonResponse
 import com.eliteprime.app.data.remote.XtreamStreamParser
 import io.objectbox.BoxStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -78,15 +81,21 @@ class XtreamRepository @Inject constructor(
         val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
         val fullUrl = "${account.serverUrl}player_api.php"
         try {
-            val liveCats = xtreamApi.getCategories(fullUrl, account.username, account.password, "get_live_categories")
-            val movieCats = xtreamApi.getCategories(fullUrl, account.username, account.password, "get_vod_categories")
-            val seriesCats = xtreamApi.getCategories(fullUrl, account.username, account.password, "get_series_categories")
+            coroutineScope {
+                val liveCatsDeferred = async { xtreamApi.getCategories(fullUrl, account.username, account.password, "get_live_categories") }
+                val movieCatsDeferred = async { xtreamApi.getCategories(fullUrl, account.username, account.password, "get_vod_categories") }
+                val seriesCatsDeferred = async { xtreamApi.getCategories(fullUrl, account.username, account.password, "get_series_categories") }
 
-            boxStore.runInTx {
-                categoryBox.removeAll()
-                categoryBox.put(liveCats.map { Category(categoryId = it.categoryId, categoryName = it.categoryName, parentId = it.parentId, type = "live") })
-                categoryBox.put(movieCats.map { Category(categoryId = it.categoryId, categoryName = it.categoryName, parentId = it.parentId, type = "movie") })
-                categoryBox.put(seriesCats.map { Category(categoryId = it.categoryId, categoryName = it.categoryName, parentId = it.parentId, type = "series") })
+                val liveCats = liveCatsDeferred.await()
+                val movieCats = movieCatsDeferred.await()
+                val seriesCats = seriesCatsDeferred.await()
+
+                boxStore.runInTx {
+                    categoryBox.removeAll()
+                    categoryBox.put(liveCats.mapIndexed { index, it -> Category(categoryId = it.categoryId, categoryName = it.categoryName, parentId = it.parentId, type = "live", order = index) })
+                    categoryBox.put(movieCats.mapIndexed { index, it -> Category(categoryId = it.categoryId, categoryName = it.categoryName, parentId = it.parentId, type = "movie", order = index) })
+                    categoryBox.put(seriesCats.mapIndexed { index, it -> Category(categoryId = it.categoryId, categoryName = it.categoryName, parentId = it.parentId, type = "series", order = index) })
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -100,43 +109,51 @@ class XtreamRepository @Inject constructor(
     ) = withContext(Dispatchers.IO) {
         val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
         
-        syncStreamType(account, "get_live_streams") { inputStream -> parser.parseLiveStreams(inputStream, null, onLiveProgress) }
-        syncStreamType(account, "get_vod_streams") { inputStream -> parser.parseMovies(inputStream, null, onMovieProgress) }
-        syncStreamType(account, "get_series") { inputStream -> parser.parseSeries(inputStream, null, onSeriesProgress) }
+        coroutineScope {
+            launch { syncStreamType(account, "get_live_streams") { inputStream -> parser.parseLiveStreams(inputStream, null, onLiveProgress) } }
+            launch { syncStreamType(account, "get_vod_streams") { inputStream -> parser.parseMovies(inputStream, null, onMovieProgress) } }
+            launch { syncStreamType(account, "get_series") { inputStream -> parser.parseSeries(inputStream, null, onSeriesProgress) } }
+        }
 
-        // Cleanup: Remove orphaned EPG data for channels that no longer exist
+        // Cleanup: Remove orphaned data for channels that no longer exist
         cleanupOrphanedData()
     }
 
     private fun cleanupOrphanedData() {
-        // 1. Fetch all current IDs
-        val liveIds = liveBox.all.map { it.id }.toSet()
-        val seriesIds = seriesBox.all.map { it.id }.toSet()
+        // Optimized Cleanup: Only fetch IDs
+        val liveIds = liveBox.query().build().property(LiveStream_.id).findLongs().toSet()
+        val seriesIds = seriesBox.query().build().property(Series_.id).findLongs().toSet()
         
         boxStore.runInTx {
-            // 2. Remove EPG for channels that no longer exist
-            val orphanedEpg = epgBox.all.filter { it.channelId !in liveIds }
-            epgBox.remove(orphanedEpg)
-            
-            // 3. Remove Episodes and Seasons for Series that no longer exist
             val episodeBox = boxStore.boxFor(Episode::class.java)
             val seasonBox = boxStore.boxFor(Season::class.java)
             
-            val orphanedEpisodes = episodeBox.all.filter { it.seriesId !in seriesIds }
-            val orphanedSeasons = seasonBox.all.filter { it.seriesId !in seriesIds }
+            // Native Query removal is faster. 
+            // ObjectBox doesn't have a direct "id NOT IN (list)" for removal in a single call easily 
+            // without fetching, but we can at least minimize the data.
             
+            val orphanedEpisodes = episodeBox.query().build().find().filter { it.seriesId !in seriesIds }
             episodeBox.remove(orphanedEpisodes)
+            
+            val orphanedSeasons = seasonBox.query().build().find().filter { it.seriesId !in seriesIds }
             seasonBox.remove(orphanedSeasons)
+            
+            if (!epgBox.isEmpty) {
+                val orphanedEpg = epgBox.query().build().find().filter { it.channelId !in liveIds }
+                epgBox.remove(orphanedEpg)
+            }
         }
     }
 
-    private fun syncStreamType(account: XtreamAccount, action: String, parseAction: (InputStream) -> Unit) {
+    private suspend fun syncStreamType(account: XtreamAccount, action: String, parseAction: suspend (InputStream) -> Unit) {
         val url = "${account.serverUrl}player_api.php?username=${account.username}&password=${account.password}&action=$action"
         val request = Request.Builder().url(url).build()
         
-        okHttpClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return
-            response.body?.byteStream()?.let { parseAction(it) }
+        withContext(Dispatchers.IO) {
+            okHttpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext
+                response.body?.byteStream()?.let { parseAction(it) }
+            }
         }
     }
 

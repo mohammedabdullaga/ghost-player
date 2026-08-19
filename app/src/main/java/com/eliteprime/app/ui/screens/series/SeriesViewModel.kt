@@ -71,10 +71,13 @@ class SeriesViewModel @Inject constructor(
             if (currentId > 0) {
                 qb.equal(Series_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
             }
-            qb.build().find(0, FAST_LOAD_LIMIT)
+            qb.order(Series_.order).build().find(0, FAST_LOAD_LIMIT)
         } else {
             when (currentId) {
-                CAT_ID_FAVORITES -> seriesBox.query().equal(Series_.isFavorite, true).build().find()
+                CAT_ID_FAVORITES -> seriesBox.query()
+                    .equal(Series_.isFavorite, true)
+                    .order(Series_.order)
+                    .build().find()
                 CAT_ID_CONTINUE -> {
                     val seriesIds = history.filter { it.type == "series" || it.type == "series_episode" }
                         .mapNotNull { it.seriesId }
@@ -86,6 +89,7 @@ class SeriesViewModel @Inject constructor(
                 else -> {
                     seriesBox.query()
                         .equal(Series_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+                        .order(Series_.order)
                         .build()
                         .find()
                 }

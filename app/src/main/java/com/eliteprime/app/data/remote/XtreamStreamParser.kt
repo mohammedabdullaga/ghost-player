@@ -11,6 +11,10 @@ import com.google.gson.stream.JsonToken
 import com.google.gson.stream.JsonWriter
 import io.objectbox.Box
 import io.objectbox.BoxStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.InputStreamReader
 
@@ -22,66 +26,134 @@ class XtreamStreamParser @Inject constructor(
     private val boxStore: BoxStore,
     private val gson: Gson
 ) {
-    fun parseLiveStreams(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) {
+    private val BATCH_SIZE = 1000
+
+    suspend fun parseLiveStreams(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) = coroutineScope {
         val reader = JsonReader(InputStreamReader(inputStream, "UTF-8"))
         val liveBox: Box<LiveStream> = boxStore.boxFor(LiveStream::class.java)
         var count = 0
+        val writeChannel = Channel<List<LiveStream>>(capacity = 10)
         
-        boxStore.runInTx {
+        val writerJob = launch(Dispatchers.IO) {
+            for (batch in writeChannel) {
+                liveBox.put(batch)
+            }
+        }
+        
+        try {
+            val batch = mutableListOf<LiveStream>()
             reader.beginArray()
             while (reader.hasNext()) {
                 val live: LiveStream = gson.fromJson(reader, LiveStream::class.java)
+                live.order = count
                 if (categoryId == null || live.remoteCategoryId == categoryId) {
-                    liveBox.put(live)
+                    batch.add(live)
                 }
                 count++
-                if (count % 100 == 0) onProgress(count)
+                
+                if (batch.size >= BATCH_SIZE) {
+                    writeChannel.send(batch.toList())
+                    batch.clear()
+                    onProgress(count)
+                } else if (count % 500 == 0) {
+                    onProgress(count)
+                }
+            }
+            if (batch.isNotEmpty()) {
+                writeChannel.send(batch)
             }
             reader.endArray()
+        } finally {
+            writeChannel.close()
+            writerJob.join()
+            onProgress(count)
+            reader.close()
         }
-        onProgress(count)
-        reader.close()
     }
 
-    fun parseMovies(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) {
+    suspend fun parseMovies(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) = coroutineScope {
         val reader = JsonReader(InputStreamReader(inputStream, "UTF-8"))
         val movieBox: Box<Movie> = boxStore.boxFor(Movie::class.java)
         var count = 0
+        val writeChannel = Channel<List<Movie>>(capacity = 10)
         
-        boxStore.runInTx {
+        val writerJob = launch(Dispatchers.IO) {
+            for (batch in writeChannel) {
+                movieBox.put(batch)
+            }
+        }
+        
+        try {
+            val batch = mutableListOf<Movie>()
             reader.beginArray()
             while (reader.hasNext()) {
                 val movie: Movie = gson.fromJson(reader, Movie::class.java)
+                movie.order = count
                 if (categoryId == null || movie.remoteCategoryId == categoryId) {
-                    movieBox.put(movie)
+                    batch.add(movie)
                 }
                 count++
-                if (count % 50 == 0) onProgress(count)
+                
+                if (batch.size >= BATCH_SIZE) {
+                    writeChannel.send(batch.toList())
+                    batch.clear()
+                    onProgress(count)
+                } else if (count % 500 == 0) {
+                    onProgress(count)
+                }
+            }
+            if (batch.isNotEmpty()) {
+                writeChannel.send(batch)
             }
             reader.endArray()
+        } finally {
+            writeChannel.close()
+            writerJob.join()
+            onProgress(count)
+            reader.close()
         }
-        onProgress(count)
-        reader.close()
     }
 
-    fun parseSeries(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) {
+    suspend fun parseSeries(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) = coroutineScope {
         val reader = JsonReader(InputStreamReader(inputStream, "UTF-8"))
         val seriesBox: Box<Series> = boxStore.boxFor(Series::class.java)
         var count = 0
+        val writeChannel = Channel<List<Series>>(capacity = 10)
         
-        boxStore.runInTx {
+        val writerJob = launch(Dispatchers.IO) {
+            for (batch in writeChannel) {
+                seriesBox.put(batch)
+            }
+        }
+        
+        try {
+            val batch = mutableListOf<Series>()
             reader.beginArray()
             while (reader.hasNext()) {
                 val series: Series = gson.fromJson(reader, Series::class.java)
+                series.order = count
                 if (categoryId == null || series.remoteCategoryId == categoryId) {
-                    seriesBox.put(series)
+                    batch.add(series)
                 }
                 count++
-                if (count % 20 == 0) onProgress(count)
+                
+                if (batch.size >= BATCH_SIZE) {
+                    writeChannel.send(batch.toList())
+                    batch.clear()
+                    onProgress(count)
+                } else if (count % 500 == 0) {
+                    onProgress(count)
+                }
+            }
+            if (batch.isNotEmpty()) {
+                writeChannel.send(batch)
             }
             reader.endArray()
+        } finally {
+            writeChannel.close()
+            writerJob.join()
+            onProgress(count)
+            reader.close()
         }
-        onProgress(count)
-        reader.close()
     }
 }
