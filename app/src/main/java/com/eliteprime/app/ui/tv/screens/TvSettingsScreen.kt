@@ -1242,13 +1242,6 @@ private fun TvAccountSettingsCard(
                     accentColor = Color(0xFFE91E63),
                     modifier = Modifier.weight(1f)
                 )
-                TvSubscriptionMetricCard(
-                    title = stringResource(R.string.generic_epg),
-                    count = epgCount,
-                    icon = Icons.Default.Book,
-                    accentColor = Color(0xFFFFC107),
-                    modifier = Modifier.weight(1f)
-                )
             }
 
             Row(

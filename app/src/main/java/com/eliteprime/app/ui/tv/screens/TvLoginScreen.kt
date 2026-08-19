@@ -13,11 +13,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.*
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -34,6 +38,7 @@ import com.eliteprime.app.ui.screens.login.LoginViewModel
 import com.eliteprime.app.ui.screens.login.SyncProgress
 import com.eliteprime.app.ui.tv.core.TvColors
 import com.eliteprime.app.ui.tv.core.TvSurfaceCard
+import kotlinx.coroutines.delay
 
 private val ArenaOrange = TvColors.Primary
 
@@ -51,6 +56,8 @@ fun TvLoginScreen(
     val pairingState by viewModel.pairingState.collectAsState()
     val isSecureEnabled by viewModel.isSecureConnectionEnabled.collectAsState()
 
+    val loginButtonFocusRequester = remember { FocusRequester() }
+
     LaunchedEffect(state) {
         if (state is LoginState.Success) {
             onLoginSuccess()
@@ -59,6 +66,9 @@ fun TvLoginScreen(
 
     LaunchedEffect(Unit) {
         viewModel.startQrPairing()
+        // Delay to ensure layout is ready before requesting focus
+        delay(500)
+        loginButtonFocusRequester.requestFocus()
     }
 
     Box(
@@ -123,6 +133,7 @@ fun TvLoginScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(60.dp)
+                                        .focusRequester(loginButtonFocusRequester)
                                         .onFocusChanged { isLoginFocused = it.isFocused },
                                     colors = ClickableSurfaceDefaults.colors(
                                         containerColor = ArenaOrange,
@@ -244,53 +255,125 @@ private fun TvLoginTextField(
     onTogglePasswordVisible: (() -> Unit)? = null
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    var isEditing by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    
+    val textFieldFocusRequester = remember { FocusRequester() }
+    val toggleFocusRequester = remember { FocusRequester() }
 
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = Modifier
-            .fillMaxWidth()
-            .onFocusChanged { isFocused = it.isFocused },
-        label = {
-            Text(
-                label,
-                color = if (isFocused) ArenaOrange else Color.White.copy(alpha = 0.4f)
-            )
-        },
-        leadingIcon = {
-            Icon(
-                icon,
-                contentDescription = null,
-                tint = if (isFocused) ArenaOrange else Color.White.copy(alpha = 0.35f)
-            )
-        },
-        trailingIcon = {
-            if (isPassword && onTogglePasswordVisible != null) {
-                IconButton(onClick = onTogglePasswordVisible) {
+    LaunchedEffect(isFocused) {
+        if (!isFocused) {
+            isEditing = false
+        }
+    }
+
+    LaunchedEffect(isEditing) {
+        if (isEditing) {
+            // Delay slightly to ensure recomposition (readOnly = false) has applied
+            delay(100)
+            keyboardController?.show()
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(textFieldFocusRequester)
+                .onFocusChanged { 
+                    isFocused = it.isFocused
+                    if (!it.isFocused) {
+                        isEditing = false
+                    }
+                }
+                .onKeyEvent { keyEvent ->
+                    if (isFocused && !isEditing) {
+                        if (keyEvent.type == KeyEventType.KeyUp) {
+                            when (keyEvent.key) {
+                                Key.DirectionCenter, Key.Enter -> {
+                                    isEditing = true
+                                    return@onKeyEvent true
+                                }
+                            }
+                        } else if (keyEvent.type == KeyEventType.KeyDown) {
+                            if (keyEvent.key == Key.DirectionRight && isPassword && onTogglePasswordVisible != null) {
+                                toggleFocusRequester.requestFocus()
+                                return@onKeyEvent true
+                            }
+                        }
+                    }
+                    false
+                },
+            readOnly = !isEditing,
+            label = {
+                Text(
+                    label,
+                    color = if (isFocused) ArenaOrange else Color.White.copy(alpha = 0.4f)
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    tint = if (isFocused) ArenaOrange else Color.White.copy(alpha = 0.35f)
+                )
+            },
+            visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation()
+                else VisualTransformation.None,
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White,
+                focusedBorderColor = ArenaOrange,
+                unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                focusedContainerColor = Color.White.copy(alpha = 0.05f),
+                unfocusedContainerColor = Color.White.copy(alpha = 0.03f),
+                cursorColor = ArenaOrange
+            ),
+            shape = RoundedCornerShape(12.dp),
+            textStyle = MaterialTheme.typography.bodyLarge
+        )
+
+        if (isPassword && onTogglePasswordVisible != null) {
+            var isToggleFocused by remember { mutableStateOf(false) }
+            TvSurfaceCard(
+                onClick = onTogglePasswordVisible,
+                modifier = Modifier
+                    .size(56.dp)
+                    .focusRequester(toggleFocusRequester)
+                    .onFocusChanged { isToggleFocused = it.isFocused }
+                    .onKeyEvent { keyEvent ->
+                        if (isToggleFocused && keyEvent.type == KeyEventType.KeyDown && keyEvent.key == Key.DirectionLeft) {
+                            textFieldFocusRequester.requestFocus()
+                            return@onKeyEvent true
+                        }
+                        false
+                    },
+                colors = ClickableSurfaceDefaults.colors(
+                    containerColor = if (isToggleFocused) Color.White else Color.White.copy(alpha = 0.05f),
+                    focusedContainerColor = Color.White
+                ),
+                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+                scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f)
+            ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = if (passwordVisible) Icons.Default.VisibilityOff
                             else Icons.Default.Visibility,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.4f)
+                        tint = if (isToggleFocused) Color.Black else Color.White.copy(alpha = 0.4f),
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
-        },
-        visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation()
-            else VisualTransformation.None,
-        singleLine = true,
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            focusedBorderColor = ArenaOrange,
-            unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
-            focusedContainerColor = Color.White.copy(alpha = 0.05f),
-            unfocusedContainerColor = Color.White.copy(alpha = 0.03f),
-            cursorColor = ArenaOrange
-        ),
-        shape = RoundedCornerShape(12.dp),
-        textStyle = MaterialTheme.typography.bodyLarge
-    )
+        }
+    }
 }
 
 @Composable

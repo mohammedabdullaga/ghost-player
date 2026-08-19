@@ -22,6 +22,10 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.SeekParameters
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.MediaCodecAudioRenderer
+import androidx.media3.exoplayer.audio.AudioRendererEventListener
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import androidx.media3.exoplayer.video.VideoRendererEventListener
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
@@ -206,6 +210,11 @@ class Media3PlayerEngine @Inject constructor(
         val newTrackSelector = DefaultTrackSelector(context)
         currentTrackSelector = newTrackSelector
 
+        val audioSink = DefaultAudioSink.Builder(context)
+            .setEnableFloatOutput(false) // FIX: Disable float output for AmLogic TV stability
+            .setAudioProcessorChain(DefaultAudioSink.DefaultAudioProcessorChain())
+            .build()
+
         val renderersFactory = object : DefaultRenderersFactory(context) {
             override fun buildVideoRenderers(
                 context: Context,
@@ -243,6 +252,22 @@ class Media3PlayerEngine @Inject constructor(
                     }
                 })
             }
+
+            override fun buildAudioRenderers(
+                context: Context,
+                extensionRendererMode: Int,
+                mediaCodecSelector: MediaCodecSelector,
+                enableDecoderFallback: Boolean,
+                unusedAudioSink: AudioSink,
+                eventHandler: Handler,
+                eventListener: AudioRendererEventListener,
+                out: ArrayList<Renderer>
+            ) {
+                out.add(MediaCodecAudioRenderer(
+                    context, mediaCodecSelector, enableDecoderFallback,
+                    eventHandler, eventListener, audioSink
+                ))
+            }
         }.setMediaCodecSelector(codecSelector)
          .setEnableDecoderFallback(true)
          .setExtensionRendererMode(if (decoderMode == "SOFTWARE") 
@@ -255,8 +280,13 @@ class Media3PlayerEngine @Inject constructor(
         val playerToRelease = exoPlayer
         exoPlayer = null
         playerToRelease?.let { old ->
-            try { old.stop() } catch (e: Exception) {}
-            scope.launch { try { old.release() } catch (e: Exception) {} }
+            Log.d(TAG, "Synchronously releasing old player instance")
+            try { 
+                old.stop() 
+                old.release() // CRITICAL: Release synchronously to free AudioTrack slots
+            } catch (e: Exception) {
+                Log.e(TAG, "Error releasing old player", e)
+            }
         }
 
         // Live speed control without artificial slow down
@@ -494,9 +524,19 @@ class Media3PlayerEngine @Inject constructor(
         override fun onPlayerError(e: PlaybackException) {
             Log.e(TAG, "Error: ${e.message}", e)
             
-            val rootCause = generateSequence<Throwable>(e) { it.cause }.lastOrNull()
+            val chain = generateSequence<Throwable>(e) { it.cause }.toList()
+            val rootCause = chain.lastOrNull()
+            
             if (rootCause?.message?.contains("Player stuck", ignoreCase = true) == true) {
                 Log.w(TAG, "Media3 detected STUCK player (root cause). Triggering automatic recovery.")
+                handleStall()
+                return
+            }
+            
+            if (chain.any { it.message?.contains("AudioTrack init failed", ignoreCase = true) == true || 
+                          it.message?.contains("Audio sink error", ignoreCase = true) == true ||
+                          it.message?.contains("Cannot create AudioTrack", ignoreCase = true) == true }) {
+                Log.e(TAG, "CRITICAL: Audio sink initialization failed. Triggering hardware reset recovery.")
                 handleStall()
                 return
             }

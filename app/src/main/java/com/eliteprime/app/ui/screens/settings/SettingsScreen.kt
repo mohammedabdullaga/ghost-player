@@ -1310,14 +1310,6 @@ private fun AccountSettingsCard(
                     isTv = isTv,
                     modifier = Modifier.weight(1f)
                 )
-                SubscriptionMetricCard(
-                    title = stringResource(R.string.generic_epg),
-                    count = epgCount,
-                    icon = Icons.Default.Book,
-                    accentColor = Color(0xFFFFC107),
-                    isTv = isTv,
-                    modifier = Modifier.weight(1f)
-                )
             }
 
             // 3. Actions

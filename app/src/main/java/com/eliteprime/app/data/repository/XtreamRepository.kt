@@ -141,6 +141,9 @@ class XtreamRepository @Inject constructor(
     }
 
     suspend fun fetchEpgForChannel(channel: LiveStream) = withContext(Dispatchers.IO) {
+        // EPG fetching disabled as per user request
+        return@withContext
+
         val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
         val fullUrl = "${account.serverUrl}player_api.php"
         try {
