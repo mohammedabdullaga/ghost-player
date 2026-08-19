@@ -406,7 +406,13 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     override fun setAudioDelay(delayMs: Long) {
-        // Media3 audio stream offset adjustment via renderer message if supported
+        // Media3 audio stream offset adjustment requires custom renderers 
+        // to apply delays dynamically at the sink level.
+    }
+
+    override fun setSubtitleDelay(delayMs: Long) {
+        // Media3 subtitle stream offset adjustment is not natively supported 
+        // in standard TextRenderer for dynamic runtime changes.
     }
 
     override fun renewStreamUrl(streamInfo: StreamInfo) {
@@ -520,6 +526,9 @@ class Media3PlayerEngine @Inject constructor(
             val newF = VideoFormat(size.width, size.height, current.frameRate, current.bitrate, current.codec)
             _videoFormat.value = newF
             promoteBufferIfNeeded(newF)
+        }
+        override fun onTracksChanged(tracks: Tracks) {
+            updateTracks()
         }
         override fun onPlayerError(e: PlaybackException) {
             Log.e(TAG, "Error: ${e.message}", e)

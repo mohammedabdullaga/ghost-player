@@ -72,6 +72,7 @@ interface PlayerEngine {
     fun selectSubtitleTrack(trackId: String?)
     fun setSubtitleStyle(style: PlayerSubtitleStyle)
     fun setAudioDelay(delayMs: Long) {}
+    fun setSubtitleDelay(delayMs: Long) {}
     fun renewStreamUrl(streamInfo: StreamInfo)
     fun release()
 

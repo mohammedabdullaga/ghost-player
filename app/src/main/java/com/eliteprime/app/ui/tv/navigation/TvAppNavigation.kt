@@ -127,6 +127,9 @@ fun TvAppNavigation(
                 onBack = { navController.popBackStack() },
                 onPlay = { m ->
                     navController.navigate("player/${m.id}/movie/${Uri.encode(m.name)}")
+                },
+                onMovieClick = { m ->
+                    navController.navigate("movie_details/${m.id}")
                 }
             )
         }

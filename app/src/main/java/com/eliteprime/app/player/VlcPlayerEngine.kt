@@ -240,13 +240,23 @@ class VlcPlayerEngine @Inject constructor(
         mediaPlayer?.rate = speed 
     }
     
-    override fun selectAudioTrack(trackId: String) { mediaPlayer?.setAudioTrack(trackId.toInt()) }
+    override fun selectAudioTrack(trackId: String) { 
+        mediaPlayer?.setAudioTrack(trackId.toInt())
+        updateTracks()
+    }
     override fun selectVideoTrack(trackId: String) { /* VLC doesn't easily support dynamic video track switching same way */ }
-    override fun selectSubtitleTrack(trackId: String?) { mediaPlayer?.setSpuTrack(trackId?.toInt() ?: -1) }
+    override fun selectSubtitleTrack(trackId: String?) { 
+        mediaPlayer?.setSpuTrack(trackId?.toInt() ?: -1)
+        updateTracks()
+    }
     override fun setSubtitleStyle(style: PlayerSubtitleStyle) { /* VLC uses its own styling system */ }
     override fun setAudioDelay(delayMs: Long) {
         // VLC audio delay is in microseconds
         mediaPlayer?.setAudioDelay(delayMs * 1000L)
+    }
+    override fun setSubtitleDelay(delayMs: Long) {
+        // VLC subtitle delay is in microseconds
+        mediaPlayer?.setSpuDelay(delayMs * 1000L)
     }
     override fun renewStreamUrl(streamInfo: StreamInfo) { prepare(streamInfo) }
 

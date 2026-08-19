@@ -76,6 +76,9 @@ class PlayerViewModel @Inject constructor(
     private val _audioDelayMs = MutableStateFlow(0L)
     val audioDelayMs = _audioDelayMs.asStateFlow()
 
+    private val _subtitleDelayMs = MutableStateFlow(0L)
+    val subtitleDelayMs = _subtitleDelayMs.asStateFlow()
+
     private val _seekAccumulator = MutableStateFlow(0)
     val seekAccumulator = _seekAccumulator.asStateFlow()
 
@@ -563,6 +566,17 @@ class PlayerViewModel @Inject constructor(
     fun resetAudioDelay() {
         _audioDelayMs.value = 0L
         playerEngine.setAudioDelay(0L)
+    }
+
+    fun adjustSubtitleDelay(deltaMs: Long) {
+        val newDelay = (_subtitleDelayMs.value + deltaMs).coerceIn(-10000L, 10000L)
+        _subtitleDelayMs.value = newDelay
+        playerEngine.setSubtitleDelay(newDelay)
+    }
+
+    fun resetSubtitleDelay() {
+        _subtitleDelayMs.value = 0L
+        playerEngine.setSubtitleDelay(0L)
     }
 
     fun toggleAspectRatio() {

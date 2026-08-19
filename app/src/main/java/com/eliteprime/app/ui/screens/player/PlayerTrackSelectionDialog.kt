@@ -18,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -41,16 +43,27 @@ fun PlayerTrackSelectionDialog(
     icon: ImageVector = Icons.Default.Subtitles,
     tracks: List<PlayerTrack>,
     onTrackSelected: (PlayerTrack) -> Unit,
-    onDismissRequest: () -> Unit
+    onDismissRequest: () -> Unit,
+    showSyncController: Boolean = false,
+    currentDelayMs: Long = 0,
+    onAdjustDelay: (Long) -> Unit = {},
+    onResetDelay: () -> Unit = {}
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
     val initialFocusRequester = remember { FocusRequester() }
+    val syncFocusRequester = remember { FocusRequester() }
+    
+    val isAnyTrackSelected = remember(tracks) { tracks.any { it.isSelected && it.id != "none" } }
 
     LaunchedEffect(Unit) {
         if (isTv) {
             delay(200)
             try {
-                initialFocusRequester.requestFocus()
+                if (showSyncController && isAnyTrackSelected) {
+                    syncFocusRequester.requestFocus()
+                } else {
+                    initialFocusRequester.requestFocus()
+                }
             } catch (_: Exception) {}
         }
     }
@@ -117,6 +130,17 @@ fun PlayerTrackSelectionDialog(
 
                 HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
 
+                if (showSyncController) {
+                    SubtitleSyncController(
+                        currentDelayMs = currentDelayMs,
+                        isEnabled = isAnyTrackSelected,
+                        onAdjustDelay = onAdjustDelay,
+                        onResetDelay = onResetDelay,
+                        focusRequester = syncFocusRequester
+                    )
+                    HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                }
+
                 // Track Options List
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -156,6 +180,146 @@ fun PlayerTrackSelectionDialog(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SubtitleSyncController(
+    currentDelayMs: Long,
+    isEnabled: Boolean,
+    onAdjustDelay: (Long) -> Unit,
+    onResetDelay: () -> Unit,
+    focusRequester: FocusRequester
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (isEnabled) 1f else 0.4f),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Label
+        Text(
+            text = "SUBTITLE SYNC",
+            color = if (isEnabled) AppColors.ArenaOrange else Color.White.copy(alpha = 0.4f),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = 2.sp
+        )
+
+        // Large Centered Counter Card
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White.copy(alpha = 0.08f),
+            border = BorderStroke(1.5.dp, if (currentDelayMs != 0L && isEnabled) AppColors.ArenaOrange else Color.White.copy(alpha = 0.1f)),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = "${if (currentDelayMs > 0) "+" else ""}${currentDelayMs}ms",
+                    color = if (currentDelayMs == 0L || !isEnabled) Color.White else AppColors.ArenaOrange,
+                    fontSize = 52.sp,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                if (isEnabled) {
+                    Text(
+                        text = when {
+                            currentDelayMs > 0 -> "Subtitles are delayed"
+                            currentDelayMs < 0 -> "Subtitles are advanced"
+                            else -> "Subtitles in sync"
+                        },
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
+
+        // Adjust Controls
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            SyncStepButton(
+                label = "-250",
+                enabled = isEnabled,
+                modifier = Modifier.weight(1f).focusRequester(focusRequester),
+                onClick = { onAdjustDelay(-250) }
+            )
+            SyncStepButton(
+                label = "-50",
+                enabled = isEnabled,
+                modifier = Modifier.weight(1f),
+                onClick = { onAdjustDelay(-50) }
+            )
+            
+            // Large Reset Button
+            SyncStepButton(
+                label = "RESET",
+                enabled = isEnabled && currentDelayMs != 0L,
+                modifier = Modifier.weight(1.8f),
+                onClick = onResetDelay
+            )
+            
+            SyncStepButton(
+                label = "+50",
+                enabled = isEnabled,
+                modifier = Modifier.weight(1f),
+                onClick = { onAdjustDelay(50) }
+            )
+            SyncStepButton(
+                label = "+250",
+                enabled = isEnabled,
+                modifier = Modifier.weight(1f),
+                onClick = { onAdjustDelay(250) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SyncStepButton(
+    label: String,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+
+    Surface(
+        onClick = { if (enabled) onClick() },
+        enabled = enabled,
+        shape = RoundedCornerShape(8.dp),
+        color = when {
+            isFocused -> Color.White.copy(alpha = 0.2f)
+            else -> Color.White.copy(alpha = 0.05f)
+        },
+        border = BorderStroke(
+            width = if (isFocused) 1.5.dp else 1.dp,
+            color = if (isFocused) AppColors.ArenaOrange else Color.White.copy(alpha = 0.08f)
+        ),
+        modifier = modifier
+            .height(36.dp)
+            .onFocusChanged { isFocused = it.isFocused }
+    ) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                color = if (isFocused) AppColors.ArenaOrange else Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.sp
+            )
         }
     }
 }

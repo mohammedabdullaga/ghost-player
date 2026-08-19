@@ -133,6 +133,7 @@ class MasterPlayerEngine @Inject constructor(
     override fun selectSubtitleTrack(trackId: String?) = _activePlayer.value.selectSubtitleTrack(trackId)
     override fun setSubtitleStyle(style: PlayerSubtitleStyle) = _activePlayer.value.setSubtitleStyle(style)
     override fun setAudioDelay(delayMs: Long) = _activePlayer.value.setAudioDelay(delayMs)
+    override fun setSubtitleDelay(delayMs: Long) = _activePlayer.value.setSubtitleDelay(delayMs)
     override fun renewStreamUrl(streamInfo: StreamInfo) {
         lastStreamInfo = streamInfo
         _activePlayer.value.renewStreamUrl(streamInfo)

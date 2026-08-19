@@ -42,6 +42,7 @@ import kotlinx.coroutines.delay
 fun TvMovieDetailsScreen(
     onBack: () -> Unit,
     onPlay: (Movie) -> Unit,
+    onMovieClick: (Movie) -> Unit = {},
     viewModel: MovieDetailViewModel = hiltViewModel()
 ) {
     val movie by viewModel.movie.collectAsState()
@@ -243,7 +244,7 @@ fun TvMovieDetailsScreen(
                                 contentPadding = PaddingValues(horizontal = 8.dp)
                             ) {
                                 items(relatedMovies) { related ->
-                                    TvRelatedMovieCardCompact(related) { onPlay(related) }
+                                    TvRelatedMovieCardCompact(related) { onMovieClick(related) }
                                 }
                             }
                         }

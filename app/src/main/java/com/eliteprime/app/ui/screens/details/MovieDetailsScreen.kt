@@ -51,6 +51,7 @@ import kotlinx.coroutines.delay
 fun MovieDetailsScreen(
     onBack: () -> Unit,
     onPlay: (Movie) -> Unit,
+    onMovieClick: (Movie) -> Unit = {},
     onPlayLocal: (Long, String, String) -> Unit = { _, _, _ -> },
     viewModel: MovieDetailViewModel = hiltViewModel()
 ) {
@@ -203,7 +204,7 @@ fun MovieDetailsScreen(
                                     RelatedPosterCard(
                                         imageUrl = related.streamIcon ?: related.backdropUrl,
                                         title = related.name,
-                                        onClick = { onPlay(related) }
+                                        onClick = { onMovieClick(related) }
                                     )
                                 }
                             }

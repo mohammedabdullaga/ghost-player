@@ -53,6 +53,7 @@ fun PlayerScreen(
     val showDiagnostics by viewModel.showDiagnostics.collectAsStateWithLifecycle()
     val stats by viewModel.playerStats.collectAsStateWithLifecycle()
     val audioDelayMs by viewModel.audioDelayMs.collectAsStateWithLifecycle()
+    val subtitleDelayMs by viewModel.subtitleDelayMs.collectAsStateWithLifecycle()
     val resumePrompt by viewModel.resumePrompt.collectAsStateWithLifecycle()
     val hasNextEpisode by viewModel.hasNextEpisode.collectAsStateWithLifecycle()
     val hasPreviousEpisode by viewModel.hasPreviousEpisode.collectAsStateWithLifecycle()
@@ -282,7 +283,11 @@ fun PlayerScreen(
                         if (it.id == "none") viewModel.selectSubtitleTrack(null)
                         else viewModel.selectSubtitleTrack(it.id)
                     },
-                    onDismissRequest = { showSubtitleDialog = false }
+                    onDismissRequest = { showSubtitleDialog = false },
+                    showSyncController = true,
+                    currentDelayMs = subtitleDelayMs,
+                    onAdjustDelay = { viewModel.adjustSubtitleDelay(it) },
+                    onResetDelay = { viewModel.resetSubtitleDelay() }
                 )
             }
         }

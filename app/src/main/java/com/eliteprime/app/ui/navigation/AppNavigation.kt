@@ -141,6 +141,9 @@ fun AppNavigation(
                 onPlay = { m ->
                     navController.navigate("player/${m.id}/movie/${Uri.encode(m.name)}")
                 },
+                onMovieClick = { m ->
+                    navController.navigate("movie_details/${m.id}")
+                },
                 onPlayLocal = { id, path, name ->
                     val uri = if (path.contains("://")) path else "file://$path"
                     navController.navigate("player/$id/movie/${Uri.encode(name)}?url=${Uri.encode(uri)}")
