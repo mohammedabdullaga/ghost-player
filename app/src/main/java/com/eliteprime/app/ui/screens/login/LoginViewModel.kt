@@ -107,6 +107,7 @@ class LoginViewModel @Inject constructor(
             }
             
             _loginState.value = LoginState.Success
+            preferenceRepository.setLastSyncTimestamp(System.currentTimeMillis())
         }
         
         // Background countdown just to keep the UI number ticking if sync is slow

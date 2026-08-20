@@ -122,21 +122,23 @@ class DashboardViewModel @Inject constructor(
     }
 
     private fun loadTrendingFromCache() {
-        val allCached = trendingBox.all
-        val cachedMovies = allCached.filter { it.type == "movie" }
-        val cachedSeries = allCached.filter { it.type == "tv" }
-        
-        if (cachedMovies.isNotEmpty() || cachedSeries.isNotEmpty()) {
-            Log.d("DashboardVM", "Instant load: Using Trending Cache (${cachedMovies.size} M, ${cachedSeries.size} S)")
+        viewModelScope.launch(Dispatchers.IO) {
+            val allCached = trendingBox.all
+            val cachedMovies = allCached.filter { it.type == "movie" }
+            val cachedSeries = allCached.filter { it.type == "tv" }
             
-            val tMovies: List<TrendingItem<Movie>> = cachedMovies.map { it.toTrendingMovieItem(movieBox) }
-            val tSeries: List<TrendingItem<Series>> = cachedSeries.map { it.toTrendingSeriesItem(seriesBox) }
-            
-            _uiState.update { it.copy(
-                trendingMovies = tMovies,
-                trendingSeries = tSeries,
-                isTrendingLoading = false
-            ) }
+            if (cachedMovies.isNotEmpty() || cachedSeries.isNotEmpty()) {
+                Log.d("DashboardVM", "Instant load: Using Trending Cache (${cachedMovies.size} M, ${cachedSeries.size} S)")
+                
+                val tMovies: List<TrendingItem<Movie>> = cachedMovies.map { it.toTrendingMovieItem(movieBox) }
+                val tSeries: List<TrendingItem<Series>> = cachedSeries.map { it.toTrendingSeriesItem(seriesBox) }
+                
+                _uiState.update { it.copy(
+                    trendingMovies = tMovies,
+                    trendingSeries = tSeries,
+                    isTrendingLoading = false
+                ) }
+            }
         }
     }
 

@@ -11,6 +11,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -33,6 +35,8 @@ class XtreamRepository @Inject constructor(
     private val movieBox = boxStore.boxFor(Movie::class.java)
     private val seriesBox = boxStore.boxFor(Series::class.java)
     private val epgBox = boxStore.boxFor(EPGProgram::class.java)
+
+    private val syncMutex = Mutex()
 
     suspend fun login(user: String, pass: String): Boolean = withContext(Dispatchers.IO) {
         val hosts = configRepository.getActiveHosts()
@@ -107,42 +111,38 @@ class XtreamRepository @Inject constructor(
         onMovieProgress: (Int) -> Unit,
         onSeriesProgress: (Int) -> Unit
     ) = withContext(Dispatchers.IO) {
-        val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
-        
-        coroutineScope {
-            launch { syncStreamType(account, "get_live_streams") { inputStream -> parser.parseLiveStreams(inputStream, null, onLiveProgress) } }
-            launch { syncStreamType(account, "get_vod_streams") { inputStream -> parser.parseMovies(inputStream, null, onMovieProgress) } }
-            launch { syncStreamType(account, "get_series") { inputStream -> parser.parseSeries(inputStream, null, onSeriesProgress) } }
+        if (!syncMutex.tryLock()) {
+            Log.d(TAG, "Sync already in progress — skipping")
+            return@withContext
         }
+        try {
+            val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
+            
+            coroutineScope {
+                launch { syncStreamType(account, "get_live_streams") { inputStream -> parser.parseLiveStreams(inputStream, null, onLiveProgress) } }
+                launch { syncStreamType(account, "get_vod_streams") { inputStream -> parser.parseMovies(inputStream, null, onMovieProgress) } }
+                launch { syncStreamType(account, "get_series") { inputStream -> parser.parseSeries(inputStream, null, onSeriesProgress) } }
+            }
 
-        // Cleanup: Remove orphaned data for channels that no longer exist
-        cleanupOrphanedData()
+            // Cleanup: Remove orphaned data for channels that no longer exist
+            cleanupOrphanedData()
+        } finally {
+            syncMutex.unlock()
+        }
     }
 
     private fun cleanupOrphanedData() {
         // Optimized Cleanup: Only fetch IDs
-        val liveIds = liveBox.query().build().property(LiveStream_.id).findLongs().toSet()
-        val seriesIds = seriesBox.query().build().property(Series_.id).findLongs().toSet()
+        val liveIds = liveBox.query().build().property(LiveStream_.id).findLongs()
+        val seriesIds = seriesBox.query().build().property(Series_.id).findLongs()
         
-        boxStore.runInTx {
-            val episodeBox = boxStore.boxFor(Episode::class.java)
-            val seasonBox = boxStore.boxFor(Season::class.java)
-            
-            // Native Query removal is faster. 
-            // ObjectBox doesn't have a direct "id NOT IN (list)" for removal in a single call easily 
-            // without fetching, but we can at least minimize the data.
-            
-            val orphanedEpisodes = episodeBox.query().build().find().filter { it.seriesId !in seriesIds }
-            episodeBox.remove(orphanedEpisodes)
-            
-            val orphanedSeasons = seasonBox.query().build().find().filter { it.seriesId !in seriesIds }
-            seasonBox.remove(orphanedSeasons)
-            
-            if (!epgBox.isEmpty) {
-                val orphanedEpg = epgBox.query().build().find().filter { it.channelId !in liveIds }
-                epgBox.remove(orphanedEpg)
-            }
-        }
+        val episodeBox = boxStore.boxFor(Episode::class.java)
+        val seasonBox = boxStore.boxFor(Season::class.java)
+        
+        // Native notIn removal - no long-running write transaction around the filtering step
+        episodeBox.query().notIn(Episode_.seriesId, seriesIds).build().remove()
+        seasonBox.query().notIn(Season_.seriesId, seriesIds).build().remove()
+        epgBox.query().notIn(EPGProgram_.channelId, liveIds).build().remove()
     }
 
     private suspend fun syncStreamType(account: XtreamAccount, action: String, parseAction: suspend (InputStream) -> Unit) {
