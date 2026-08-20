@@ -51,6 +51,9 @@ class LiveViewModel @Inject constructor(
 
     private val _selectedCategoryId = MutableStateFlow<Long?>(null)
     private val _searchQuery = MutableStateFlow("")
+    private val _page = MutableStateFlow(0)
+    private val PAGE_SIZE = 60
+
     private val _previewChannel = MutableStateFlow<LiveStream?>(null)
     val previewChannel = _previewChannel.asStateFlow()
 
@@ -94,28 +97,30 @@ class LiveViewModel @Inject constructor(
         _selectedCategoryId,
         debouncedSearchQuery,
         categoriesFlow,
+        _page,
         liveBox.query().build().flow()
-    ) { selectedId, query, allCategories, _ ->
+    ) { selectedId, query, allCategories, page, _ ->
         val currentId = selectedId 
             ?: allCategories.find { it.id == CAT_ID_FAVORITES }?.id 
             ?: allCategories.firstOrNull()?.id
             ?: return@combine emptyList<LiveStream>()
 
         val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull() ?: return@combine emptyList<LiveStream>()
+        val limit = (page + 1) * PAGE_SIZE
 
         val baseChannels = when (currentId) {
             CAT_ID_FAVORITES -> {
                 val favs = liveBox.query()
                     .equal(LiveStream_.isFavorite, true)
                     .order(LiveStream_.order)
-                    .build().find()
+                    .build().find(0, limit.toLong())
                 if (favs.isEmpty() && selectedId == null) {
                     val fallback = allCategories.firstOrNull { !it.isVirtual }
                     if (fallback != null) {
                         liveBox.query()
                             .equal(LiveStream_.remoteCategoryId, fallback.categoryId, StringOrder.CASE_INSENSITIVE)
                             .order(LiveStream_.order)
-                            .build().find()
+                            .build().find(0, limit.toLong())
                     } else favs
                 } else favs
             }
@@ -132,21 +137,21 @@ class LiveViewModel @Inject constructor(
                     val memberships = groupMembershipBox.query()
                         .equal(GroupMembership_.groupId, realGroupId)
                         .order(GroupMembership_.order)
-                        .build().find()
+                        .build().find(0, limit.toLong())
                     val streamIds = memberships.map { it.streamId }
                     liveBox.get(streamIds).filterNotNull()
                 } else {
                     liveBox.query()
                         .equal(LiveStream_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
                         .order(LiveStream_.order)
-                        .build().find()
+                        .build().find(0, limit.toLong())
                 }
             }
         }
         baseChannels.filter { 
             !it.isHidden && (query.isEmpty() || it.name.contains(query, ignoreCase = true)) 
         }
-    }.flowOn(Dispatchers.Default)
+    }.flowOn(Dispatchers.IO)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<LiveUiState> = combine(
@@ -190,11 +195,21 @@ class LiveViewModel @Inject constructor(
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun selectCategory(category: Category) {
-        _selectedCategoryId.value = category.id
+        if (_selectedCategoryId.value != category.id) {
+            _page.value = 0
+            _selectedCategoryId.value = category.id
+        }
     }
 
     fun setSearchQuery(query: String) {
-        _searchQuery.value = query
+        if (_searchQuery.value != query) {
+            _page.value = 0
+            _searchQuery.value = query
+        }
+    }
+
+    fun loadMore() {
+        _page.value++
     }
 
     private var lastStableChannel: LiveStream? = null

@@ -31,6 +31,8 @@ class SeriesViewModel @Inject constructor(
 
     private val _selectedCategoryId = MutableStateFlow<Long?>(null)
     private val _searchQuery = MutableStateFlow("")
+    private val _page = MutableStateFlow(0)
+    private val PAGE_SIZE = 60
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val categoriesFlow = categoryBox.query()
@@ -61,23 +63,25 @@ class SeriesViewModel @Inject constructor(
         _selectedCategoryId,
         debouncedSearchQuery,
         categoriesFlow,
+        _page,
         playbackHistoryRepository.getRecentlyWatched(50)
-    ) { selectedId, query, allCategories, history ->
+    ) { selectedId, query, allCategories, page, history ->
         val currentId = selectedId ?: CAT_ID_FAVORITES
         val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull() ?: return@combine emptyList()
+        val limit = (page + 1) * PAGE_SIZE
 
         if (query.isNotEmpty()) {
             val qb = seriesBox.query().contains(Series_.name, query, StringOrder.CASE_INSENSITIVE)
             if (currentId > 0) {
                 qb.equal(Series_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
             }
-            qb.order(Series_.order).build().find(0, FAST_LOAD_LIMIT)
+            qb.order(Series_.order).build().find(0, limit.toLong())
         } else {
             when (currentId) {
                 CAT_ID_FAVORITES -> seriesBox.query()
                     .equal(Series_.isFavorite, true)
                     .order(Series_.order)
-                    .build().find()
+                    .build().find(0, limit.toLong())
                 CAT_ID_CONTINUE -> {
                     val seriesIds = history.filter { it.type == "series" || it.type == "series_episode" }
                         .mapNotNull { it.seriesId }
@@ -91,11 +95,11 @@ class SeriesViewModel @Inject constructor(
                         .equal(Series_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
                         .order(Series_.order)
                         .build()
-                        .find()
+                        .find(0, limit.toLong())
                 }
             }
         }
-    }.onStart { emit(emptyList()) }.flowOn(Dispatchers.Default)
+    }.onStart { emit(emptyList()) }.flowOn(Dispatchers.IO)
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<SeriesUiState> = combine(
@@ -118,11 +122,21 @@ class SeriesViewModel @Inject constructor(
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SeriesUiState(isLoading = true))
 
     fun selectCategory(category: Category) {
-        _selectedCategoryId.value = category.id
+        if (_selectedCategoryId.value != category.id) {
+            _page.value = 0
+            _selectedCategoryId.value = category.id
+        }
     }
 
     fun setSearchQuery(query: String) {
-        _searchQuery.value = query
+        if (_searchQuery.value != query) {
+            _page.value = 0
+            _searchQuery.value = query
+        }
+    }
+
+    fun loadMore() {
+        _page.value++
     }
 
     fun toggleFavorite(series: Series) {

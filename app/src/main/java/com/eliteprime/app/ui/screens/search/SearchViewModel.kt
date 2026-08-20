@@ -68,18 +68,16 @@ class SearchViewModel @Inject constructor(
         val box = boxStore.boxFor(entityClass)
         val queryLower = query.lowercase()
 
-        // 1. Fetch potential matches from DB (broad contains)
+        // 1. Fetch potential matches from DB (broad contains) - Capped to 500 items
         val allMatches = box.query()
             .contains(nameProperty, query, StringOrder.CASE_INSENSITIVE)
-            .build().find()
+            .build().find(0, 500)
 
-        // 2. Refine, filter and sort in memory
-        return allMatches.map { entity ->
+        // 2. Refine, filter and sort in memory using Sequence to avoid duplicate copies
+        return allMatches.asSequence().map { entity ->
             val originalName = getEntityName(entity)
             
             // Clean the title: Ignore anything before the (-) symbol
-            // If multiple dashes, we look for the last one that seems to be a separator
-            // Usually category separators have spaces or are followed by the main title
             val searchableName = originalName.getSearchablePart()
             val searchableLower = searchableName.lowercase()
             
@@ -99,6 +97,7 @@ class SearchViewModel @Inject constructor(
             .thenBy { getEntityName(it.first).getSearchablePart().length } // Prefer shorter matches
             .thenBy { getEntityName(it.first) })
         .map { it.first }
+        .toList()
     }
 
     private fun String.getSearchablePart(): String {
