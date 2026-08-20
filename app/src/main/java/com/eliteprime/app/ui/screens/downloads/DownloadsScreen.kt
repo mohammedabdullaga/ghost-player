@@ -32,7 +32,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.eliteprime.app.R
 import com.eliteprime.app.domain.model.DownloadItem
@@ -264,7 +263,6 @@ private fun MobileDownloadCard(
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(item.posterUrl)
-                                .diskCachePolicy(CachePolicy.ENABLED)
                                 .build(),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
@@ -353,7 +351,6 @@ private fun TvDownloadCard(
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(item.posterUrl)
-                                .diskCachePolicy(CachePolicy.ENABLED)
                                 .build(),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,

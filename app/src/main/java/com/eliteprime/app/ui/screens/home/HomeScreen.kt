@@ -43,7 +43,6 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
-import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import com.eliteprime.app.R
 import com.eliteprime.app.ui.components.*
@@ -416,7 +415,6 @@ private fun HomeHeroCardContent(
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(backgroundUrl)
-                    .diskCachePolicy(CachePolicy.ENABLED)
                     .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
@@ -587,7 +585,6 @@ private fun TrendingHeroCardContent(
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(crossfadeItem.backdropUrl ?: crossfadeItem.posterUrl)
-                            .diskCachePolicy(CachePolicy.ENABLED)
                         .build(),
                         contentDescription = crossfadeItem.title,
                         contentScale = ContentScale.Crop,

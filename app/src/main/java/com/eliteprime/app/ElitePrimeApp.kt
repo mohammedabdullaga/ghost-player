@@ -37,16 +37,16 @@ class ElitePrimeApp : Application(), SingletonImageLoader.Factory {
             }
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, 0.25)
+                    .maxSizePercent(context, 0.12)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(context.cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(16 * 1024 * 1024L) // Reduced to 16MB as requested for general data
+                    .maxSizeBytes(200 * 1024 * 1024L) // 200MB limit
                     .build()
             }
-            .diskCachePolicy(CachePolicy.DISABLED) // DISABLE DISK CACHE BY DEFAULT
+            .diskCachePolicy(CachePolicy.ENABLED)
             .crossfade(true)
             .build()
     }
