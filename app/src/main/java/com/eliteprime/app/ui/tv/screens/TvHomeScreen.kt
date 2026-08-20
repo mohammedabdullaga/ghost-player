@@ -124,21 +124,25 @@ fun TvHomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Black.copy(alpha = 0.3f), Color.Transparent, Color.Black.copy(alpha = 0.7f)),
-                            startY = 0f,
-                            endY = Float.POSITIVE_INFINITY
-                        )
+                        remember {
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Black.copy(alpha = 0.3f), Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                                startY = 0f,
+                                endY = Float.POSITIVE_INFINITY
+                            )
+                        }
                     )
             )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent),
-                            endX = 800f
-                        )
+                        remember {
+                            Brush.horizontalGradient(
+                                colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent),
+                                endX = 800f
+                            )
+                        }
                     )
             )
         }
@@ -379,7 +383,7 @@ private fun TvMiniHistoryCard(history: PlaybackHistory, modifier: Modifier = Mod
                 contentScale = ContentScale.Crop
             )
             Box(
-                modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)))),
+                modifier = Modifier.fillMaxSize().background(remember { Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))) }),
                 contentAlignment = Alignment.BottomStart
             ) {
                 Text(

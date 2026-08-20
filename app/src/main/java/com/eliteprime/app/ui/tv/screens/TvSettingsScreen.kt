@@ -744,7 +744,7 @@ private fun TvPlaybackSettingsContent(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Brush.linearGradient(listOf(Color(0xFF1A2A6C), Color(0xFFB21F1F), Color(0xFFFDBB2D))))
+                                .background(remember { Brush.linearGradient(listOf(Color(0xFF1A2A6C), Color(0xFFB21F1F), Color(0xFFFDBB2D))) })
                         )
                         Surface(
                             color = Color(uiState.subtitleStyle.backgroundColorArgb),
@@ -1161,9 +1161,11 @@ private fun TvAccountSettingsCard(
     onEdit: () -> Unit,
     onClearCache: () -> Unit
 ) {
-    val cardBackground = Brush.linearGradient(
-        colors = listOf(Color(0xFF1A1C1E), Color(0xFF0D0E10))
-    )
+    val cardBackground = remember {
+        Brush.linearGradient(
+            colors = listOf(Color(0xFF1A1C1E), Color(0xFF0D0E10))
+        )
+    }
 
     Box(
         modifier = Modifier
@@ -1178,9 +1180,11 @@ private fun TvAccountSettingsCard(
                 .size(220.dp)
                 .offset(x = 90.dp, y = (-90).dp)
                 .background(
-                    Brush.radialGradient(
-                        colors = listOf(AppColors.ArenaOrange.copy(alpha = 0.16f), Color.Transparent)
-                    )
+                    remember {
+                        Brush.radialGradient(
+                            colors = listOf(AppColors.ArenaOrange.copy(alpha = 0.16f), Color.Transparent)
+                        )
+                    }
                 )
         )
 

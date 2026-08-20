@@ -94,10 +94,12 @@ fun TvTrendingScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
-                                startY = 300f
-                            )
+                            remember {
+                                Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
+                                    startY = 300f
+                                )
+                            }
                         )
                 )
             }

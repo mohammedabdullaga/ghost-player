@@ -251,9 +251,11 @@ private fun TvTopNavBar(
     modifier: Modifier = Modifier,
     onNavigate: (String) -> Unit
 ) {
-    val navBackground = Brush.verticalGradient(
-        colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
-    )
+    val navBackground = remember {
+        Brush.verticalGradient(
+            colors = listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
+        )
+    }
 
     Box(
         modifier = modifier

@@ -145,10 +145,12 @@ fun TvSeriesDetailsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(Color.Black, Color.Black.copy(alpha = 0.8f), Color.Transparent),
-                            endX = 1400f
-                        )
+                        remember {
+                            Brush.horizontalGradient(
+                                colors = listOf(Color.Black, Color.Black.copy(alpha = 0.8f), Color.Transparent),
+                                endX = 1400f
+                            )
+                        }
                     )
             )
 

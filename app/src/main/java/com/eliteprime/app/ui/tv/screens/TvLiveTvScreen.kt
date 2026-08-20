@@ -356,9 +356,11 @@ fun TvLiveTvScreen(
                                         .fillMaxWidth()
                                         .align(Alignment.BottomStart)
                                         .background(
-                                            Brush.verticalGradient(
-                                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
-                                            )
+                                            remember {
+                                                Brush.verticalGradient(
+                                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                                                )
+                                            }
                                         )
                                         .padding(horizontal = LiveSpacing.md, vertical = LiveSpacing.sm)
                                 ) {

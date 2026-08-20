@@ -482,7 +482,6 @@ private fun VodPosterCardContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(34.dp)
-                .background(if (isFocused) Color.White else Color.White.copy(alpha = 0.05f))
                 .padding(horizontal = 8.dp),
             contentAlignment = Alignment.Center
         ) {
