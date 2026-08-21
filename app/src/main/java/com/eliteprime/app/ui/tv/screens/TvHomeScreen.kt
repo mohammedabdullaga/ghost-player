@@ -1,6 +1,9 @@
 package com.eliteprime.app.ui.tv.screens
 
+import android.app.Activity
 import androidx.compose.animation.Crossfade
+import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,6 +47,7 @@ import com.eliteprime.app.ui.screens.dashboard.TrendingItem
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.tv.material3.Border
 import kotlinx.coroutines.delay
 
@@ -89,6 +93,36 @@ fun TvHomeScreen(
     onResumeHistoryItem: (PlaybackHistory) -> Unit,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val activity = context as? Activity
+    var showExitDialog by remember { mutableStateOf(false) }
+
+    BackHandler {
+        showExitDialog = true
+    }
+
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text(stringResource(R.string.exit_confirm_title), fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.exit_confirm_msg)) },
+            confirmButton = {
+                TextButton(onClick = { activity?.finish() }) {
+                    Text(stringResource(R.string.generic_yes).uppercase(), color = Color(0xFFEF5350), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitDialog = false }) {
+                    Text(stringResource(R.string.generic_no).uppercase(), color = Color.White.copy(alpha = 0.6f))
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = Color(0xFF1A1C1E),
+            titleContentColor = Color.White,
+            textContentColor = Color.White.copy(alpha = 0.7f)
+        )
+    }
+
     val uiState by viewModel.uiState.collectAsState()
     var focusedHero by remember { mutableStateOf<TvHeroInfo?>(null) }
     
@@ -195,7 +229,16 @@ fun TvHomeScreen(
                                 }
                             }
                         ) {
-                            if (trendingItems.isEmpty() && uiState.isTrendingLoading) {
+                            val showLoading = trendingItems.isEmpty() && uiState.isTrendingLoading
+                            SideEffect {
+                                if (showLoading) {
+                                    Log.e("HOME_TRACE", "UI: Showing TRENDING SPINNER at " + System.currentTimeMillis())
+                                } else if (trendingItems.isNotEmpty()) {
+                                    Log.e("HOME_TRACE", "UI: Showing TRENDING LIST (" + trendingItems.size + " items) at " + System.currentTimeMillis())
+                                }
+                            }
+
+                            if (showLoading) {
                                 Box(modifier = Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
                                     CircularProgressIndicator(color = TvColors.Primary)
                                 }

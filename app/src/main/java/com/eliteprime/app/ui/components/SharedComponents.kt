@@ -179,11 +179,11 @@ fun CategoryTab(
                 .focusRequester(focusRequester),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.045f),
                 focusedContainerColor = Color.White,
                 pressedContainerColor = Color.White
             ),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
             border = ClickableSurfaceDefaults.border(
                 focusedBorder = Border(BorderStroke(2.dp, Color.White)),
                 border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
@@ -197,9 +197,9 @@ fun CategoryTab(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 2.dp),
-            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
-            shape = RoundedCornerShape(12.dp),
-            border = if (isSelected) BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.85f)) else null
+            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.045f),
+            shape = RoundedCornerShape(16.dp),
+            border = if (isSelected) BorderStroke(2.dp, AppColors.ArenaOrange.copy(alpha = 0.85f)) else BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
         ) {
             CategoryTabContent(category, isSelected, false)
         }
@@ -214,18 +214,24 @@ private fun CategoryTabContent(category: Category, isActive: Boolean, isFocused:
         else -> Color.White.copy(alpha = 0.6f)
     }
     Row(
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.width(3.dp).height(18.dp).clip(CircleShape).background(if (isActive || isFocused) AppColors.ArenaOrange else Color.Transparent))
-        Spacer(modifier = Modifier.width(12.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(3.dp)
+                .background(if (isActive || isFocused) AppColors.ArenaOrange else Color.Transparent)
+        )
         Text(
             text = category.categoryName,
             color = contentColor,
             fontWeight = if (isActive || isFocused) FontWeight.Bold else FontWeight.Normal,
             fontSize = 13.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            lineHeight = 16.sp,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).padding(horizontal = 14.dp, vertical = 10.dp)
         )
     }
 }

@@ -11,14 +11,18 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.eliteprime.app.R
+import com.eliteprime.app.util.LocalRenderTier
+import com.eliteprime.app.util.RenderTier
 
 @Composable
 fun AppBackground(
     modifier: Modifier = Modifier,
     isTransparent: Boolean = false,
-    blurRadius: Int = 50, // Increased blur for better separation
     content: @Composable BoxScope.() -> Unit
 ) {
+    val tier = LocalRenderTier.current
+    val effectiveBlurRadius = if (tier == RenderTier.REDUCED) 20 else 50
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -30,7 +34,7 @@ fun AppBackground(
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(blurRadius.dp),
+                    .blur(effectiveBlurRadius.dp),
                 contentScale = ContentScale.Crop
             )
             

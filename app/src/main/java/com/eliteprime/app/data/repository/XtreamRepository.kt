@@ -132,6 +132,9 @@ class XtreamRepository @Inject constructor(
     }
 
     private fun cleanupOrphanedData() {
+        val startTime = System.currentTimeMillis()
+        Log.d(TAG, "Starting orphaned data cleanup...")
+        
         // Optimized Cleanup: Only fetch IDs
         val liveIds = liveBox.query().build().property(LiveStream_.id).findLongs()
         val seriesIds = seriesBox.query().build().property(Series_.id).findLongs()
@@ -143,6 +146,9 @@ class XtreamRepository @Inject constructor(
         episodeBox.query().notIn(Episode_.seriesId, seriesIds).build().remove()
         seasonBox.query().notIn(Season_.seriesId, seriesIds).build().remove()
         epgBox.query().notIn(EPGProgram_.channelId, liveIds).build().remove()
+        
+        val duration = System.currentTimeMillis() - startTime
+        Log.d(TAG, "Orphaned data cleanup completed in ${duration}ms")
     }
 
     private suspend fun syncStreamType(account: XtreamAccount, action: String, parseAction: suspend (InputStream) -> Unit) {

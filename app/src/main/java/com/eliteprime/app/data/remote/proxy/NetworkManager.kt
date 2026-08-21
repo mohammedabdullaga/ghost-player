@@ -21,6 +21,10 @@ class NetworkManager @Inject constructor(
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    suspend fun ensureShadowsocksStarted() {
+        shadowsocksManager.ensureProxyRunning(context)
+    }
+
     fun init() {
         preferenceRepository.isSecureConnectionEnabled
             .onEach { isEnabled ->
@@ -32,10 +36,19 @@ class NetworkManager @Inject constructor(
                         secureTunnelEngine.start()
                     }
                 } else {
-                    shadowsocksManager.stopProxy()
-                    secureTunnelEngine.stop()
+                    // Note: When secure connection is turned off for streams/IPTV,
+                    // we do not kill shadowsocks if it is needed for config requests,
+                    // but if not using shadowsocks or user switches off, we handle it accordingly.
+                    if (!ProxyConfig.USE_SHADOWSOCKS) {
+                        secureTunnelEngine.stop()
+                    }
                 }
             }
             .launchIn(scope)
+    }
+
+    fun onConfigUpdated() {
+        // If config loaded new proxy hosts, restart shadowsocks daemon with the new hosts
+        shadowsocksManager.restartProxy(context)
     }
 }

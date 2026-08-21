@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.remote.TmdbApiService
+import com.eliteprime.app.data.remote.TmdbGenreResponse
 import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.domain.model.DownloadStatus
@@ -23,6 +24,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Date
 import javax.inject.Inject
 
@@ -73,8 +75,8 @@ class DashboardViewModel @Inject constructor(
         
         // Refresh from TMDB
         viewModelScope.launch {
-            // Force refresh once to ensure the new English-Title/Arabic-Desc logic is applied and cached
-            fetchTrending(forceRefresh = true)
+            // Use TTL logic - only refresh if stale (>24h)
+            fetchTrending(forceRefresh = false)
         }
         
         // Re-fetch on language change
@@ -130,8 +132,50 @@ class DashboardViewModel @Inject constructor(
             if (cachedMovies.isNotEmpty() || cachedSeries.isNotEmpty()) {
                 Log.d("DashboardVM", "Instant load: Using Trending Cache (${cachedMovies.size} M, ${cachedSeries.size} S)")
                 
-                val tMovies: List<TrendingItem<Movie>> = cachedMovies.map { it.toTrendingMovieItem(movieBox) }
-                val tSeries: List<TrendingItem<Series>> = cachedSeries.map { it.toTrendingSeriesItem(seriesBox) }
+                // Batch fetch local matches to avoid 40 sequential queries
+                val movieTitles = cachedMovies.map { it.title }
+                val seriesTitles = cachedSeries.map { it.title }
+                
+                val localMovies = if (movieTitles.isNotEmpty()) {
+                    val qb = movieBox.query()
+                    movieTitles.forEachIndexed { index, title ->
+                        qb.equal(Movie_.name, title, StringOrder.CASE_INSENSITIVE)
+                        if (index < movieTitles.size - 1) qb.or()
+                    }
+                    qb.build().find()
+                } else emptyList<Movie>()
+
+                val localSeries = if (seriesTitles.isNotEmpty()) {
+                    val qb = seriesBox.query()
+                    seriesTitles.forEachIndexed { index, title ->
+                        qb.equal(Series_.name, title, StringOrder.CASE_INSENSITIVE)
+                        if (index < seriesTitles.size - 1) qb.or()
+                    }
+                    qb.build().find()
+                } else emptyList<Series>()
+                
+                val localMovieMap = localMovies.associateBy { it.name.lowercase() }
+                val localSeriesMap = localSeries.associateBy { it.name.lowercase() }
+
+                // Move CPU intensive Gson parsing to Default dispatcher
+                val (tMovies, tSeries) = withContext(Dispatchers.Default) {
+                    val typeInt = object : TypeToken<List<Int>>() {}.type
+                    val typeStr = object : TypeToken<List<String>>() {}.type
+
+                    val moviesList = cachedMovies.map { cache ->
+                        val gIds: List<Int> = gson.fromJson(cache.genreIdsJson, typeInt) ?: emptyList()
+                        val gNames: List<String> = gson.fromJson(cache.genreNamesJson, typeStr) ?: emptyList()
+                        val matched: Movie? = localMovieMap[cache.title.lowercase()]
+                        TrendingItem<Movie>(cache.tmdbId, cache.title, cache.overview, cache.posterUrl, cache.backdropUrl, cache.releaseDate, cache.voteAverage, gIds, gNames, matched)
+                    }
+                    val seriesList = cachedSeries.map { cache ->
+                        val gIds: List<Int> = gson.fromJson(cache.genreIdsJson, typeInt) ?: emptyList()
+                        val gNames: List<String> = gson.fromJson(cache.genreNamesJson, typeStr) ?: emptyList()
+                        val matched: Series? = localSeriesMap[cache.title.lowercase()]
+                        TrendingItem<Series>(cache.tmdbId, cache.title, cache.overview, cache.posterUrl, cache.backdropUrl, cache.releaseDate, cache.voteAverage, gIds, gNames, matched)
+                    }
+                    moviesList to seriesList
+                }
                 
                 _uiState.update { it.copy(
                     trendingMovies = tMovies,
@@ -144,6 +188,9 @@ class DashboardViewModel @Inject constructor(
 
     private fun fetchTrending(forceRefresh: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
+            // Staggered Dashboard Init: Allow first frame to render from cache first
+            delay(2000)
+            
             val allCached = trendingBox.all
             val lastUpdate = allCached.firstOrNull()?.lastUpdated ?: 0L
             val now = System.currentTimeMillis()
@@ -172,112 +219,119 @@ class DashboardViewModel @Inject constructor(
             val langEn = "en"
 
             try {
-                val movieGenres = runCatching { tmdbApiService.getMovieGenres(apiKey, langEn).genres }.getOrDefault(emptyList()).associate { it.id to it.name }
-                val tvGenres = runCatching { tmdbApiService.getTvGenres(apiKey, langEn).genres }.getOrDefault(emptyList()).associate { it.id to it.name }
+                // Cached Genre Mapping logic
+                val movieGenres = getOrFetchGenres("movie", apiKey, langEn)
+                val tvGenres = getOrFetchGenres("tv", apiKey, langEn)
 
                 val movieRespAr = tmdbApiService.getTrendingMovies(apiKey, langAr)
                 val movieRespEn = tmdbApiService.getTrendingMovies(apiKey, langEn)
+                
                 val movieEnMap = movieRespEn.results.associateBy { it.id }
 
-                val trendingMovies = movieRespAr.results.map { resultAr ->
-                    val resultEn = movieEnMap[resultAr.id]
-                    val displayTitle = resultEn?.title ?: resultAr.title ?: ""
-                    val originalTitle = resultAr.original_title ?: ""
-                    
-                    var matched = movieBox.query()
-                        .equal(Movie_.name, displayTitle, StringOrder.CASE_INSENSITIVE)
-                        .build()
-                        .findFirst()
-                    
-                    if (matched == null && resultAr.title != null) {
-                        matched = movieBox.query()
-                            .equal(Movie_.name, resultAr.title!!, StringOrder.CASE_INSENSITIVE)
+                // Parallel Parsing Optimization: Move heavy mapping to Default dispatcher
+                val trendingMovies = withContext(Dispatchers.Default) {
+                    movieRespAr.results.map { resultAr ->
+                        val resultEn = movieEnMap[resultAr.id]
+                        val displayTitle = resultEn?.title ?: resultAr.title ?: ""
+                        val originalTitle = resultAr.original_title ?: ""
+                        
+                        var matched = movieBox.query()
+                            .equal(Movie_.name, displayTitle, StringOrder.CASE_INSENSITIVE)
                             .build()
                             .findFirst()
-                    }
+                        
+                        if (matched == null && resultAr.title != null) {
+                            matched = movieBox.query()
+                                .equal(Movie_.name, resultAr.title!!, StringOrder.CASE_INSENSITIVE)
+                                .build()
+                                .findFirst()
+                        }
 
-                    if (matched == null && originalTitle.isNotBlank()) {
-                        matched = movieBox.query()
-                            .contains(Movie_.name, originalTitle.lowercase(), StringOrder.CASE_INSENSITIVE)
-                            .build()
-                            .findFirst()
-                    }
+                        if (matched == null && originalTitle.isNotBlank()) {
+                            matched = movieBox.query()
+                                .contains(Movie_.name, originalTitle.lowercase(), StringOrder.CASE_INSENSITIVE)
+                                .build()
+                                .findFirst()
+                        }
 
-                    matched?.apply { 
-                        if (resultEn?.backdrop_path != null) {
-                            val newBackdrop = "https://image.tmdb.org/t/p/w1280${resultEn.backdrop_path}"
-                            if (backdropUrl != newBackdrop) {
-                                backdropUrl = newBackdrop
-                                movieBox.put(this)
+                        matched?.apply { 
+                            if (resultEn?.backdrop_path != null) {
+                                val newBackdrop = "https://image.tmdb.org/t/p/w1280${resultEn.backdrop_path}"
+                                if (backdropUrl != newBackdrop) {
+                                    backdropUrl = newBackdrop
+                                    movieBox.put(this)
+                                }
                             }
                         }
-                    }
 
-                    TrendingItem(
-                        tmdbId = resultAr.id,
-                        title = displayTitle,
-                        overview = resultAr.overview?.takeIf { it.isNotBlank() } ?: matched?.plot ?: "",
-                        posterUrl = (resultEn?.poster_path ?: resultAr.poster_path)?.let { "https://image.tmdb.org/t/p/w500$it" },
-                        backdropUrl = (resultEn?.backdrop_path ?: resultAr.backdrop_path)?.let { "https://image.tmdb.org/t/p/w1280$it" },
-                        releaseDate = resultAr.release_date,
-                        voteAverage = resultAr.vote_average,
-                        genreIds = resultAr.genre_ids,
-                        genres = resultAr.genre_ids.mapNotNull { movieGenres[it] },
-                        localMatch = matched
-                    )
-                }.distinctBy { it.tmdbId }.take(20)
+                        TrendingItem<Movie>(
+                            tmdbId = resultAr.id,
+                            title = displayTitle,
+                            overview = resultAr.overview?.takeIf { it.isNotBlank() } ?: matched?.plot ?: "",
+                            posterUrl = (resultEn?.poster_path ?: resultAr.poster_path)?.let { "https://image.tmdb.org/t/p/w500$it" },
+                            backdropUrl = (resultEn?.backdrop_path ?: resultAr.backdrop_path)?.let { "https://image.tmdb.org/t/p/w1280$it" },
+                            releaseDate = resultAr.release_date,
+                            voteAverage = resultAr.vote_average,
+                            genreIds = resultAr.genre_ids,
+                            genres = resultAr.genre_ids.mapNotNull { movieGenres[it] },
+                            localMatch = matched
+                        )
+                    }.distinctBy { it.tmdbId }.take(20)
+                }
 
                 val seriesRespAr = tmdbApiService.getTrendingTv(apiKey, langAr)
                 val seriesRespEn = tmdbApiService.getTrendingTv(apiKey, langEn)
                 val seriesEnMap = seriesRespEn.results.associateBy { it.id }
 
-                val trendingSeries = seriesRespAr.results.map { resultAr ->
-                    val resultEn = seriesEnMap[resultAr.id]
-                    val displayName = resultEn?.name ?: resultAr.name ?: ""
-                    val originalName = resultAr.original_name ?: ""
+                val trendingSeries = withContext(Dispatchers.Default) {
+                    seriesRespAr.results.map { resultAr ->
+                        val resultEn = seriesEnMap[resultAr.id]
+                        val displayName = resultEn?.name ?: resultAr.name ?: ""
+                        val originalName = resultAr.original_name ?: ""
 
-                    var matched = seriesBox.query()
-                        .equal(Series_.name, displayName, StringOrder.CASE_INSENSITIVE)
-                        .build()
-                        .findFirst()
-
-                    if (matched == null && resultAr.name != null) {
-                        matched = seriesBox.query()
-                            .equal(Series_.name, resultAr.name!!, StringOrder.CASE_INSENSITIVE)
+                        var matched = seriesBox.query()
+                            .equal(Series_.name, displayName, StringOrder.CASE_INSENSITIVE)
                             .build()
                             .findFirst()
-                    }
 
-                    if (matched == null && originalName.isNotBlank()) {
-                        matched = seriesBox.query()
-                            .contains(Series_.name, originalName.lowercase(), StringOrder.CASE_INSENSITIVE)
-                            .build()
-                            .findFirst()
-                    }
-                    
-                    matched?.apply {
-                        if (resultEn?.backdrop_path != null) {
-                            val newBackdrop = "https://image.tmdb.org/t/p/w1280${resultEn.backdrop_path}"
-                            if (backdropUrl != newBackdrop) {
-                                backdropUrl = newBackdrop
-                                seriesBox.put(this)
+                        if (matched == null && resultAr.name != null) {
+                            matched = seriesBox.query()
+                                .equal(Series_.name, resultAr.name!!, StringOrder.CASE_INSENSITIVE)
+                                .build()
+                                .findFirst()
+                        }
+
+                        if (matched == null && originalName.isNotBlank()) {
+                            matched = seriesBox.query()
+                                .contains(Series_.name, originalName.lowercase(), StringOrder.CASE_INSENSITIVE)
+                                .build()
+                                .findFirst()
+                        }
+                        
+                        matched?.apply {
+                            if (resultEn?.backdrop_path != null) {
+                                val newBackdrop = "https://image.tmdb.org/t/p/w1280${resultEn.backdrop_path}"
+                                if (backdropUrl != newBackdrop) {
+                                    backdropUrl = newBackdrop
+                                    seriesBox.put(this)
+                                }
                             }
                         }
-                    }
 
-                    TrendingItem(
-                        tmdbId = resultAr.id,
-                        title = displayName,
-                        overview = resultAr.overview?.takeIf { it.isNotBlank() } ?: matched?.plot ?: "",
-                        posterUrl = (resultEn?.poster_path ?: resultAr.poster_path)?.let { "https://image.tmdb.org/t/p/w500$it" },
-                        backdropUrl = (resultEn?.backdrop_path ?: resultAr.backdrop_path)?.let { "https://image.tmdb.org/t/p/w1280$it" },
-                        releaseDate = resultAr.first_air_date,
-                        voteAverage = resultAr.vote_average,
-                        genreIds = resultAr.genre_ids,
-                        genres = resultAr.genre_ids.mapNotNull { tvGenres[it] },
-                        localMatch = matched
-                    )
-                }.distinctBy { it.tmdbId }.take(20)
+                        TrendingItem<Series>(
+                            tmdbId = resultAr.id,
+                            title = displayName,
+                            overview = resultAr.overview?.takeIf { it.isNotBlank() } ?: matched?.plot ?: "",
+                            posterUrl = (resultEn?.poster_path ?: resultAr.poster_path)?.let { "https://image.tmdb.org/t/p/w500$it" },
+                            backdropUrl = (resultEn?.backdrop_path ?: resultAr.backdrop_path)?.let { "https://image.tmdb.org/t/p/w1280$it" },
+                            releaseDate = resultAr.first_air_date,
+                            voteAverage = resultAr.vote_average,
+                            genreIds = resultAr.genre_ids,
+                            genres = resultAr.genre_ids.mapNotNull { tvGenres[it] },
+                            localMatch = matched
+                        )
+                    }.distinctBy { it.tmdbId }.take(20)
+                }
 
                 boxStore.runInTx {
                     trendingBox.removeAll()
@@ -299,24 +353,29 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    private fun TrendingCache.toTrendingMovieItem(box: Box<Movie>): TrendingItem<Movie> {
-        val typeInt = object : TypeToken<List<Int>>() {}.type
-        val typeStr = object : TypeToken<List<String>>() {}.type
-        val gIds: List<Int> = gson.fromJson(genreIdsJson, typeInt) ?: emptyList()
-        val gNames: List<String> = gson.fromJson(genreNamesJson, typeStr) ?: emptyList()
-        val matched = box.query().equal(Movie_.name, title, StringOrder.CASE_INSENSITIVE).build().findFirst()
+    private suspend fun getOrFetchGenres(type: String, apiKey: String, lang: String): Map<Int, String> {
+        val cached = preferenceRepository.getCachedGenres(type)
+        if (cached != null) {
+            try {
+                val genreList = gson.fromJson(cached, TmdbGenreResponse::class.java)
+                return genreList.genres.associate { it.id to it.name }
+            } catch (e: Exception) {
+                Log.e("DashboardVM", "Failed to parse cached genres", e)
+            }
+        }
 
-        return TrendingItem(tmdbId, title, overview, posterUrl, backdropUrl, releaseDate, voteAverage, gIds, gNames, matched)
-    }
-
-    private fun TrendingCache.toTrendingSeriesItem(box: Box<Series>): TrendingItem<Series> {
-        val typeInt = object : TypeToken<List<Int>>() {}.type
-        val typeStr = object : TypeToken<List<String>>() {}.type
-        val gIds: List<Int> = gson.fromJson(genreIdsJson, typeInt) ?: emptyList()
-        val gNames: List<String> = gson.fromJson(genreNamesJson, typeStr) ?: emptyList()
-        val matched = box.query().equal(Series_.name, title, StringOrder.CASE_INSENSITIVE).build().findFirst()
-
-        return TrendingItem(tmdbId, title, overview, posterUrl, backdropUrl, releaseDate, voteAverage, gIds, gNames, matched)
+        val remoteGenres = if (type == "movie") {
+            tmdbApiService.getMovieGenres(apiKey, lang).genres
+        } else {
+            tmdbApiService.getTvGenres(apiKey, lang).genres
+        }
+        
+        if (remoteGenres.isNotEmpty()) {
+            val wrapper = TmdbGenreResponse(remoteGenres)
+            preferenceRepository.setCachedGenres(type, gson.toJson(wrapper))
+        }
+        
+        return remoteGenres.associate { it.id to it.name }
     }
 
     private fun TrendingItem<*>.toCacheEntity(type: String, timestamp: Long): TrendingCache {

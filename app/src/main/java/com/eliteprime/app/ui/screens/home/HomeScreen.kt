@@ -704,7 +704,7 @@ fun ExitConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_logout_confirm_title), fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.exit_confirm_title), fontWeight = FontWeight.Bold) },
         text = { Text(stringResource(R.string.exit_confirm_msg)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {

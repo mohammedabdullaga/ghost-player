@@ -87,15 +87,21 @@ object NetworkModule {
     fun provideProxySelector(): ProxySelector {
         return object : ProxySelector() {
             override fun select(uri: URI?): List<Proxy> {
+                val host = uri?.host ?: ""
+
+                // 1. If this is the config endpoint, ALWAYS route through local Shadowsocks SOCKS5 proxy
+                if (host.contains("dropremax.site", ignoreCase = true)) {
+                    return listOf(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", 1080)))
+                }
+
+                // 2. If general secure connection is disabled, do not proxy other traffic
                 if (!ProxyConfig.isEnabled) return listOf(Proxy.NO_PROXY)
 
-                val host = uri?.host ?: ""
-                // Bypass local engine and common metadata providers
+                // 3. Bypass local engine and common metadata providers
                 if (host == "127.0.0.1" || 
                     host == "localhost" || 
                     host.contains("tmdb.org", ignoreCase = true) || 
-                    host.contains("themoviedb.org", ignoreCase = true) ||
-                    host.contains("api.arenaliveapp.top", ignoreCase = true)) {
+                    host.contains("themoviedb.org", ignoreCase = true)) {
                     return listOf(Proxy.NO_PROXY)
                 }
 

@@ -1,6 +1,7 @@
 package com.eliteprime.app
 
 import android.R
+import android.util.Log
 import android.app.PictureInPictureParams
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -25,6 +26,8 @@ import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.MainShell
 import com.eliteprime.app.ui.tv.TvMainShell
 import com.eliteprime.app.ui.theme.ArenaLiveTheme
+import com.eliteprime.app.util.DeviceRenderProfile
+import com.eliteprime.app.util.LocalRenderTier
 import com.eliteprime.app.util.isTelevisionDevice
 import dagger.hilt.android.AndroidEntryPoint
 import io.objectbox.BoxStore
@@ -69,19 +72,23 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             val isTv = isTelevisionDevice()
-            ArenaLiveTheme {
-                if (isTv) {
-                    TvMainShell(
-                        playerEngine = playerEngine,
-                        globalPlayerState = globalPlayerState,
-                        startDestination = startDest
-                    )
-                } else {
-                    MainShell(
-                        playerEngine = playerEngine,
-                        globalPlayerState = globalPlayerState,
-                        startDestination = startDest
-                    )
+            val renderTier = remember { DeviceRenderProfile.getTier() }
+            
+            CompositionLocalProvider(LocalRenderTier provides renderTier) {
+                ArenaLiveTheme {
+                    if (isTv) {
+                        TvMainShell(
+                            playerEngine = playerEngine,
+                            globalPlayerState = globalPlayerState,
+                            startDestination = startDest
+                        )
+                    } else {
+                        MainShell(
+                            playerEngine = playerEngine,
+                            globalPlayerState = globalPlayerState,
+                            startDestination = startDest
+                        )
+                    }
                 }
             }
         }

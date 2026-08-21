@@ -21,7 +21,7 @@ class ConfigRepository @Inject constructor(
 ) {
     private val TAG = "ConfigRepository"
     private var cachedConfig: ConfigResponse? = null
-    private val CONFIG_ENDPOINT = "https://api.arenaliveapp.top/api/config"
+    private val CONFIG_ENDPOINT = "https://api.dropremax.site/api/config"
     private val prefs = context.getSharedPreferences("config_prefs", Context.MODE_PRIVATE)
 
     init {
@@ -37,7 +37,7 @@ class ConfigRepository @Inject constructor(
     }
 
     suspend fun fetchConfig(): ConfigResponse? = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Fetching config from: $CONFIG_ENDPOINT")
+        Log.d(TAG, "Fetching config from: $CONFIG_ENDPOINT via Shadowsocks Proxy")
         val request = Request.Builder()
             .url(CONFIG_ENDPOINT)
             .get()
@@ -82,11 +82,17 @@ class ConfigRepository @Inject constructor(
     }
 
     fun getProxyHosts(): List<String> {
-        val config = cachedConfig ?: return emptyList()
         val hosts = mutableListOf<String>()
-        config.proxy_host?.takeIf { it.isNotBlank() }?.let { hosts.add(it) }
-        hosts.addAll(config.proxy_hosts.filter { it.isNotBlank() })
-        return hosts
+        val config = cachedConfig
+        if (config != null) {
+            config.proxy_host?.takeIf { it.isNotBlank() }?.let { hosts.add(it) }
+            hosts.addAll(config.proxy_hosts.filter { it.isNotBlank() })
+        }
+        if (hosts.isEmpty()) {
+            // Default hardcoded fallback proxy
+            hosts.add("cdn.sharkbh.online")
+        }
+        return hosts.distinct()
     }
 
     fun getTmdbApiKey(): String? {

@@ -5,6 +5,7 @@ import android.util.Log
 import com.eliteprime.app.data.config.ConfigRepository
 import kotlinx.coroutines.*
 import java.io.File
+import java.io.InterruptedIOException
 import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,6 +27,16 @@ class ShadowsocksManager @Inject constructor(
     private val LOCAL_IP = "127.0.0.1"
     private val LOCAL_PORT = "1080"
 
+    private var currentServerHost: String? = null
+
+    suspend fun ensureProxyRunning(context: Context) {
+        if (processRef.get() == null) {
+            startProxy(context)
+            // Wait briefly for local socket to be bound
+            delay(350)
+        }
+    }
+
     fun startProxy(context: Context) {
         scope.launch {
             if (processRef.get() != null) {
@@ -33,17 +44,9 @@ class ShadowsocksManager @Inject constructor(
                 return@launch
             }
 
-            // Wait for config if not ready
-            var proxyHosts = configRepository.getProxyHosts()
-            if (proxyHosts.isEmpty()) {
-                Log.d(TAG, "Waiting for config to fetch proxy hosts...")
-                withTimeoutOrNull(5000) {
-                    while (configRepository.getProxyHosts().isEmpty()) delay(500)
-                }
-                proxyHosts = configRepository.getProxyHosts()
-            }
-            
+            val proxyHosts = configRepository.getProxyHosts()
             val serverHost = proxyHosts.firstOrNull() ?: "cdn.sharkbh.online"
+            currentServerHost = serverHost
 
             val nativeDir = context.applicationInfo.nativeLibraryDir
             val binaryPath = "$nativeDir/libsslocal.so"
@@ -90,9 +93,28 @@ class ShadowsocksManager @Inject constructor(
                 processRef.set(null)
 
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to start Shadowsocks: ${e.message}", e)
+                if (e !is InterruptedIOException) {
+                    Log.e(TAG, "Failed to start Shadowsocks: ${e.message}", e)
+                }
                 processRef.set(null)
             }
+        }
+    }
+
+    fun restartProxy(context: Context) {
+        val proxyHosts = configRepository.getProxyHosts()
+        val targetHost = proxyHosts.firstOrNull() ?: "cdn.sharkbh.online"
+        
+        // Only restart if the proxy host actually changed
+        if (targetHost == currentServerHost && processRef.get() != null) {
+            Log.d(TAG, "Shadowsocks already running with active host: $targetHost. No restart needed.")
+            return
+        }
+
+        scope.launch {
+            stopProxy()
+            delay(300)
+            startProxy(context)
         }
     }
 
@@ -102,7 +124,6 @@ class ShadowsocksManager @Inject constructor(
             process.destroy()
             processRef.set(null)
         }
-        scope.coroutineContext.cancelChildren()
     }
     
     fun isRunning(): Boolean = processRef.get() != null

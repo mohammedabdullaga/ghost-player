@@ -1,5 +1,6 @@
 package com.eliteprime.app.ui.screens.movies
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.data.local.entity.*
@@ -136,6 +137,7 @@ class MovieViewModel @Inject constructor(
     }
 
     fun loadMore() {
+        Log.i("MovieVM", "Loading more items, current page: \${_page.value}")
         _page.value++
     }
 

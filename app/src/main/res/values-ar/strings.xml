@@ -100,6 +100,7 @@
     <string name="home_downloads_desc">شاهد المحتوى الخاص بك بدون إنترنت</string>
     <string name="home_downloads_ready">جاهز</string>
     <string name="home_plan_ends">ينتهي الاشتراك</string>
+    <string name="exit_confirm_title">الخروج من التطبيق</string>
     <string name="exit_confirm_msg">هل أنت متأكد أنك تريد الخروج؟</string>
 
     <!-- History / Continue Watching -->

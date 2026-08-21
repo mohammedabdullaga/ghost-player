@@ -3,6 +3,7 @@ package com.eliteprime.app.ui.tv.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import coil3.compose.AsyncImage
 import com.eliteprime.app.R
@@ -41,6 +43,7 @@ import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.SeriesPosterCard
 import com.eliteprime.app.ui.screens.series.SeriesViewModel
+import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -158,29 +161,38 @@ private fun TvCategoryItem(
     TvSurfaceCard(
         onClick = onClick,
         modifier = modifier
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-            .heightIn(min = 40.dp)
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
             .onFocusChanged { isFocused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) TvColors.Primary.copy(alpha = 0.25f) else Color.Transparent,
+            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.045f),
             focusedContainerColor = Color.White
+        ),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+            border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
         )
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), 
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            modifier = Modifier.fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(3.dp)
+                    .background(if (isSelected || isFocused) AppColors.ArenaOrange else Color.Transparent)
+            )
             Text(
-                text = label, 
-                color = if (isFocused) Color.Black else Color.White, 
-                style = MaterialTheme.typography.bodyMedium, 
+                text = label,
+                color = if (isFocused) Color.Black else Color.White,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 16.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.weight(1f).padding(horizontal = 14.dp, vertical = 10.dp)
             )
         }
     }

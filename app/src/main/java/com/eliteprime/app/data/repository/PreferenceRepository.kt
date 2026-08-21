@@ -131,6 +131,12 @@ class PreferenceRepository @Inject constructor(
         prefs.edit().putLong("last_update_check_timestamp", timestamp).apply()
     }
 
+    fun getCachedGenres(type: String): String? = prefs.getString("cached_genres_\$type", null)
+
+    fun setCachedGenres(type: String, json: String) {
+        prefs.edit().putString("cached_genres_\$type", json).apply()
+    }
+
     fun applySavedLocale() {
         _language.value = getCurrentLanguage()
     }

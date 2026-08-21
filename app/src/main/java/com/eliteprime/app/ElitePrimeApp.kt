@@ -1,6 +1,7 @@
 package com.eliteprime.app
 
 import android.app.Application
+import android.util.Log
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -13,10 +14,12 @@ import coil3.request.crossfade
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.remote.proxy.NetworkManager
 import com.eliteprime.app.data.repository.PreferenceRepository
+import com.eliteprime.app.util.DeviceRenderProfile
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import javax.inject.Inject
@@ -53,12 +56,17 @@ class ElitePrimeApp : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        DeviceRenderProfile.initialize(this)
         preferenceRepository.applySavedLocale()
         
-        // Ensure config is fetched as early as possible
+        // Start Shadowsocks daemon, then fetch config through proxy
         appScope.launch {
-            configRepository.fetchConfig()
             networkManager.init()
+            networkManager.ensureShadowsocksStarted()
+            val updatedConfig = configRepository.fetchConfig()
+            if (updatedConfig != null) {
+                networkManager.onConfigUpdated()
+            }
         }
     }
 }
