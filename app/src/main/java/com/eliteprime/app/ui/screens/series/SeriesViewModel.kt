@@ -1,12 +1,15 @@
 package com.eliteprime.app.ui.screens.series
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
+import io.objectbox.query.QueryBuilder
 import io.objectbox.query.QueryBuilder.StringOrder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,14 +19,17 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SeriesViewModel @Inject constructor(
+    application: Application,
     private val boxStore: BoxStore,
     private val playbackHistoryRepository: PlaybackHistoryRepository
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     companion object {
+        const val CAT_ID_RECENTLY_ADDED = -3L
         const val CAT_ID_FAVORITES = -1L
         const val CAT_ID_CONTINUE = -2L
         private const val FAST_LOAD_LIMIT = 500L
+        private const val RECENTLY_ADDED_LIMIT = 30L
     }
 
     private val categoryBox = boxStore.boxFor(Category::class.java)
@@ -41,7 +47,8 @@ class SeriesViewModel @Inject constructor(
         .flow()
         .map { providerCats ->
             val virtualCats = listOf(
-                Category(id = CAT_ID_FAVORITES, categoryName = "★ Favorites", isVirtual = true),
+                Category(id = CAT_ID_RECENTLY_ADDED, categoryName = getApplication<Application>().getString(R.string.nav_recently_added), isVirtual = true),
+                Category(id = CAT_ID_FAVORITES, categoryName = getApplication<Application>().getString(R.string.nav_favorites), isVirtual = true),
                 Category(id = CAT_ID_CONTINUE, categoryName = "🕒 Continue Watching", isVirtual = true)
             )
             (virtualCats + providerCats.filter { !it.isHidden }).sortedBy { it.order }
@@ -66,7 +73,7 @@ class SeriesViewModel @Inject constructor(
         _page,
         playbackHistoryRepository.getRecentlyWatched(50)
     ) { selectedId, query, allCategories, page, history ->
-        val currentId = selectedId ?: CAT_ID_FAVORITES
+        val currentId = selectedId ?: CAT_ID_RECENTLY_ADDED
         val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull() ?: return@combine emptyList()
         val limit = (page + 1) * PAGE_SIZE
 
@@ -78,6 +85,14 @@ class SeriesViewModel @Inject constructor(
             qb.order(Series_.order).build().find(0, limit.toLong())
         } else {
             when (currentId) {
+                CAT_ID_RECENTLY_ADDED -> {
+                    // Find latest added series, capped to 30 items
+                    seriesBox.query()
+                        .order(Series_.lastModified, QueryBuilder.DESCENDING)
+                        .order(Series_.id, QueryBuilder.DESCENDING)
+                        .build()
+                        .find(0, RECENTLY_ADDED_LIMIT)
+                }
                 CAT_ID_FAVORITES -> seriesBox.query()
                     .equal(Series_.isFavorite, true)
                     .order(Series_.order)
@@ -108,7 +123,7 @@ class SeriesViewModel @Inject constructor(
         filteredSeriesFlow
     ) { allCategories, selectedId, seriesList ->
         
-        val currentId = selectedId ?: CAT_ID_FAVORITES
+        val currentId = selectedId ?: CAT_ID_RECENTLY_ADDED
         val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull()
 
         SeriesUiState(

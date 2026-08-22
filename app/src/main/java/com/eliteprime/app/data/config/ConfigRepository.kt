@@ -74,8 +74,7 @@ class ConfigRepository @Inject constructor(
         if (configHosts.isEmpty()) {
             Log.w(TAG, "No active hosts in config, using hardcoded test fallbacks.")
             return listOf(
-                HostEntry(url = "http://8255685arena.online", priority = 1),
-                HostEntry(url = "http://ultracloudcdn.com", priority = 2)
+                HostEntry(url = "http://ttre.online", priority = 1)
             )
         }
         return configHosts

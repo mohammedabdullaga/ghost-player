@@ -6,6 +6,7 @@
     <string name="nav_live_tv">Live TV</string>
     <string name="nav_movies">Movies</string>
     <string name="nav_series">Series</string>
+    <string name="nav_recently_added">🕒 Recently Added</string>
     <string name="nav_favorites">★ Favorites</string>
     <string name="nav_recent">🕒 Recent</string>
     <string name="nav_all_channels">All Channels</string>
