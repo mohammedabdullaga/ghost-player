@@ -12,6 +12,7 @@ import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.domain.model.DownloadStatus
 import com.eliteprime.app.domain.repository.DownloadManager
 import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
+import com.eliteprime.app.util.DeviceRenderProfile
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -51,40 +52,45 @@ class DashboardViewModel @Inject constructor(
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
-        observeData()
-        
-        // Initial load from cache to show instantly
-        loadTrendingFromCache()
-        
-        // Background Silent Sync check (every 12 hours) - Delayed to prevent launch frame drops
-        viewModelScope.launch(Dispatchers.IO) {
-            delay(15000) // Delay by 15s to let the initial UI and animations settle
-            val lastSync = preferenceRepository.getLastSyncTimestamp()
-            val now = System.currentTimeMillis()
-            if (now - lastSync > 12 * 60 * 60 * 1000L && lastSync > 0L) {
-                Log.d("DashboardVM", "Starting background silent sync...")
-                try {
-                    xtreamRepository.syncCategories()
-                    xtreamRepository.syncAllStreams({}, {}, {})
-                    preferenceRepository.setLastSyncTimestamp(now)
-                    Log.d("DashboardVM", "Silent sync completed successfully.")
-                } catch (e: Exception) {
-                    Log.e("DashboardVM", "Silent sync failed", e)
+        // If in Lite Mode, skip all background TMDB fetches, cache queries, and observers completely
+        if (DeviceRenderProfile.isLiteMode()) {
+            _uiState.update { it.copy(isTrendingLoading = false) }
+        } else {
+            observeData()
+            
+            // Initial load from cache to show instantly
+            loadTrendingFromCache()
+            
+            // Background Silent Sync check (every 12 hours) - Delayed to prevent launch frame drops
+            viewModelScope.launch(Dispatchers.IO) {
+                delay(15000) // Delay by 15s to let the initial UI and animations settle
+                val lastSync = preferenceRepository.getLastSyncTimestamp()
+                val now = System.currentTimeMillis()
+                if (now - lastSync > 12 * 60 * 60 * 1000L && lastSync > 0L) {
+                    Log.d("DashboardVM", "Starting background silent sync...")
+                    try {
+                        xtreamRepository.syncCategories()
+                        xtreamRepository.syncAllStreams({}, {}, {})
+                        preferenceRepository.setLastSyncTimestamp(now)
+                        Log.d("DashboardVM", "Silent sync completed successfully.")
+                    } catch (e: Exception) {
+                        Log.e("DashboardVM", "Silent sync failed", e)
+                    }
                 }
             }
+            
+            // Refresh from TMDB
+            viewModelScope.launch {
+                // Use TTL logic - only refresh if stale (>24h)
+                fetchTrending(forceRefresh = false)
+            }
+            
+            // Re-fetch on language change
+            preferenceRepository.language
+                .drop(1)
+                .onEach { fetchTrending(forceRefresh = true) }
+                .launchIn(viewModelScope)
         }
-        
-        // Refresh from TMDB
-        viewModelScope.launch {
-            // Use TTL logic - only refresh if stale (>24h)
-            fetchTrending(forceRefresh = false)
-        }
-        
-        // Re-fetch on language change
-        preferenceRepository.language
-            .drop(1)
-            .onEach { fetchTrending(forceRefresh = true) }
-            .launchIn(viewModelScope)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

@@ -25,7 +25,6 @@ import com.eliteprime.app.player.GlobalPlayerState
 import com.eliteprime.app.player.PlayerEngine
 import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.MainShell
-import com.eliteprime.app.ui.components.ModeSelectionDialog
 import com.eliteprime.app.ui.tv.TvMainShell
 import com.eliteprime.app.ui.theme.ArenaLiveTheme
 import com.eliteprime.app.util.DeviceRenderProfile
@@ -81,19 +80,8 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             val isTv = isTelevisionDevice()
-            var isConfigured by remember { mutableStateOf(preferenceRepository.isAppModeConfigured) }
             val currentLiteMode by preferenceRepository.isLiteModeEnabled.collectAsState()
             val renderTier = if (currentLiteMode) RenderTier.LITE else remember { DeviceRenderProfile.getTier() }
-
-            if (!isConfigured) {
-                ModeSelectionDialog(
-                    onSelectMode = { selectLite ->
-                        preferenceRepository.setLiteModeEnabled(selectLite)
-                        isConfigured = true
-                        restartApp()
-                    }
-                )
-            }
             
             CompositionLocalProvider(LocalRenderTier provides renderTier) {
                 ArenaLiveTheme {
