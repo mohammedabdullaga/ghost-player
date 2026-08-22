@@ -1,5 +1,6 @@
 package com.eliteprime.app.ui.tv.screens
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -30,6 +31,7 @@ import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -53,6 +55,7 @@ import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.live.LiveViewModel
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.util.DeviceRenderProfile
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -106,11 +109,44 @@ fun TvLiveTvScreen(
     val addGroupFocusRequester = remember { FocusRequester() }
 
     val isAnyPopupOpen = showAddGroupDialog || selectedChannelForOptions != null || selectedCategoryForOptions != null
+    val isLiteMode = DeviceRenderProfile.isLiteMode()
+    var showExitDialog by remember { mutableStateOf(false) }
+    val activity = LocalContext.current as? Activity
+
+    if (showExitDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitDialog = false },
+            title = { Text(stringResource(R.string.exit_confirm_title), fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.exit_confirm_msg)) },
+            confirmButton = {
+                TextButton(onClick = { activity?.finish() }) {
+                    Text(stringResource(R.string.generic_yes).uppercase(), color = Color(0xFFEF5350), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExitDialog = false }) {
+                    Text(stringResource(android.R.string.cancel), color = Color.White.copy(alpha = 0.6f))
+                }
+            },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = Color(0xFF1A1C1E),
+            titleContentColor = Color.White,
+            textContentColor = Color.White.copy(alpha = 0.7f)
+        )
+    }
 
     // COMMUNICATE WITH SHELL TO LOCK NAVBAR
     val focusManager = LocalTvFocusManager.current
     LaunchedEffect(isAnyPopupOpen) {
         focusManager.value = isAnyPopupOpen
+    }
+
+    // AUTO-PREVIEW FIRST CHANNEL IF NONE IS PREVIEWED
+    LaunchedEffect(uiState.filteredChannels) {
+        if (previewChannel == null && uiState.filteredChannels.isNotEmpty()) {
+            val first = uiState.filteredChannels.first()
+            viewModel.previewChannel(first)
+        }
     }
 
     DisposableEffect(Unit) {
@@ -132,6 +168,8 @@ fun TvLiveTvScreen(
             viewModel.exitCategoryReorderMode()
         } else if (uiState.isChannelReorderMode) {
             viewModel.exitChannelReorderMode()
+        } else if (isLiteMode) {
+            showExitDialog = true
         } else {
             onBack()
         }

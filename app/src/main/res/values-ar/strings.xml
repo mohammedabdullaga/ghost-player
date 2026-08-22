@@ -27,6 +27,19 @@
     <string name="settings_edit_account">تعديل الحساب</string>
     <string name="settings_logout_confirm_title">تسجيل الخروج</string>
     <string name="settings_logout_confirm_msg">هل أنت متأكد أنك تريد تسجيل الخروج ومسح جميع البيانات المحلية؟</string>
+    <string name="settings_lite_mode">⚡ الوضع الخفيف (سريع جداً)</string>
+    <string name="settings_lite_mode_desc">مخصص للأجهزة الضعيفة وشاشات التلفزيون. وصول مباشر للبث المباشر والأفلام والمسلسلات فقط بدون تأثيرات أو حركات ثقيلة.</string>
+    <string name="settings_lite_mode_restart_title">إعادة تشغيل التطبيق؟</string>
+    <string name="settings_lite_mode_restart_msg">تغيير وضع التطبيق يتطلب إعادة تشغيل التطبيق لتطبيق الواجهة الجديدة. إعادة التشغيل الآن؟</string>
+
+    <!-- Mode Selection Prompt -->
+    <string name="mode_select_title">اختر تجربة العرض</string>
+    <string name="mode_select_subtitle">حدد الوضع الأنسب لأداء جهازك</string>
+    <string name="mode_lite_title">⚡ الوضع الخفيف (موصى به للشاشات)</string>
+    <string name="mode_lite_desc">بث مباشر ومحتوى بدون تأخير. تشغيل فوري، بدون تأثيرات زجاجية أو تحريك ثقيل.</string>
+    <string name="mode_standard_title">✨ الوضع الكامل</string>
+    <string name="mode_standard_desc">التجربة الكاملة مع الشاشة الرئيسية والتريند والتأثيرات الحركية.</string>
+    <string name="mode_select_continue">متابعة</string>
 
     <string name="login_title">تسجيل الدخول</string>
     <string name="login_subtitle">أدخل بيانات الاعتماد الخاصة بك للبدء</string>

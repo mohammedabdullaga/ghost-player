@@ -27,6 +27,19 @@
     <string name="settings_edit_account">Edit Account</string>
     <string name="settings_logout_confirm_title">Log Out</string>
     <string name="settings_logout_confirm_msg">Are you sure you want to log out and clear all local data?</string>
+    <string name="settings_lite_mode">⚡ Lite Mode (Ultra Fast)</string>
+    <string name="settings_lite_mode_desc">Optimized for low-end devices and TV sticks. Direct Live TV and VOD only, zero animations, no glass effects.</string>
+    <string name="settings_lite_mode_restart_title">Restart App?</string>
+    <string name="settings_lite_mode_restart_msg">Changing the app display mode requires restarting the app to apply the new interface. Restart now?</string>
+
+    <!-- Mode Selection Prompt -->
+    <string name="mode_select_title">Choose Your Experience</string>
+    <string name="mode_select_subtitle">Select the mode that best fits your device performance</string>
+    <string name="mode_lite_title">⚡ Lite Mode (Recommended for TV)</string>
+    <string name="mode_lite_desc">Direct Live TV &amp; VOD. Zero input lag, instant playback, flat focus, no heavy animations.</string>
+    <string name="mode_standard_title">✨ Standard Mode</string>
+    <string name="mode_standard_desc">Full experience with Home dashboard, TMDB trends, animated carousels &amp; backdrop previews.</string>
+    <string name="mode_select_continue">CONTINUE</string>
 
     <string name="login_title">SIGN IN</string>
     <string name="login_subtitle">Enter your credentials to start</string>

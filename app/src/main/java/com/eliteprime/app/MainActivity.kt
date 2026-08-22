@@ -3,6 +3,7 @@ package com.eliteprime.app
 import android.R
 import android.util.Log
 import android.app.PictureInPictureParams
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
@@ -24,10 +25,12 @@ import com.eliteprime.app.player.GlobalPlayerState
 import com.eliteprime.app.player.PlayerEngine
 import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.MainShell
+import com.eliteprime.app.ui.components.ModeSelectionDialog
 import com.eliteprime.app.ui.tv.TvMainShell
 import com.eliteprime.app.ui.theme.ArenaLiveTheme
 import com.eliteprime.app.util.DeviceRenderProfile
 import com.eliteprime.app.util.LocalRenderTier
+import com.eliteprime.app.util.RenderTier
 import com.eliteprime.app.util.isTelevisionDevice
 import dagger.hilt.android.AndroidEntryPoint
 import io.objectbox.BoxStore
@@ -62,17 +65,35 @@ class MainActivity : AppCompatActivity() {
 
         preferenceRepository.applySavedLocale()
         
+        // Initialize render profile taking saved Lite Mode into account
+        val isLite = preferenceRepository.isLiteModeEnabled.value
+        DeviceRenderProfile.initialize(this, liteMode = isLite)
+
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         val accountBox = boxStore.boxFor(XtreamAccount::class.java)
         val hasActiveAccount = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() != null
-        val startDest = if (hasActiveAccount) "home" else "login"
+        val startDest = if (hasActiveAccount) {
+            if (isLite) "live" else "home"
+        } else "login"
 
         _pictureInPictureModeFlow.value = isInPictureInPictureMode
 
         setContent {
             val isTv = isTelevisionDevice()
-            val renderTier = remember { DeviceRenderProfile.getTier() }
+            var isConfigured by remember { mutableStateOf(preferenceRepository.isAppModeConfigured) }
+            val currentLiteMode by preferenceRepository.isLiteModeEnabled.collectAsState()
+            val renderTier = if (currentLiteMode) RenderTier.LITE else remember { DeviceRenderProfile.getTier() }
+
+            if (!isConfigured) {
+                ModeSelectionDialog(
+                    onSelectMode = { selectLite ->
+                        preferenceRepository.setLiteModeEnabled(selectLite)
+                        isConfigured = true
+                        restartApp()
+                    }
+                )
+            }
             
             CompositionLocalProvider(LocalRenderTier provides renderTier) {
                 ArenaLiveTheme {
@@ -92,6 +113,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    fun restartApp() {
+        val intent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        }
+        finishAffinity()
+        startActivity(intent)
     }
 
     private fun applyImmersiveMode() {

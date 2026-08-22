@@ -60,7 +60,8 @@ class ElitePrimeApp : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
-        DeviceRenderProfile.initialize(this)
+        val isLite = preferenceRepository.isLiteModeEnabled.value
+        DeviceRenderProfile.initialize(this, liteMode = isLite)
         preferenceRepository.applySavedLocale()
         
         // Fetch config directly, then initialize network/proxy

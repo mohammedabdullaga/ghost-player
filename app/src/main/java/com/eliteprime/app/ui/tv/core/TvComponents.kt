@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.*
+import com.eliteprime.app.util.DeviceRenderProfile
 import androidx.tv.material3.Surface as TvSurface
 
 /**
@@ -32,7 +33,9 @@ fun TvSurfaceCard(
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     shape: ClickableSurfaceShape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
-    scale: ClickableSurfaceScale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+    scale: ClickableSurfaceScale = ClickableSurfaceDefaults.scale(
+        focusedScale = if (DeviceRenderProfile.isLiteMode()) 1.0f else 1.02f
+    ),
     colors: ClickableSurfaceColors = ClickableSurfaceDefaults.colors(
         containerColor = Color.White.copy(alpha = 0.05f),
         focusedContainerColor = Color.White

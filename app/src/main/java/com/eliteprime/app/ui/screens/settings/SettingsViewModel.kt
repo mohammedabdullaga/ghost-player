@@ -46,6 +46,7 @@ data class SettingsUiState(
     val autoPlayNextEpisode: Boolean = true,
     val zapAutoRevert: Boolean = false,
     val preventStandby: Boolean = true,
+    val isLiteModeEnabled: Boolean = false,
     val liveBufferSize: Int = 0,
     val decoderMode: String = "AUTO",
     val playerEngineMode: String = "EXO",
@@ -107,6 +108,7 @@ class SettingsViewModel @Inject constructor(
         preferenceRepository.autoPlayNextEpisode,
         preferenceRepository.zapAutoRevert,
         preferenceRepository.preventStandby,
+        preferenceRepository.isLiteModeEnabled,
         preferenceRepository.liveBufferSize,
         preferenceRepository.decoderMode,
         preferenceRepository.playerEngineMode,
@@ -132,13 +134,14 @@ class SettingsViewModel @Inject constructor(
             autoPlayNextEpisode = params[13] as Boolean,
             zapAutoRevert = params[14] as Boolean,
             preventStandby = params[15] as Boolean,
-            liveBufferSize = params[16] as Int,
-            decoderMode = params[17] as String,
-            playerEngineMode = params[18] as String,
-            isCheckingForUpdates = params[19] as Boolean,
-            latestVersion = params[20] as? String,
-            updateStatus = params[21] as String,
-            lastUpdateCheckTimestamp = params[22] as Long
+            isLiteModeEnabled = params[16] as Boolean,
+            liveBufferSize = params[17] as Int,
+            decoderMode = params[18] as String,
+            playerEngineMode = params[19] as String,
+            isCheckingForUpdates = params[20] as Boolean,
+            latestVersion = params[21] as? String,
+            updateStatus = params[22] as String,
+            lastUpdateCheckTimestamp = params[23] as Long
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
@@ -200,6 +203,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setPreventStandby(enabled: Boolean) {
         preferenceRepository.setPreventStandby(enabled)
+    }
+
+    fun setLiteModeEnabled(enabled: Boolean) {
+        preferenceRepository.setLiteModeEnabled(enabled)
     }
 
     fun setLiveBufferSize(sizeMs: Int) {

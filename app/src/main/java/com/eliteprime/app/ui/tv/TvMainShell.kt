@@ -41,6 +41,7 @@ import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
 import com.eliteprime.app.ui.components.ArenaLiveLogo
+import com.eliteprime.app.util.DeviceRenderProfile
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -54,12 +55,18 @@ fun TvMainShell(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: ""
     
+    val isLiteMode = DeviceRenderProfile.isLiteMode()
+
     // Screens that should have the Navbar available
-    val navBarRoutes = listOf(
-        "home", "live", "movies", "series", "search", "settings", 
-        "trending", "continue_watching", "downloads",
-        "movie_details/{id}", "series_details/{id}"
-    )
+    val navBarRoutes = if (isLiteMode) {
+        listOf("live", "movies", "series", "search", "settings", "movie_details/{id}", "series_details/{id}")
+    } else {
+        listOf(
+            "home", "live", "movies", "series", "search", "settings", 
+            "trending", "continue_watching", "downloads",
+            "movie_details/{id}", "series_details/{id}"
+        )
+    }
     val showNavBar = currentRoute in navBarRoutes
 
     // Screens that use the Cinematic (Collapsible) Navbar
@@ -79,7 +86,7 @@ fun TvMainShell(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(currentRoute) {
-        if (currentRoute == "home" || currentRoute == "login") {
+        if (currentRoute == "home" || currentRoute == "live" || currentRoute == "login") {
             delay(800)
             try { navHomeFocusRequester.requestFocus() } catch (e: Exception) {}
         }
@@ -108,8 +115,9 @@ fun TvMainShell(
                                 if (currentRoute != route) {
                                     globalPlayerState.hide()
                                     playerEngine.stop()
+                                    val defaultLanding = if (isLiteMode) "live" else "home"
                                     navController.navigate(route) {
-                                        popUpTo("home") { saveState = true }
+                                        popUpTo(defaultLanding) { saveState = true }
                                         launchSingleTop = true
                                         restoreState = true
                                     }
@@ -160,8 +168,9 @@ fun TvMainShell(
                                 if (currentRoute != route) {
                                     globalPlayerState.hide()
                                     playerEngine.stop()
+                                    val defaultLanding = if (isLiteMode) "live" else "home"
                                     navController.navigate(route) {
-                                        popUpTo("home") { saveState = true }
+                                        popUpTo(defaultLanding) { saveState = true }
                                         launchSingleTop = true
                                         restoreState = true
                                     }
@@ -273,8 +282,16 @@ private fun TvTopNavBar(
             horizontalArrangement = Arrangement.spacedBy(32.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TvTopNavItem(stringResource(R.string.nav_home), Icons.Default.Home, currentRoute == "home", modifier = Modifier.focusRequester(navHomeFocusRequester)) { onNavigate("home") }
-            TvTopNavItem(stringResource(R.string.nav_live_tv), Icons.Default.LiveTv, currentRoute == "live") { onNavigate("live") }
+            val isLiteMode = DeviceRenderProfile.isLiteMode()
+            if (!isLiteMode) {
+                TvTopNavItem(stringResource(R.string.nav_home), Icons.Default.Home, currentRoute == "home", modifier = Modifier.focusRequester(navHomeFocusRequester)) { onNavigate("home") }
+            }
+            TvTopNavItem(
+                label = stringResource(R.string.nav_live_tv), 
+                icon = Icons.Default.LiveTv, 
+                isSelected = currentRoute == "live",
+                modifier = if (isLiteMode) Modifier.focusRequester(navHomeFocusRequester) else Modifier
+            ) { onNavigate("live") }
             TvTopNavItem(stringResource(R.string.nav_movies), Icons.Default.Movie, currentRoute == "movies") { onNavigate("movies") }
             TvTopNavItem(stringResource(R.string.nav_series), Icons.Default.VideoLibrary, currentRoute == "series") { onNavigate("series") }
         }

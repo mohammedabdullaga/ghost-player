@@ -7,14 +7,23 @@ import androidx.compose.runtime.compositionLocalOf
 
 enum class RenderTier {
     STANDARD,
-    REDUCED
+    REDUCED,
+    LITE
 }
 
 object DeviceRenderProfile {
     private const val TAG = "DeviceRenderProfile"
     private var tier: RenderTier = RenderTier.STANDARD
+    private var isLiteMode: Boolean = false
 
-    fun initialize(context: Context) {
+    fun initialize(context: Context, liteMode: Boolean = false) {
+        isLiteMode = liteMode
+        if (liteMode) {
+            tier = RenderTier.LITE
+            Log.i(TAG, "Device Profile: Tier=LITE (User configured Lite Mode)")
+            return
+        }
+
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val memoryInfo = ActivityManager.MemoryInfo()
         activityManager.getMemoryInfo(memoryInfo)
@@ -33,7 +42,17 @@ object DeviceRenderProfile {
         Log.i(TAG, "Device Profile: RAM=${"%.2f".format(totalRamGb)}GB, Cores=$cores -> Tier=$tier")
     }
 
+    fun setLiteMode(enabled: Boolean) {
+        isLiteMode = enabled
+        if (enabled) {
+            tier = RenderTier.LITE
+        } else if (tier == RenderTier.LITE) {
+            tier = RenderTier.REDUCED
+        }
+    }
+
     fun getTier(): RenderTier = tier
+    fun isLiteMode(): Boolean = tier == RenderTier.LITE || isLiteMode
 }
 
 val LocalRenderTier = compositionLocalOf { RenderTier.STANDARD }

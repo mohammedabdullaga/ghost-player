@@ -43,6 +43,7 @@ import com.eliteprime.app.ui.screens.downloads.DownloadViewModel
 import com.eliteprime.app.domain.model.DownloadContentType
 import com.eliteprime.app.ui.screens.dashboard.ContinueWatchingGridScreen
 import com.eliteprime.app.ui.screens.trending.TrendingScreen
+import com.eliteprime.app.util.DeviceRenderProfile
 
 @Composable
 fun AppNavigation(
@@ -52,11 +53,14 @@ fun AppNavigation(
     modifier: Modifier = Modifier,
     startDestination: String = "login"
 ) {
+    val isLite = DeviceRenderProfile.isLiteMode()
+    val defaultLanding = if (isLite) "live" else "home"
+
     val stopPlayerAndNavigate = { route: String ->
         globalPlayerState.hide()
         playerEngine.stop()
         navController.navigate(route) {
-            popUpTo("home") { saveState = true }
+            popUpTo(defaultLanding) { saveState = true }
             launchSingleTop = true
             restoreState = true
         }
@@ -65,8 +69,8 @@ fun AppNavigation(
     val navigateToHome = {
         globalPlayerState.hide()
         playerEngine.stop()
-        navController.navigate("home") {
-            popUpTo("home") { inclusive = true }
+        navController.navigate(defaultLanding) {
+            popUpTo(defaultLanding) { inclusive = true }
             launchSingleTop = true
         }
     }
@@ -74,7 +78,7 @@ fun AppNavigation(
     NavHost(navController = navController, startDestination = startDestination, modifier = modifier) {
         composable("login") {
             LoginScreen(viewModel = hiltViewModel<LoginViewModel>(), onLoginSuccess = {
-                navController.navigate("home") {
+                navController.navigate(defaultLanding) {
                     popUpTo("login") { inclusive = true }
                 }
             })

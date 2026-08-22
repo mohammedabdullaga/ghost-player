@@ -42,6 +42,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
+import com.eliteprime.app.MainActivity
 import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.XtreamAccount
@@ -231,7 +232,12 @@ fun SettingsScreen(
                         SettingCategory.GENERAL -> {
                             GeneralSettingsContent(
                                 currentLanguage = uiState.language,
+                                isLiteMode = uiState.isLiteModeEnabled,
                                 onLanguageChange = { viewModel.setLanguage(it) },
+                                onToggleLiteMode = { targetLite ->
+                                    viewModel.setLiteModeEnabled(targetLite)
+                                    (context as? MainActivity)?.restartApp()
+                                },
                                 storageConfig = uiState.storageConfig,
                                 onFolderSelected = { viewModel.updateStorageConfig(it) },
                                 isTv = isTv
@@ -484,11 +490,41 @@ private fun NetworkSettingsContent(
 @Composable
 private fun GeneralSettingsContent(
     currentLanguage: String,
+    isLiteMode: Boolean,
     onLanguageChange: (String) -> Unit,
+    onToggleLiteMode: (Boolean) -> Unit,
     storageConfig: DownloadStorageConfig,
     onFolderSelected: (Uri) -> Unit,
     isTv: Boolean
 ) {
+    var showRestartDialog by remember { mutableStateOf(false) }
+    var pendingLiteToggle by remember { mutableStateOf(false) }
+
+    if (showRestartDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestartDialog = false },
+            title = { Text(stringResource(R.string.settings_lite_mode_restart_title), fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.settings_lite_mode_restart_msg)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRestartDialog = false
+                    onToggleLiteMode(pendingLiteToggle)
+                }) {
+                    Text(stringResource(R.string.generic_yes).uppercase(), color = AppColors.ArenaOrange, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestartDialog = false }) {
+                    Text(stringResource(android.R.string.cancel), color = Color.White.copy(alpha = 0.6f))
+                }
+            },
+            shape = RoundedCornerShape(STRadius.lg),
+            containerColor = Color(0xFF1A1C1E),
+            titleContentColor = Color.White,
+            textContentColor = Color.White.copy(alpha = 0.7f)
+        )
+    }
+
     val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri?.let(onFolderSelected)
     }
@@ -525,6 +561,61 @@ private fun GeneralSettingsContent(
                         isTv = isTv,
                         modifier = Modifier.weight(1f)
                     )
+                }
+            }
+        }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
+                Text(
+                    text = "APP MODE / PERFORMANCE",
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
+
+                Surface(
+                    onClick = {
+                        pendingLiteToggle = !isLiteMode
+                        showRestartDialog = true
+                    },
+                    color = if (isLiteMode) AppColors.ArenaOrange.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f),
+                    shape = RoundedCornerShape(STRadius.md),
+                    border = BorderStroke(1.dp, if (isLiteMode) AppColors.ArenaOrange.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(STSpacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = STSpacing.md)) {
+                            Text(
+                                text = stringResource(R.string.settings_lite_mode),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = stringResource(R.string.settings_lite_mode_desc),
+                                color = Color.White.copy(alpha = 0.5f),
+                                fontSize = 11.sp,
+                                lineHeight = 15.sp
+                            )
+                        }
+
+                        Switch(
+                            checked = isLiteMode,
+                            onCheckedChange = null,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = AppColors.ArenaOrange,
+                                uncheckedThumbColor = Color.White.copy(alpha = 0.4f),
+                                uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
+                            )
+                        )
+                    }
                 }
             }
         }

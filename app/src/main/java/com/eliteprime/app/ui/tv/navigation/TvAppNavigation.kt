@@ -20,6 +20,7 @@ import com.eliteprime.app.ui.screens.login.LoginViewModel
 import com.eliteprime.app.ui.screens.player.PlayerScreen
 import com.eliteprime.app.ui.screens.player.PlayerViewModel
 import com.eliteprime.app.ui.tv.screens.*
+import com.eliteprime.app.util.DeviceRenderProfile
 
 /**
  * TV Specific Navigation.
@@ -33,11 +34,14 @@ fun TvAppNavigation(
     modifier: Modifier = Modifier,
     startDestination: String = "login"
 ) {
+    val isLite = DeviceRenderProfile.isLiteMode()
+    val defaultLanding = if (isLite) "live" else "home"
+
     val stopPlayerAndNavigate = { route: String ->
         globalPlayerState.hide()
         playerEngine.stop()
         navController.navigate(route) {
-            popUpTo("home") { saveState = true }
+            popUpTo(defaultLanding) { saveState = true }
             launchSingleTop = true
             restoreState = true
         }
@@ -46,8 +50,8 @@ fun TvAppNavigation(
     val navigateToHome = {
         globalPlayerState.hide()
         playerEngine.stop()
-        navController.navigate("home") {
-            popUpTo("home") { inclusive = true }
+        navController.navigate(defaultLanding) {
+            popUpTo(defaultLanding) { inclusive = true }
             launchSingleTop = true
         }
     }
@@ -55,7 +59,7 @@ fun TvAppNavigation(
     NavHost(navController = navController, startDestination = startDestination, modifier = modifier) {
         composable("login") {
             TvLoginScreen(onLoginSuccess = {
-                navController.navigate("home") {
+                navController.navigate(defaultLanding) {
                     popUpTo("login") { inclusive = true }
                 }
             })

@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import com.eliteprime.app.player.PlayerSubtitleStyle
+import com.eliteprime.app.util.DeviceRenderProfile
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +39,12 @@ class PreferenceRepository @Inject constructor(
 
     private val _liveBufferSize = MutableStateFlow(prefs.getInt("live_buffer_size", 0)) // 0 = Auto/Default
     val liveBufferSize: StateFlow<Int> = _liveBufferSize
+
+    private val _isLiteModeEnabled = MutableStateFlow(prefs.getBoolean("lite_mode_enabled", true))
+    val isLiteModeEnabled: StateFlow<Boolean> = _isLiteModeEnabled
+
+    val isAppModeConfigured: Boolean
+        get() = prefs.contains("lite_mode_enabled")
 
     private val _decoderMode = MutableStateFlow(prefs.getString("decoder_mode", "AUTO") ?: "AUTO")
     val decoderMode: StateFlow<String> = _decoderMode
@@ -106,8 +113,14 @@ class PreferenceRepository @Inject constructor(
     }
 
     fun setPreventStandby(enabled: Boolean) {
-        prefs.edit().putBoolean("prevent_standby", enabled).apply()
+        prefs.edit().putBoolean("prevent_standby", enabled).commit()
         _preventStandby.value = enabled
+    }
+
+    fun setLiteModeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("lite_mode_enabled", enabled).commit()
+        _isLiteModeEnabled.value = enabled
+        DeviceRenderProfile.setLiteMode(enabled)
     }
 
     fun setLiveBufferSize(sizeMs: Int) {

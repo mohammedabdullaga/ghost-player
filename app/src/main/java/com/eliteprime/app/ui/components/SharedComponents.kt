@@ -52,6 +52,7 @@ import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.data.local.entity.PlaybackHistory
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.util.DeviceRenderProfile
 import com.eliteprime.app.util.LocalRenderTier
 import com.eliteprime.app.util.RenderTier
 import com.eliteprime.app.util.isTelevisionDevice
@@ -329,8 +330,7 @@ fun VodPosterCard(
     onLongClick: () -> Unit = {}
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
-    val tier = LocalRenderTier.current
-    val isReducedTier = tier == RenderTier.REDUCED
+    val isLite = DeviceRenderProfile.isLiteMode()
     var isFocused by remember { mutableStateOf(false) }
 
     if (isTv) {
@@ -339,7 +339,7 @@ fun VodPosterCard(
             modifier = modifier
                 .fillMaxWidth()
                 .onFocusChanged { isFocused = it.isFocused },
-            scale = ClickableSurfaceDefaults.scale(focusedScale = if (isReducedTier) 1.04f else 1.1f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = if (isLite) 1.0f else 1.04f),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = Color.Black.copy(alpha = 0.45f),
@@ -375,8 +375,7 @@ fun SeriesPosterCard(
     onLongClick: () -> Unit = {}
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
-    val tier = LocalRenderTier.current
-    val isReducedTier = tier == com.eliteprime.app.util.RenderTier.REDUCED
+    val isLite = DeviceRenderProfile.isLiteMode()
     var isFocused by remember { mutableStateOf(false) }
 
     if (isTv) {
@@ -385,7 +384,7 @@ fun SeriesPosterCard(
             modifier = modifier
                 .fillMaxWidth()
                 .onFocusChanged { isFocused = it.isFocused },
-            scale = ClickableSurfaceDefaults.scale(focusedScale = if (isReducedTier) 1.04f else 1.1f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = if (isLite) 1.0f else 1.04f),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = Color.Black.copy(alpha = 0.45f),

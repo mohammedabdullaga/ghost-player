@@ -59,29 +59,10 @@ fun GlobalPlayerHost(
     val targetTranslationY = if (isFullScreen || isHidden || previewBounds == null) 0f 
                             else previewBounds!!.top
 
-    val tier = LocalRenderTier.current
-    val isReducedTier = tier == RenderTier.REDUCED
-
-    val animScaleX by animateFloatAsState(
-        targetValue = targetScaleX, 
-        animationSpec = if (isReducedTier) snap() else tween(250),
-        label = "playerScaleX"
-    )
-    val animScaleY by animateFloatAsState(
-        targetValue = targetScaleY, 
-        animationSpec = if (isReducedTier) snap() else tween(250),
-        label = "playerScaleY"
-    )
-    val animTranslationX by animateFloatAsState(
-        targetValue = targetTranslationX, 
-        animationSpec = if (isReducedTier) snap() else tween(250),
-        label = "playerTransX"
-    )
-    val animTranslationY by animateFloatAsState(
-        targetValue = targetTranslationY, 
-        animationSpec = if (isReducedTier) snap() else tween(250),
-        label = "playerTransY"
-    )
+    val animScaleX by animateFloatAsState(targetScaleX, tween(250), label = "playerScaleX")
+    val animScaleY by animateFloatAsState(targetScaleY, tween(250), label = "playerScaleY")
+    val animTranslationX by animateFloatAsState(targetTranslationX, tween(250), label = "playerTransX")
+    val animTranslationY by animateFloatAsState(targetTranslationY, tween(250), label = "playerTransY")
 
     Box(
         modifier = modifier
