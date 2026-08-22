@@ -45,6 +45,7 @@ import com.eliteprime.app.ui.components.VodPosterCard
 import com.eliteprime.app.ui.screens.movies.MovieViewModel
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.util.DeviceRenderProfile
 import com.eliteprime.app.util.LocalRenderTier
 import com.eliteprime.app.util.RenderTier
 import kotlinx.coroutines.delay
@@ -85,41 +86,44 @@ fun TvMovieScreen(
 
     val tier = LocalRenderTier.current
     val isReducedTier = tier == RenderTier.REDUCED
+    val isLite = DeviceRenderProfile.isLiteMode()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // --- 1. DYNAMIC THEATER BACKDROP ---
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (isReducedTier) {
-                AsyncImage(
-                    model = focusedMovie?.backdropUrl ?: focusedMovie?.streamIcon,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.45f
-                )
-            } else {
-                Crossfade(targetState = focusedMovie, animationSpec = tween(600), label = "movieBg") { movie ->
+    Box(modifier = Modifier.fillMaxSize().background(if (isLite) Color(0xFF0C0F14) else Color.Transparent)) {
+        // --- 1. DYNAMIC THEATER BACKDROP (Disabled in Lite Mode for instant rendering) ---
+        if (!isLite) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (isReducedTier) {
                     AsyncImage(
-                        model = movie?.backdropUrl ?: movie?.streamIcon,
+                        model = focusedMovie?.backdropUrl ?: focusedMovie?.streamIcon,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
                         alpha = 0.45f
                     )
+                } else {
+                    Crossfade(targetState = focusedMovie, animationSpec = tween(600), label = "movieBg") { movie ->
+                        AsyncImage(
+                            model = movie?.backdropUrl ?: movie?.streamIcon,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            alpha = 0.45f
+                        )
+                    }
                 }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            remember {
+                                Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                                    startY = 400f
+                                )
+                            }
+                        )
+                )
             }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        remember {
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
-                                startY = 400f
-                            )
-                        }
-                    )
-            )
         }
 
         // --- 2. CLEAN DUAL-PANE LAYOUT ---

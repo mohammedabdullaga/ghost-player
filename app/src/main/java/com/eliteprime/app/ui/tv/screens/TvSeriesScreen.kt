@@ -45,6 +45,7 @@ import com.eliteprime.app.ui.components.SeriesPosterCard
 import com.eliteprime.app.ui.screens.series.SeriesViewModel
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.util.DeviceRenderProfile
 import com.eliteprime.app.util.LocalRenderTier
 import com.eliteprime.app.util.RenderTier
 import kotlinx.coroutines.delay
@@ -70,41 +71,44 @@ fun TvSeriesScreen(
 
     val tier = LocalRenderTier.current
     val isReducedTier = tier == RenderTier.REDUCED
+    val isLite = DeviceRenderProfile.isLiteMode()
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        // --- 1. DYNAMIC THEATER BACKDROP ---
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (isReducedTier) {
-                AsyncImage(
-                    model = focusedSeries?.backdropUrl ?: focusedSeries?.cover,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.45f
-                )
-            } else {
-                Crossfade(targetState = focusedSeries, animationSpec = tween(600), label = "seriesBg") { series ->
+    Box(modifier = Modifier.fillMaxSize().background(if (isLite) Color(0xFF0C0F14) else Color.Transparent)) {
+        // --- 1. DYNAMIC THEATER BACKDROP (Disabled in Lite Mode for instant rendering) ---
+        if (!isLite) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (isReducedTier) {
                     AsyncImage(
-                        model = series?.backdropUrl ?: series?.cover,
+                        model = focusedSeries?.backdropUrl ?: focusedSeries?.cover,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
                         alpha = 0.45f
                     )
+                } else {
+                    Crossfade(targetState = focusedSeries, animationSpec = tween(600), label = "seriesBg") { series ->
+                        AsyncImage(
+                            model = series?.backdropUrl ?: series?.cover,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            alpha = 0.45f
+                        )
+                    }
                 }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            remember {
+                                Brush.verticalGradient(
+                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                                    startY = 400f
+                                )
+                            }
+                        )
+                )
             }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        remember {
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
-                                startY = 400f
-                            )
-                        }
-                    )
-            )
         }
 
         // --- 2. CLEAN DUAL-PANE LAYOUT ---

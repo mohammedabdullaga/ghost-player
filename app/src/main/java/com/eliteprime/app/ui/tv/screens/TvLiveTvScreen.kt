@@ -186,10 +186,13 @@ fun TvLiveTvScreen(
         }
     }
 
-    AppBackground(isTransparent = true) {
+    val isLite = DeviceRenderProfile.isLiteMode()
+
+    AppBackground(isTransparent = !isLite) {
         Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
             TvGlassPane(
                 modifier = Modifier.fillMaxSize(),
+                backgroundColor = if (isLite) Color(0xFF10141D) else TvColors.GlassBase,
                 shape = RoundedCornerShape(LiveRadius.pane)
             ) {
                 Row(modifier = Modifier.fillMaxSize()) {
@@ -387,17 +390,23 @@ fun TvLiveTvScreen(
                                     viewModel.globalPlayerState.enterPreview(viewModel.playerEngine)
                                 }
 
+                                val bgModifier = if (isLite) {
+                                    Modifier.background(Color.Black.copy(alpha = 0.8f))
+                                } else {
+                                    Modifier.background(
+                                        remember {
+                                            Brush.verticalGradient(
+                                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                                            )
+                                        }
+                                    )
+                                }
+
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .align(Alignment.BottomStart)
-                                        .background(
-                                            remember {
-                                                Brush.verticalGradient(
-                                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
-                                                )
-                                            }
-                                        )
+                                        .then(bgModifier)
                                         .padding(horizontal = LiveSpacing.md, vertical = LiveSpacing.sm)
                                 ) {
                                     Column {
