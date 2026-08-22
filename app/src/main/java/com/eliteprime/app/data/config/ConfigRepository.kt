@@ -37,7 +37,7 @@ class ConfigRepository @Inject constructor(
     }
 
     suspend fun fetchConfig(): ConfigResponse? = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Fetching config from: $CONFIG_ENDPOINT via Shadowsocks Proxy")
+        Log.d(TAG, "Fetching config from: $CONFIG_ENDPOINT")
         val request = Request.Builder()
             .url(CONFIG_ENDPOINT)
             .get()

@@ -45,6 +45,8 @@ import com.eliteprime.app.ui.components.SeriesPosterCard
 import com.eliteprime.app.ui.screens.series.SeriesViewModel
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.util.LocalRenderTier
+import com.eliteprime.app.util.RenderTier
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -66,17 +68,30 @@ fun TvSeriesScreen(
 
     BackHandler { onBack() }
 
+    val tier = LocalRenderTier.current
+    val isReducedTier = tier == RenderTier.REDUCED
+
     Box(modifier = Modifier.fillMaxSize()) {
         // --- 1. DYNAMIC THEATER BACKDROP ---
         Box(modifier = Modifier.fillMaxSize()) {
-            Crossfade(targetState = focusedSeries, animationSpec = tween(1000), label = "seriesBg") { series ->
+            if (isReducedTier) {
                 AsyncImage(
-                    model = series?.backdropUrl ?: series?.cover,
+                    model = focusedSeries?.backdropUrl ?: focusedSeries?.cover,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                     alpha = 0.45f
                 )
+            } else {
+                Crossfade(targetState = focusedSeries, animationSpec = tween(600), label = "seriesBg") { series ->
+                    AsyncImage(
+                        model = series?.backdropUrl ?: series?.cover,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.45f
+                    )
+                }
             }
             Box(
                 modifier = Modifier

@@ -56,11 +56,12 @@ class DashboardViewModel @Inject constructor(
         // Initial load from cache to show instantly
         loadTrendingFromCache()
         
-        // Background Silent Sync check (every 12 hours)
+        // Background Silent Sync check (every 12 hours) - Delayed to prevent launch frame drops
         viewModelScope.launch(Dispatchers.IO) {
+            delay(15000) // Delay by 15s to let the initial UI and animations settle
             val lastSync = preferenceRepository.getLastSyncTimestamp()
             val now = System.currentTimeMillis()
-            if (now - lastSync > 12 * 60 * 60 * 1000L) {
+            if (now - lastSync > 12 * 60 * 60 * 1000L && lastSync > 0L) {
                 Log.d("DashboardVM", "Starting background silent sync...")
                 try {
                     xtreamRepository.syncCategories()

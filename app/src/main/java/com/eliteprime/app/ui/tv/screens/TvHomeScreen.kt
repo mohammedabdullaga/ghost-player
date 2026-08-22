@@ -49,6 +49,8 @@ import com.eliteprime.app.ui.tv.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.tv.material3.Border
+import com.eliteprime.app.util.LocalRenderTier
+import com.eliteprime.app.util.RenderTier
 import kotlinx.coroutines.delay
 
 private data class TvHeroInfo(
@@ -142,17 +144,31 @@ fun TvHomeScreen(
 
     val displayHero = focusedHero ?: trendingItems.firstOrNull()?.toHeroInfo()
 
+    val tier = LocalRenderTier.current
+    val isReducedTier = tier == RenderTier.REDUCED
+
     Box(modifier = Modifier.fillMaxSize()) {
         // --- 1. DYNAMIC THEATER BACKDROP ---
         Box(modifier = Modifier.fillMaxSize()) {
-            Crossfade(targetState = displayHero, animationSpec = tween(1200), label = "heroBg") { hero ->
+            if (isReducedTier) {
+                // Instant load without Crossfade animations on low-end TV GPU
                 AsyncImage(
-                    model = hero?.backdropUrl ?: hero?.posterUrl,
+                    model = displayHero?.backdropUrl ?: displayHero?.posterUrl,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                     alpha = 0.45f
                 )
+            } else {
+                Crossfade(targetState = displayHero, animationSpec = tween(600), label = "heroBg") { hero ->
+                    AsyncImage(
+                        model = hero?.backdropUrl ?: hero?.posterUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.45f
+                    )
+                }
             }
             Box(
                 modifier = Modifier
@@ -396,9 +412,13 @@ private fun TvHomeRowContainer(
 
 @Composable
 private fun TvMiniPosterCard(item: TrendingItem<*>, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val tier = LocalRenderTier.current
+    val isReducedTier = tier == RenderTier.REDUCED
+
     TvSurfaceCard(
         onClick = onClick,
         modifier = modifier.width(125.dp).aspectRatio(2f / 3f),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = if (isReducedTier) 1.05f else 1.1f),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp))
     ) {
         AsyncImage(
@@ -412,10 +432,14 @@ private fun TvMiniPosterCard(item: TrendingItem<*>, modifier: Modifier = Modifie
 
 @Composable
 private fun TvMiniHistoryCard(history: PlaybackHistory, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val tier = LocalRenderTier.current
+    val isReducedTier = tier == RenderTier.REDUCED
     var isFocused by remember { mutableStateOf(false) }
+
     TvSurfaceCard(
         onClick = onClick,
         modifier = modifier.width(195.dp).aspectRatio(16f / 9f).onFocusChanged { isFocused = it.isFocused },
+        scale = ClickableSurfaceDefaults.scale(focusedScale = if (isReducedTier) 1.05f else 1.1f),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp))
     ) {
         Box(modifier = Modifier.fillMaxSize()) {

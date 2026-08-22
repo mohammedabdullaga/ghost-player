@@ -17,22 +17,22 @@ data class PlaybackBufferPolicy(
 
 object PlaybackBufferPolicies {
     private const val DEFAULT_TARGET_BUFFER_BYTES = -1
-    private const val MPEG_TS_LIVE_TARGET_BUFFER_BYTES = 32 * 1024 * 1024 // 32MB BASELINE FOR TS
-    private const val LARGE_LIVE_TARGET_BUFFER_BYTES = 64 * 1024 * 1024
+    private const val MPEG_TS_LIVE_TARGET_BUFFER_BYTES = 16 * 1024 * 1024 // 16MB for TS to prevent RAM pressure
+    private const val LARGE_LIVE_TARGET_BUFFER_BYTES = 32 * 1024 * 1024
 
-    private const val LIVE_MIN_BUFFER_MS = 10_000 // INCREASED
-    private const val LIVE_MAX_BUFFER_MS = 40_000 // INCREASED
-    private const val VOD_MIN_BUFFER_MS = 45_000
-    private const val VOD_MAX_BUFFER_MS = 90_000
-    private const val PLAYBACK_BUFFER_MS = 2_000
-    private const val REBUFFER_MS = 5_000
-    private const val VOD_PLAYBACK_BUFFER_MS = 5_000
-    private const val VOD_REBUFFER_MS = 12_000
+    private const val LIVE_MIN_BUFFER_MS = 6_000 // Fast startup
+    private const val LIVE_MAX_BUFFER_MS = 25_000
+    private const val VOD_MIN_BUFFER_MS = 15_000 // Fast startup on VOD
+    private const val VOD_MAX_BUFFER_MS = 45_000
+    private const val PLAYBACK_BUFFER_MS = 1_500 // Start rendering quickly
+    private const val REBUFFER_MS = 3_000
+    private const val VOD_PLAYBACK_BUFFER_MS = 2_000 // Start VOD within 2s instead of 5s
+    private const val VOD_REBUFFER_MS = 5_000
 
-    private const val LARGE_LIVE_MIN_BUFFER_MS = 25_000
-    private const val LARGE_LIVE_MAX_BUFFER_MS = 75_000
-    private const val LARGE_LIVE_PLAYBACK_BUFFER_MS = 3_000
-    private const val LARGE_LIVE_REBUFFER_MS = 10_000
+    private const val LARGE_LIVE_MIN_BUFFER_MS = 15_000
+    private const val LARGE_LIVE_MAX_BUFFER_MS = 40_000
+    private const val LARGE_LIVE_PLAYBACK_BUFFER_MS = 2_500
+    private const val LARGE_LIVE_REBUFFER_MS = 6_000
 
     private const val UHD_MIN_WIDTH = 3800
     private const val UHD_MIN_HEIGHT = 2100
@@ -56,8 +56,8 @@ object PlaybackBufferPolicies {
         val isMpegTs = resolvedStreamType == ResolvedStreamType.MPEG_TS_LIVE
         return PlaybackBufferPolicy(
             label = if (isMpegTs) "mpeg-ts-live" else "stable-live",
-            minBufferMs = if (isMpegTs) 15_000 else LIVE_MIN_BUFFER_MS,
-            maxBufferMs = if (isMpegTs) 50_000 else LIVE_MAX_BUFFER_MS,
+            minBufferMs = if (isMpegTs) 8_000 else LIVE_MIN_BUFFER_MS,
+            maxBufferMs = if (isMpegTs) 30_000 else LIVE_MAX_BUFFER_MS,
             playbackBufferMs = PLAYBACK_BUFFER_MS,
             rebufferMs = REBUFFER_MS,
             targetBufferBytes = if (isMpegTs) MPEG_TS_LIVE_TARGET_BUFFER_BYTES else DEFAULT_TARGET_BUFFER_BYTES,

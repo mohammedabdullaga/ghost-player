@@ -21,7 +21,7 @@ fun AppBackground(
     content: @Composable BoxScope.() -> Unit
 ) {
     val tier = LocalRenderTier.current
-    val effectiveBlurRadius = if (tier == RenderTier.REDUCED) 20 else 50
+    val shouldBlur = tier != RenderTier.REDUCED
 
     Box(
         modifier = modifier
@@ -29,12 +29,16 @@ fun AppBackground(
             .background(if (isTransparent) Color.Transparent else Color(0xFF070B14))
     ) {
         if (!isTransparent) {
+            val imageModifier = if (shouldBlur) {
+                Modifier.fillMaxSize().blur(50.dp)
+            } else {
+                Modifier.fillMaxSize()
+            }
+
             Image(
                 painter = painterResource(id = R.drawable.app_background),
                 contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(effectiveBlurRadius.dp),
+                modifier = imageModifier,
                 contentScale = ContentScale.Crop
             )
             
@@ -43,7 +47,7 @@ fun AppBackground(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f))
+                    .background(if (shouldBlur) Color.Black.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.82f))
             )
         }
         content()

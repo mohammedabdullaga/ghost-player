@@ -15,9 +15,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.IntSize
 import android.util.Log
+import androidx.compose.animation.core.snap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eliteprime.app.player.GlobalPlayerState
 import com.eliteprime.app.player.PlayerViewMode
+import com.eliteprime.app.util.LocalRenderTier
+import com.eliteprime.app.util.RenderTier
 
 @Composable
 fun GlobalPlayerHost(
@@ -56,10 +59,29 @@ fun GlobalPlayerHost(
     val targetTranslationY = if (isFullScreen || isHidden || previewBounds == null) 0f 
                             else previewBounds!!.top
 
-    val animScaleX by animateFloatAsState(targetScaleX, tween(250), label = "playerScaleX")
-    val animScaleY by animateFloatAsState(targetScaleY, tween(250), label = "playerScaleY")
-    val animTranslationX by animateFloatAsState(targetTranslationX, tween(250), label = "playerTransX")
-    val animTranslationY by animateFloatAsState(targetTranslationY, tween(250), label = "playerTransY")
+    val tier = LocalRenderTier.current
+    val isReducedTier = tier == RenderTier.REDUCED
+
+    val animScaleX by animateFloatAsState(
+        targetValue = targetScaleX, 
+        animationSpec = if (isReducedTier) snap() else tween(250),
+        label = "playerScaleX"
+    )
+    val animScaleY by animateFloatAsState(
+        targetValue = targetScaleY, 
+        animationSpec = if (isReducedTier) snap() else tween(250),
+        label = "playerScaleY"
+    )
+    val animTranslationX by animateFloatAsState(
+        targetValue = targetTranslationX, 
+        animationSpec = if (isReducedTier) snap() else tween(250),
+        label = "playerTransX"
+    )
+    val animTranslationY by animateFloatAsState(
+        targetValue = targetTranslationY, 
+        animationSpec = if (isReducedTier) snap() else tween(250),
+        label = "playerTransY"
+    )
 
     Box(
         modifier = modifier

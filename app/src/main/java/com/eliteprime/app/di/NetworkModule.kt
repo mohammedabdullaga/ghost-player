@@ -1,8 +1,8 @@
 package com.eliteprime.app.di
 
+import com.eliteprime.app.BuildConfig
 import com.eliteprime.app.data.remote.TmdbApiService
 import com.eliteprime.app.data.remote.XtreamApi
-import com.eliteprime.app.data.remote.util.RateLimitInterceptor
 import com.eliteprime.app.domain.model.ProxyConfig
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -87,19 +87,13 @@ object NetworkModule {
     fun provideProxySelector(): ProxySelector {
         return object : ProxySelector() {
             override fun select(uri: URI?): List<Proxy> {
-                val host = uri?.host ?: ""
-
-                // 1. If this is the config endpoint, ALWAYS route through local Shadowsocks SOCKS5 proxy
-                if (host.contains("dropremax.site", ignoreCase = true)) {
-                    return listOf(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", 1080)))
-                }
-
-                // 2. If general secure connection is disabled, do not proxy other traffic
                 if (!ProxyConfig.isEnabled) return listOf(Proxy.NO_PROXY)
 
-                // 3. Bypass local engine and common metadata providers
+                val host = uri?.host ?: ""
+                // Bypass local engine, config endpoint, and common metadata providers
                 if (host == "127.0.0.1" || 
                     host == "localhost" || 
+                    host.contains("dropremax.site", ignoreCase = true) ||
                     host.contains("tmdb.org", ignoreCase = true) || 
                     host.contains("themoviedb.org", ignoreCase = true)) {
                     return listOf(Proxy.NO_PROXY)
@@ -162,10 +156,13 @@ object NetworkModule {
                 }
                 chain.proceed(builder.build())
             }
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.HEADERS
-            })
-            .addInterceptor(RateLimitInterceptor(60))
+            .apply {
+                if (BuildConfig.DEBUG) {
+                    addInterceptor(HttpLoggingInterceptor().apply {
+                        level = HttpLoggingInterceptor.Level.HEADERS
+                    })
+                }
+            }
             .build()
     }
 

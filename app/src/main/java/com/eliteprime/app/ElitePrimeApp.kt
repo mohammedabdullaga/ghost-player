@@ -15,6 +15,7 @@ import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.remote.proxy.NetworkManager
 import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.util.DeviceRenderProfile
+import com.eliteprime.app.util.RenderTier
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -34,23 +35,26 @@ class ElitePrimeApp : Application(), SingletonImageLoader.Factory {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {
+        val tier = DeviceRenderProfile.getTier()
+        val memPercent = if (tier == RenderTier.REDUCED) 0.06 else 0.12
+
         return ImageLoader.Builder(context)
             .components {
                 add(OkHttpNetworkFetcherFactory(okHttpClient))
             }
             .memoryCache {
                 MemoryCache.Builder()
-                    .maxSizePercent(context, 0.12)
+                    .maxSizePercent(context, memPercent)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
                     .directory(context.cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(200 * 1024 * 1024L) // 200MB limit
+                    .maxSizeBytes(100 * 1024 * 1024L) // 100MB limit
                     .build()
             }
             .diskCachePolicy(CachePolicy.ENABLED)
-            .crossfade(true)
+            .crossfade(tier != RenderTier.REDUCED)
             .build()
     }
 
@@ -59,14 +63,10 @@ class ElitePrimeApp : Application(), SingletonImageLoader.Factory {
         DeviceRenderProfile.initialize(this)
         preferenceRepository.applySavedLocale()
         
-        // Start Shadowsocks daemon, then fetch config through proxy
+        // Fetch config directly, then initialize network/proxy
         appScope.launch {
+            configRepository.fetchConfig()
             networkManager.init()
-            networkManager.ensureShadowsocksStarted()
-            val updatedConfig = configRepository.fetchConfig()
-            if (updatedConfig != null) {
-                networkManager.onConfigUpdated()
-            }
         }
     }
 }
