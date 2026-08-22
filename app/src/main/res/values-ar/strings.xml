@@ -41,6 +41,14 @@
     <string name="mode_standard_desc">التجربة الكاملة مع الشاشة الرئيسية والتريند والتأثيرات الحركية.</string>
     <string name="mode_select_continue">متابعة</string>
 
+    <!-- Hub / Lite Mode Strings -->
+    <string name="hub_reload">تحديث البيانات</string>
+    <string name="hub_exit">خروج</string>
+    <string name="hub_syncing">جاري تحديث البيانات...</string>
+    <string name="hub_sync_success">تم تحديث البيانات بنجاح</string>
+    <string name="hub_sync_failed">فشل تحديث البيانات</string>
+    <string name="hub_expires_format">ينتهي في: %1$s</string>
+
     <string name="login_title">تسجيل الدخول</string>
     <string name="login_subtitle">أدخل بيانات الاعتماد الخاصة بك للبدء</string>
     <string name="login_username">اسم المستخدم</string>

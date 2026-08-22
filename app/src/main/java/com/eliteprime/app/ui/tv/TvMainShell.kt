@@ -57,9 +57,9 @@ fun TvMainShell(
     
     val isLiteMode = DeviceRenderProfile.isLiteMode()
 
-    // Screens that should have the Navbar available
+    // Screens that should have the Navbar available (In Lite Mode, NO shared navbar exists - true hub & spoke)
     val navBarRoutes = if (isLiteMode) {
-        listOf("live", "movies", "series", "search", "settings", "movie_details/{id}", "series_details/{id}")
+        emptyList()
     } else {
         listOf(
             "home", "live", "movies", "series", "search", "settings", 

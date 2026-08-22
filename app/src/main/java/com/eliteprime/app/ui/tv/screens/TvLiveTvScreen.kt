@@ -168,8 +168,6 @@ fun TvLiveTvScreen(
             viewModel.exitCategoryReorderMode()
         } else if (uiState.isChannelReorderMode) {
             viewModel.exitChannelReorderMode()
-        } else if (isLiteMode) {
-            showExitDialog = true
         } else {
             onBack()
         }

@@ -35,7 +35,16 @@ fun TvAppNavigation(
     startDestination: String = "login"
 ) {
     val isLite = DeviceRenderProfile.isLiteMode()
-    val defaultLanding = if (isLite) "live" else "home"
+    val defaultLanding = if (isLite) "hub" else "home"
+
+    val navigateFromHubToLeaf = { leafRoute: String ->
+        globalPlayerState.hide()
+        playerEngine.stop()
+        navController.navigate(leafRoute) {
+            popUpTo("hub") { inclusive = false }
+            launchSingleTop = true
+        }
+    }
 
     val stopPlayerAndNavigate = { route: String ->
         globalPlayerState.hide()
@@ -47,11 +56,11 @@ fun TvAppNavigation(
         }
     }
 
-    val navigateToHome = {
+    val navigateToHomeOrHub = {
         globalPlayerState.hide()
         playerEngine.stop()
         navController.navigate(defaultLanding) {
-            popUpTo(defaultLanding) { inclusive = true }
+            popUpTo(defaultLanding) { inclusive = false }
             launchSingleTop = true
         }
     }
@@ -63,6 +72,16 @@ fun TvAppNavigation(
                     popUpTo("login") { inclusive = true }
                 }
             })
+        }
+
+        composable("hub") {
+            TvLiteHubScreen(
+                onNavigateToLive = { navigateFromHubToLeaf("live") },
+                onNavigateToMovies = { navigateFromHubToLeaf("movies") },
+                onNavigateToSeries = { navigateFromHubToLeaf("series") },
+                onNavigateToSearch = { navigateFromHubToLeaf("search") },
+                onNavigateToSettings = { navigateFromHubToLeaf("settings") }
+            )
         }
 
         composable("home") {
@@ -98,7 +117,7 @@ fun TvAppNavigation(
 
         composable("live") {
             TvLiveTvScreen(
-                onBack = navigateToHome,
+                onBack = navigateToHomeOrHub,
                 onPlayChannel = { channel ->
                     navController.navigate("player/${channel.id}/live/${Uri.encode(channel.name)}")
                 }
@@ -107,7 +126,7 @@ fun TvAppNavigation(
 
         composable("movies") {
             TvMovieScreen(
-                onBack = navigateToHome,
+                onBack = navigateToHomeOrHub,
                 onMovieClick = { movie ->
                     navController.navigate("movie_details/${movie.id}")
                 }
@@ -116,7 +135,7 @@ fun TvAppNavigation(
 
         composable("series") {
             TvSeriesScreen(
-                onBack = navigateToHome,
+                onBack = navigateToHomeOrHub,
                 onSeriesClick = { series ->
                     navController.navigate("series_details/${series.id}")
                 }
@@ -155,7 +174,7 @@ fun TvAppNavigation(
 
         composable("search") {
             TvSearchScreen(
-                onBack = navigateToHome,
+                onBack = navigateToHomeOrHub,
                 onMovieClick = { movie -> navController.navigate("movie_details/${movie.id}") },
                 onSeriesClick = { series -> navController.navigate("series_details/${series.id}") },
                 onChannelClick = { channel -> navController.navigate("player/${channel.id}/live/${Uri.encode(channel.name)}") }
@@ -164,7 +183,7 @@ fun TvAppNavigation(
 
         composable("settings") {
             TvSettingsScreen(
-                onBack = navigateToHome,
+                onBack = navigateToHomeOrHub,
                 onLogout = {
                     navController.navigate("login") {
                         popUpTo(0) { inclusive = true }

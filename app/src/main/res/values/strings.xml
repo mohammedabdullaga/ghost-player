@@ -41,6 +41,14 @@
     <string name="mode_standard_desc">Full experience with Home dashboard, TMDB trends, animated carousels &amp; backdrop previews.</string>
     <string name="mode_select_continue">CONTINUE</string>
 
+    <!-- Hub / Lite Mode Strings -->
+    <string name="hub_reload">Reload Data</string>
+    <string name="hub_exit">Exit</string>
+    <string name="hub_syncing">Syncing catalog...</string>
+    <string name="hub_sync_success">Catalog updated successfully</string>
+    <string name="hub_sync_failed">Catalog update failed</string>
+    <string name="hub_expires_format">Expires: %1$s</string>
+
     <string name="login_title">SIGN IN</string>
     <string name="login_subtitle">Enter your credentials to start</string>
     <string name="login_username">Username</string>
