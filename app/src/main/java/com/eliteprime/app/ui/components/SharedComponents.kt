@@ -177,7 +177,7 @@ fun CategoryTab(
                 .padding(vertical = 2.dp)
                 .onFocusChanged { isFocused = it.isFocused }
                 .focusRequester(focusRequester),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.045f),
                 focusedContainerColor = Color.White,

@@ -214,8 +214,8 @@ fun TvLiveTvScreen(
                         LazyColumn(
                             state = categoryListState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = LiveSpacing.sm, vertical = LiveSpacing.sm),
-                            verticalArrangement = Arrangement.spacedBy(LiveSpacing.xs)
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             itemsIndexed(uiState.categories, key = { _, cat -> cat.id }) { index, category ->
                                 val requester = if (index == 0) firstCategoryRequester else categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
@@ -648,8 +648,10 @@ private fun TvCategoryItem(
         onClick = onClick,
         onLongClick = onLongClick,
         modifier = modifier
+            .fillMaxWidth()
             .heightIn(min = 44.dp)
             .onFocusChanged { isFocused = it.isFocused },
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(LiveRadius.row)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.045f),

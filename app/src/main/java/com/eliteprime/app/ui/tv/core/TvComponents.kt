@@ -32,13 +32,13 @@ fun TvSurfaceCard(
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     shape: ClickableSurfaceShape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
-    scale: ClickableSurfaceScale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
+    scale: ClickableSurfaceScale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
     colors: ClickableSurfaceColors = ClickableSurfaceDefaults.colors(
         containerColor = Color.White.copy(alpha = 0.05f),
         focusedContainerColor = Color.White
     ),
     border: ClickableSurfaceBorder = ClickableSurfaceDefaults.border(
-        focusedBorder = Border(BorderStroke(3.dp, Color.White))
+        focusedBorder = Border(BorderStroke(2.dp, Color.White))
     ),
     content: @Composable BoxScope.() -> Unit
 ) {

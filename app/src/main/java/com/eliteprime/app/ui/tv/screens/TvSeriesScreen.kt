@@ -101,7 +101,8 @@ fun TvSeriesScreen(
             TvGlassPane(modifier = Modifier.weight(0.30f).fillMaxHeight()) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(), 
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     itemsIndexed(uiState.categories) { index, category ->
                         val requester = if (index == 0) firstCategoryRequester else categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
@@ -164,6 +165,7 @@ private fun TvCategoryItem(
             .fillMaxWidth()
             .heightIn(min = 44.dp)
             .onFocusChanged { isFocused = it.isFocused },
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.045f),
