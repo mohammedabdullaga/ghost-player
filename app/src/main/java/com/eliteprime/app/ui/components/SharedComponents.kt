@@ -40,6 +40,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
@@ -723,6 +725,165 @@ fun ContinueWatchingCard(
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
         ) {
             content()
+        }
+    }
+}
+
+@Composable
+fun TvExitDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    TvConfirmDialog(
+        title = stringResource(R.string.exit_confirm_title),
+        message = stringResource(R.string.exit_confirm_msg),
+        confirmText = stringResource(R.string.generic_yes),
+        confirmColor = Color(0xFFEF5350),
+        icon = Icons.AutoMirrored.Filled.ExitToApp,
+        onConfirm = onConfirm,
+        onDismiss = onDismiss
+    )
+}
+
+@Composable
+fun TvConfirmDialog(
+    title: String,
+    message: String,
+    confirmText: String,
+    confirmColor: Color = AppColors.ArenaOrange,
+    icon: ImageVector,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(300)
+        try { focusRequester.requestFocus() } catch (e: Exception) {}
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.85f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                modifier = Modifier
+                    .widthIn(max = 440.dp)
+                    .padding(16.dp),
+                shape = RoundedCornerShape(28.dp),
+                color = Color(0xFF161A22),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                tonalElevation = 12.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    // Header with Icon
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(confirmColor.copy(alpha = 0.15f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                icon,
+                                contentDescription = null,
+                                tint = confirmColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Column {
+                            Text(
+                                text = title,
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                            Text(
+                                text = message,
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    // Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        var isYesFocused by remember { mutableStateOf(false) }
+                        TvSurface(
+                            onClick = onConfirm,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                                .focusRequester(focusRequester)
+                                .onFocusChanged { isYesFocused = it.isFocused },
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = confirmColor.copy(alpha = 0.2f),
+                                focusedContainerColor = Color.White
+                            ),
+                            border = ClickableSurfaceDefaults.border(
+                                focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                                border = Border(BorderStroke(1.dp, confirmColor.copy(alpha = 0.5f)))
+                            )
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = confirmText.uppercase(),
+                                    color = if (isYesFocused) Color.Black else Color.White,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+
+                        var isNoFocused by remember { mutableStateOf(false) }
+                        TvSurface(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                                .onFocusChanged { isNoFocused = it.isFocused },
+                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
+                            colors = ClickableSurfaceDefaults.colors(
+                                containerColor = Color.White.copy(alpha = 0.05f),
+                                focusedContainerColor = Color.White
+                            )
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = stringResource(android.R.string.cancel).uppercase(),
+                                    color = if (isNoFocused) Color.Black else Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

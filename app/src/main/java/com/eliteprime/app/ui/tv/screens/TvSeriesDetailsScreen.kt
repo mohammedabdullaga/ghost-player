@@ -131,7 +131,7 @@ fun TvSeriesDetailsScreen(
 
     val isLite = DeviceRenderProfile.isLiteMode()
 
-    AppBackground(isTransparent = true) {
+    AppBackground(isTransparent = !isLite) {
         if (series == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = TvColors.Primary)
@@ -155,7 +155,7 @@ fun TvSeriesDetailsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(
-                        if (isLite) Modifier.background(Color(0xFF0C0F14))
+                        if (isLite) Modifier.background(Color.Transparent)
                         else Modifier.background(
                             remember {
                                 Brush.horizontalGradient(

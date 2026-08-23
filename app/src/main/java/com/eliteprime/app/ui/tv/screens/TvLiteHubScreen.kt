@@ -35,7 +35,10 @@ import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.BuildConfig
 import com.eliteprime.app.MainActivity
 import com.eliteprime.app.R
+import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.ArenaLiveLogo
+import com.eliteprime.app.ui.components.TvConfirmDialog
+import com.eliteprime.app.ui.components.TvExitDialog
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
@@ -85,79 +88,28 @@ fun TvLiteHubScreen(
     }
 
     if (showSwitchModeDialog) {
-        AlertDialog(
-            onDismissRequest = { showSwitchModeDialog = false },
-            title = { Text(stringResource(R.string.settings_lite_mode_restart_title), fontWeight = FontWeight.Bold) },
-            text = { Text(stringResource(R.string.settings_lite_mode_restart_msg)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showSwitchModeDialog = false
-                    viewModel.setLiteMode(false)
-                    (activity as? MainActivity)?.restartApp()
-                }) {
-                    Text(
-                        text = stringResource(R.string.generic_yes).uppercase(),
-                        color = AppColors.ArenaOrange,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+        TvConfirmDialog(
+            title = stringResource(R.string.settings_lite_mode_restart_title),
+            message = stringResource(R.string.settings_lite_mode_restart_msg),
+            confirmText = stringResource(R.string.generic_yes),
+            icon = Icons.Default.Refresh,
+            onConfirm = {
+                showSwitchModeDialog = false
+                viewModel.setLiteMode(false)
+                (activity as? MainActivity)?.restartApp()
             },
-            dismissButton = {
-                TextButton(onClick = { showSwitchModeDialog = false }) {
-                    Text(
-                        text = stringResource(android.R.string.cancel),
-                        color = Color.White.copy(alpha = 0.6f)
-                    )
-                }
-            },
-            shape = RoundedCornerShape(16.dp),
-            containerColor = HubBrand.PanelDark,
-            titleContentColor = Color.White,
-            textContentColor = Color.White.copy(alpha = 0.7f)
+            onDismiss = { showSwitchModeDialog = false }
         )
     }
 
     if (showExitDialog) {
-        AlertDialog(
-            onDismissRequest = { showExitDialog = false },
-            title = { Text(stringResource(R.string.exit_confirm_title), fontWeight = FontWeight.Bold) },
-            text = { Text(stringResource(R.string.exit_confirm_msg)) },
-            confirmButton = {
-                TextButton(onClick = { activity?.finish() }) {
-                    Text(
-                        text = stringResource(R.string.generic_yes).uppercase(),
-                        color = Color(0xFFEF5350),
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showExitDialog = false }) {
-                    Text(
-                        text = stringResource(android.R.string.cancel),
-                        color = Color.White.copy(alpha = 0.6f)
-                    )
-                }
-            },
-            shape = RoundedCornerShape(16.dp),
-            containerColor = HubBrand.PanelDark,
-            titleContentColor = Color.White,
-            textContentColor = Color.White.copy(alpha = 0.7f)
+        TvExitDialog(
+            onConfirm = { activity?.finish() },
+            onDismiss = { showExitDialog = false }
         )
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(HubBrand.Background)
-    ) {
-        Image(
-            painter = painterResource(R.drawable.lite_mode_background),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
-
+    AppBackground(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -173,9 +125,9 @@ fun TvLiteHubScreen(
 
                 if (!uiState.formattedExpiryDate.isNullOrBlank()) {
                     Surface(
-                        color = HubBrand.PanelDark,
+                        color = HubBrand.PanelDark.copy(alpha = 0.8f),
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                        border = BorderStroke(1.5.dp, AppColors.ArenaOrange.copy(alpha = 0.8f))
                     ) {
                         Text(
                             text = stringResource(R.string.hub_expires_format, uiState.formattedExpiryDate!!),
@@ -343,7 +295,7 @@ private fun HubPrimaryTile(
             modifier = tvModifier,
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = tileColor,
+                containerColor = HubBrand.Background,
                 focusedContainerColor = Color.White
             ),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f),
@@ -352,24 +304,41 @@ private fun HubPrimaryTile(
                 border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)))
             )
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (isFocused) Color.Black else Color.White,
-                    modifier = Modifier.size(56.dp)
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-                Text(
-                    text = title,
-                    color = if (isFocused) Color.Black else Color.White,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 20.sp
-                )
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (!isFocused) {
+                    Image(
+                        painter = painterResource(R.drawable.lite_mode_background),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.5f
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(tileColor.copy(alpha = 0.7f))
+                    )
+                }
+
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = if (isFocused) Color.Black else Color.White,
+                        modifier = Modifier.size(56.dp)
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = title,
+                        color = if (isFocused) Color.Black else Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 20.sp
+                    )
+                }
             }
         }
     } else {
@@ -423,7 +392,7 @@ private fun HubSecondaryActionRow(
                 .onFocusChanged { isFocused = it.isFocused },
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = HubBrand.PanelDark,
+                containerColor = HubBrand.Background,
                 focusedContainerColor = AppColors.ArenaOrange
             ),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f),
@@ -432,33 +401,50 @@ private fun HubSecondaryActionRow(
                 border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)))
             )
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 22.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        color = if (isFocused) Color.Black else AppColors.ArenaOrange,
-                        strokeWidth = 2.5.dp
-                    )
-                } else {
-                    Icon(
-                        imageVector = icon,
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (!isFocused) {
+                    Image(
+                        painter = painterResource(R.drawable.lite_mode_background),
                         contentDescription = null,
-                        tint = if (isFocused) Color.Black else accentColor,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.4f
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(HubBrand.PanelDark.copy(alpha = 0.8f))
                     )
                 }
-                Text(
-                    text = title,
-                    color = if (isFocused) Color.Black else Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 22.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            color = if (isFocused) Color.Black else AppColors.ArenaOrange,
+                            strokeWidth = 2.5.dp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = if (isFocused) Color.Black else accentColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Text(
+                        text = title,
+                        color = if (isFocused) Color.Black else Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
             }
         }
     } else {

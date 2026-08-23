@@ -86,7 +86,7 @@ fun TvTrendingScreen(
 
     val isLite = DeviceRenderProfile.isLiteMode()
 
-    Box(modifier = Modifier.fillMaxSize().background(if (isLite) Color(0xFF0C0F14) else Color.Transparent)) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         // --- 1. IMMERSIVE BACKDROP ---
         if (!isLite) {
             Crossfade(targetState = focusedItem, animationSpec = tween(1000), label = "trendingBg") { item ->

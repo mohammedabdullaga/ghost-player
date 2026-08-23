@@ -42,6 +42,7 @@ import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.data.local.entity.PlaybackHistory
 import com.eliteprime.app.ui.components.AppBackground
+import com.eliteprime.app.ui.components.TvExitDialog
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
 import com.eliteprime.app.ui.screens.dashboard.TrendingItem
 import com.eliteprime.app.ui.theme.AppColors
@@ -49,6 +50,7 @@ import com.eliteprime.app.ui.tv.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.tv.material3.Border
+import com.eliteprime.app.util.DeviceRenderProfile
 import com.eliteprime.app.util.LocalRenderTier
 import com.eliteprime.app.util.RenderTier
 import kotlinx.coroutines.delay
@@ -104,24 +106,9 @@ fun TvHomeScreen(
     }
 
     if (showExitDialog) {
-        AlertDialog(
-            onDismissRequest = { showExitDialog = false },
-            title = { Text(stringResource(R.string.exit_confirm_title), fontWeight = FontWeight.Bold) },
-            text = { Text(stringResource(R.string.exit_confirm_msg)) },
-            confirmButton = {
-                TextButton(onClick = { activity?.finish() }) {
-                    Text(stringResource(R.string.generic_yes).uppercase(), color = Color(0xFFEF5350), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showExitDialog = false }) {
-                    Text(stringResource(R.string.generic_no).uppercase(), color = Color.White.copy(alpha = 0.6f))
-                }
-            },
-            shape = RoundedCornerShape(16.dp),
-            containerColor = Color(0xFF1A1C1E),
-            titleContentColor = Color.White,
-            textContentColor = Color.White.copy(alpha = 0.7f)
+        TvExitDialog(
+            onConfirm = { activity?.finish() },
+            onDismiss = { showExitDialog = false }
         )
     }
 
@@ -146,55 +133,58 @@ fun TvHomeScreen(
 
     val tier = LocalRenderTier.current
     val isReducedTier = tier == RenderTier.REDUCED
+    val isLite = DeviceRenderProfile.isLiteMode()
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // --- 1. DYNAMIC THEATER BACKDROP ---
-        Box(modifier = Modifier.fillMaxSize()) {
-            if (isReducedTier) {
-                // Instant load without Crossfade animations on low-end TV GPU
-                AsyncImage(
-                    model = displayHero?.backdropUrl ?: displayHero?.posterUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.45f
-                )
-            } else {
-                Crossfade(targetState = displayHero, animationSpec = tween(600), label = "heroBg") { hero ->
+        // --- 1. DYNAMIC THEATER BACKDROP (Disabled in Lite Mode for performance) ---
+        if (!isLite) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (isReducedTier) {
+                    // Instant load without Crossfade animations on low-end TV GPU
                     AsyncImage(
-                        model = hero?.backdropUrl ?: hero?.posterUrl,
+                        model = displayHero?.backdropUrl ?: displayHero?.posterUrl,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
                         alpha = 0.45f
                     )
+                } else {
+                    Crossfade(targetState = displayHero, animationSpec = tween(600), label = "heroBg") { hero ->
+                        AsyncImage(
+                            model = hero?.backdropUrl ?: hero?.posterUrl,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            alpha = 0.45f
+                        )
+                    }
                 }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            remember {
+                                Brush.verticalGradient(
+                                    colors = listOf(Color.Black.copy(alpha = 0.3f), Color.Transparent, Color.Black.copy(alpha = 0.7f)),
+                                    startY = 0f,
+                                    endY = Float.POSITIVE_INFINITY
+                                )
+                            }
+                        )
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            remember {
+                                Brush.horizontalGradient(
+                                    colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent),
+                                    endX = 800f
+                                )
+                            }
+                        )
+                )
             }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        remember {
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Black.copy(alpha = 0.3f), Color.Transparent, Color.Black.copy(alpha = 0.7f)),
-                                startY = 0f,
-                                endY = Float.POSITIVE_INFINITY
-                            )
-                        }
-                    )
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        remember {
-                            Brush.horizontalGradient(
-                                colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent),
-                                endX = 800f
-                            )
-                        }
-                    )
-            )
         }
 
         // --- 2. STRUCTURED LAYOUT ---

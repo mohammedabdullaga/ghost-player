@@ -120,16 +120,30 @@ class SeriesViewModel @Inject constructor(
     val uiState: StateFlow<SeriesUiState> = combine(
         categoriesFlow,
         _selectedCategoryId,
-        filteredSeriesFlow
-    ) { allCategories, selectedId, seriesList ->
+        filteredSeriesFlow,
+        seriesBox.query().build().flow()
+    ) { allCategories, selectedId, filteredSeries, allSeries ->
         
         val currentId = selectedId ?: CAT_ID_RECENTLY_ADDED
         val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull()
 
+        // Calculate counts
+        val remoteToCount = allSeries.groupBy { it.remoteCategoryId }.mapValues { it.value.size }
+        val countsMap = allCategories.associate { cat ->
+            val count = when (cat.id) {
+                CAT_ID_RECENTLY_ADDED -> allSeries.count { !it.lastModified.isNullOrBlank() }
+                CAT_ID_FAVORITES -> allSeries.count { it.isFavorite }
+                CAT_ID_CONTINUE -> 0 // Placeholder
+                else -> remoteToCount[cat.categoryId] ?: 0
+            }
+            cat.id to count
+        }
+
         SeriesUiState(
             categories = allCategories,
+            categoryCounts = countsMap,
             selectedCategory = currentSelected,
-            filteredSeries = seriesList,
+            filteredSeries = filteredSeries,
             isLoading = false
         )
     }
@@ -162,6 +176,7 @@ class SeriesViewModel @Inject constructor(
 
 data class SeriesUiState(
     val categories: List<Category> = emptyList(),
+    val categoryCounts: Map<Long, Int> = emptyMap(),
     val selectedCategory: Category? = null,
     val filteredSeries: List<Series> = emptyList(),
     val isLoading: Boolean = true

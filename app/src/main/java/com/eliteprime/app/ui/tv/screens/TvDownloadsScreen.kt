@@ -32,6 +32,7 @@ import com.eliteprime.app.domain.model.DownloadStatus
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.downloads.DownloadViewModel
 import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.util.DeviceRenderProfile
 
 @Composable
 fun TvDownloadsScreen(
@@ -40,10 +41,11 @@ fun TvDownloadsScreen(
     viewModel: DownloadViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val isLite = DeviceRenderProfile.isLiteMode()
 
     BackHandler { onBack() }
 
-    AppBackground(isTransparent = true) {
+    AppBackground(isTransparent = !isLite) {
         Column(modifier = Modifier.fillMaxSize().padding(56.dp)) {
             Text(
                 text = stringResource(R.string.downloads_title).uppercase(),

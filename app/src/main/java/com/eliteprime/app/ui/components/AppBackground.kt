@@ -21,7 +21,8 @@ fun AppBackground(
     content: @Composable BoxScope.() -> Unit
 ) {
     val tier = LocalRenderTier.current
-    val shouldBlur = tier != RenderTier.REDUCED
+    val isLite = tier == RenderTier.LITE
+    val shouldBlur = tier != RenderTier.REDUCED && !isLite
 
     Box(
         modifier = modifier
@@ -35,8 +36,10 @@ fun AppBackground(
                 Modifier.fillMaxSize()
             }
 
+            val resId = if (isLite) R.drawable.lite_mode_background else R.drawable.app_background
+
             Image(
-                painter = painterResource(id = R.drawable.app_background),
+                painter = painterResource(id = resId),
                 contentDescription = null,
                 modifier = imageModifier,
                 contentScale = ContentScale.Crop
@@ -47,7 +50,11 @@ fun AppBackground(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(if (shouldBlur) Color.Black.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.82f))
+                    .background(
+                        if (isLite) Color.Black.copy(alpha = 0.2f) // Light dimming for Lite mode
+                        else if (shouldBlur) Color.Black.copy(alpha = 0.6f) 
+                        else Color.Black.copy(alpha = 0.82f)
+                    )
             )
         }
         content()

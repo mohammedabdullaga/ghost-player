@@ -55,6 +55,7 @@ import com.eliteprime.app.data.local.entity.EPGProgram
 import com.eliteprime.app.data.local.entity.LiveStream
 import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.components.AppBackground
+import com.eliteprime.app.ui.components.TvExitDialog
 import com.eliteprime.app.ui.screens.live.LiveViewModel
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
@@ -117,24 +118,9 @@ fun TvLiveTvScreen(
     val activity = LocalContext.current as? Activity
 
     if (showExitDialog) {
-        AlertDialog(
-            onDismissRequest = { showExitDialog = false },
-            title = { Text(stringResource(R.string.exit_confirm_title), fontWeight = FontWeight.Bold) },
-            text = { Text(stringResource(R.string.exit_confirm_msg)) },
-            confirmButton = {
-                TextButton(onClick = { activity?.finish() }) {
-                    Text(stringResource(R.string.generic_yes).uppercase(), color = Color(0xFFEF5350), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showExitDialog = false }) {
-                    Text(stringResource(android.R.string.cancel), color = Color.White.copy(alpha = 0.6f))
-                }
-            },
-            shape = RoundedCornerShape(16.dp),
-            containerColor = Color(0xFF1A1C1E),
-            titleContentColor = Color.White,
-            textContentColor = Color.White.copy(alpha = 0.7f)
+        TvExitDialog(
+            onConfirm = { activity?.finish() },
+            onDismiss = { showExitDialog = false }
         )
     }
 
@@ -268,6 +254,7 @@ fun TvLiveTvScreen(
                                 } else {
                                     TvCategoryItem(
                                         category = category,
+                                        count = uiState.categoryCounts[category.id],
                                         isSelected = category.id == uiState.selectedCategory?.id,
                                         modifier = Modifier.fillMaxWidth()
                                             .focusRequester(requester)
@@ -673,6 +660,7 @@ private fun TvOverlayDialog(
 @Composable
 private fun TvCategoryItem(
     category: Category,
+    count: Int?,
     isSelected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
@@ -715,11 +703,21 @@ private fun TvCategoryItem(
                 color = if (isFocused) Color.Black else Color.White,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal,
-                maxLines = 2,
+                maxLines = 1, // Changed to 1 line to better handle counts on the side
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 16.sp,
-                modifier = Modifier.weight(1f).padding(horizontal = LiveSpacing.md, vertical = 10.dp)
+                modifier = Modifier.weight(1f).padding(start = LiveSpacing.md, end = 8.dp, top = 10.dp, bottom = 10.dp)
             )
+            if (count != null) {
+                Text(
+                    text = count.toString(),
+                    color = if (isFocused) Color.Black.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(end = 12.dp)
+                )
+            }
         }
     }
 }

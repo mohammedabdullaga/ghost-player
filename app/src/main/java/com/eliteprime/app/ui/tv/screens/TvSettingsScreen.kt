@@ -258,28 +258,18 @@ fun TvSettingsScreen(
     }
 
     if (showLogoutDialog) {
-        AlertDialog(
-            onDismissRequest = { showLogoutDialog = false },
-            title = { Text(stringResource(R.string.settings_logout_confirm_title), fontWeight = FontWeight.Bold) },
-            text = { Text(stringResource(R.string.settings_logout_confirm_msg)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showLogoutDialog = false
-                    viewModel.logout()
-                    onLogout()
-                }) {
-                    Text(stringResource(R.string.nav_logout).uppercase(), color = Color(0xFFEF5350), fontWeight = FontWeight.Bold)
-                }
+        TvConfirmDialog(
+            title = stringResource(R.string.settings_logout_confirm_title),
+            message = stringResource(R.string.settings_logout_confirm_msg),
+            confirmText = stringResource(R.string.nav_logout),
+            confirmColor = Color(0xFFEF5350),
+            icon = Icons.AutoMirrored.Filled.Logout,
+            onConfirm = {
+                showLogoutDialog = false
+                viewModel.logout()
+                onLogout()
             },
-            dismissButton = {
-                TextButton(onClick = { showLogoutDialog = false }) {
-                    Text(stringResource(android.R.string.cancel), color = Color.White.copy(alpha = 0.6f))
-                }
-            },
-            shape = RoundedCornerShape(STRadius.lg),
-            containerColor = Color(0xFF1A1C1E),
-            titleContentColor = Color.White,
-            textContentColor = Color.White.copy(alpha = 0.7f)
+            onDismiss = { showLogoutDialog = false }
         )
     }
 
@@ -497,27 +487,16 @@ private fun TvGeneralSettingsContent(
     var pendingLiteToggle by remember { mutableStateOf(false) }
 
     if (showRestartDialog) {
-        AlertDialog(
-            onDismissRequest = { showRestartDialog = false },
-            title = { Text(stringResource(R.string.settings_lite_mode_restart_title), fontWeight = FontWeight.Bold) },
-            text = { Text(stringResource(R.string.settings_lite_mode_restart_msg)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showRestartDialog = false
-                    onToggleLiteMode(pendingLiteToggle)
-                }) {
-                    Text(stringResource(R.string.generic_yes).uppercase(), color = AppColors.ArenaOrange, fontWeight = FontWeight.Bold)
-                }
+        TvConfirmDialog(
+            title = stringResource(R.string.settings_lite_mode_restart_title),
+            message = stringResource(R.string.settings_lite_mode_restart_msg),
+            confirmText = stringResource(R.string.generic_yes),
+            icon = Icons.Default.Refresh,
+            onConfirm = {
+                showRestartDialog = false
+                onToggleLiteMode(pendingLiteToggle)
             },
-            dismissButton = {
-                TextButton(onClick = { showRestartDialog = false }) {
-                    Text(stringResource(android.R.string.cancel), color = Color.White.copy(alpha = 0.6f))
-                }
-            },
-            shape = RoundedCornerShape(STRadius.lg),
-            containerColor = Color(0xFF1A1C1E),
-            titleContentColor = Color.White,
-            textContentColor = Color.White.copy(alpha = 0.7f)
+            onDismiss = { showRestartDialog = false }
         )
     }
 

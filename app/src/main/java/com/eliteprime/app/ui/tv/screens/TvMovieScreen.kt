@@ -88,7 +88,7 @@ fun TvMovieScreen(
     val isReducedTier = tier == RenderTier.REDUCED
     val isLite = DeviceRenderProfile.isLiteMode()
 
-    Box(modifier = Modifier.fillMaxSize().background(if (isLite) Color(0xFF0C0F14) else Color.Transparent)) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         // --- 1. DYNAMIC THEATER BACKDROP (Disabled in Lite Mode for instant rendering) ---
         if (!isLite) {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -143,6 +143,7 @@ fun TvMovieScreen(
                         
                         TvCategoryItem(
                             label = category.categoryName,
+                            count = uiState.categoryCounts[category.id],
                             isSelected = category.id == uiState.selectedCategory?.id,
                             modifier = Modifier.focusRequester(requester),
                             onClick = { 
@@ -188,6 +189,7 @@ fun TvMovieScreen(
 @Composable
 private fun TvCategoryItem(
     label: String,
+    count: Int?,
     isSelected: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
@@ -225,11 +227,21 @@ private fun TvCategoryItem(
                 color = if (isFocused) Color.Black else Color.White,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 16.sp,
-                modifier = Modifier.weight(1f).padding(horizontal = 14.dp, vertical = 10.dp)
+                modifier = Modifier.weight(1f).padding(start = 14.dp, end = 8.dp, top = 10.dp, bottom = 10.dp)
             )
+            if (count != null) {
+                Text(
+                    text = count.toString(),
+                    color = if (isFocused) Color.Black.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(end = 12.dp)
+                )
+            }
         }
     }
 }

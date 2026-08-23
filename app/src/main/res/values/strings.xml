@@ -37,7 +37,7 @@
     <string name="mode_select_subtitle">Select the mode that best fits your device performance</string>
     <string name="mode_lite_title">⚡ Lite Mode (Recommended for TV)</string>
     <string name="mode_lite_desc">Direct Live TV &amp; VOD. Zero input lag, instant playback, flat focus, no heavy animations.</string>
-    <string name="mode_standard_title">✨ Standard Mode</string>
+    <string name="mode_standard_title">✨ Pro Mode</string>
     <string name="mode_standard_desc">Full experience with Home dashboard, TMDB trends, animated carousels &amp; backdrop previews.</string>
     <string name="mode_select_continue">CONTINUE</string>
 
@@ -112,6 +112,7 @@
     <string name="generic_recommended">Recommended</string>
     <string name="generic_watch_now">WATCH NOW</string>
     <string name="generic_results">RESULTS</string>
+    <string name="generic_view_all">VIEW ALL</string>
 
     <!-- Home -->
     <string name="home_history_empty">Your history is empty</string>

@@ -21,6 +21,7 @@ import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.ContinueWatchingCard
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
 import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.util.DeviceRenderProfile
 
 @Composable
 fun TvHistoryGridScreen(
@@ -30,10 +31,11 @@ fun TvHistoryGridScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isLite = DeviceRenderProfile.isLiteMode()
 
     BackHandler { onBack() }
 
-    AppBackground(isTransparent = true) {
+    AppBackground(isTransparent = !isLite) {
         Column(modifier = Modifier.fillMaxSize().padding(56.dp)) {
             Text(
                 text = stringResource(R.string.history_title),

@@ -158,8 +158,9 @@ class LiveViewModel @Inject constructor(
         categoriesFlow,
         _selectedCategoryId,
         filteredChannelsFlow,
-        combine(_isReorderMode, _reorderCategories, _isChannelReorderMode, _reorderChannels) { a, b, c, d -> Quad(a, b, c, d) }
-    ) { allCategories, selectedId, channels, quad ->
+        combine(_isReorderMode, _reorderCategories, _isChannelReorderMode, _reorderChannels) { a, b, c, d -> Quad(a, b, c, d) },
+        liveBox.query().build().flow()
+    ) { allCategories, selectedId, channels, quad, allStreams ->
         val (reorderMode, reorderList, channelReorderMode, channelReorderList) = quad
         
         val categories = if (reorderMode) reorderList else allCategories
@@ -170,8 +171,24 @@ class LiveViewModel @Inject constructor(
             
         val currentSelected = categories.find { it.id == currentId } ?: categories.firstOrNull()
 
+        // Calculate counts
+        val remoteToCount = allStreams.groupBy { it.remoteCategoryId }.mapValues { it.value.size }
+        val countsMap = allCategories.associate { cat ->
+            val count = when {
+                cat.id == CAT_ID_FAVORITES -> allStreams.count { it.isFavorite }
+                cat.id == CAT_ID_RECENT -> allStreams.count { it.lastWatchedAt > 0 }
+                cat.id >= 1000000 -> {
+                    val realGroupId = cat.id - 1000000
+                    groupMembershipBox.query().equal(GroupMembership_.groupId, realGroupId).build().count().toInt()
+                }
+                else -> remoteToCount[cat.categoryId] ?: 0
+            }
+            cat.id to count
+        }
+
         LiveUiState(
             categories = categories,
+            categoryCounts = countsMap,
             selectedCategory = currentSelected,
             filteredChannels = if (channelReorderMode) channelReorderList else (if (reorderMode) emptyList() else channels),
             isLoading = false,
@@ -430,6 +447,7 @@ class LiveViewModel @Inject constructor(
 
 data class LiveUiState(
     val categories: List<Category> = emptyList(),
+    val categoryCounts: Map<Long, Int> = emptyMap(),
     val selectedCategory: Category? = null,
     val filteredChannels: List<LiveStream> = emptyList(),
     val isLoading: Boolean = true,
