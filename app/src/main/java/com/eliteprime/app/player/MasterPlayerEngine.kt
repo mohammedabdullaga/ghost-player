@@ -85,36 +85,63 @@ class MasterPlayerEngine @Inject constructor(
     private var lastStreamInfo: StreamInfo? = null
 
     init {
-        // Observe preference changes to switch engines at runtime
+        // Observe preference changes to switch engines at runtime for LIVE content
         preferenceRepository.playerEngineMode
             .onEach { mode ->
-                val type = if (mode == "VLC") PlayerType.VLC else PlayerType.EXO
-                val newEngine = if (type == PlayerType.VLC) vlcEngine else media3Engine
+                // ONLY switch if we are currently playing/preparing LIVE content
+                // OR if we are idle (to set the default for the next Live playback)
+                val currentInfo = lastStreamInfo
+                val isCurrentlyLive = currentInfo?.isLive ?: true // Default to true so idle state sets Live engine
                 
-                if (_activePlayer.value != newEngine) {
-                    Log.i(TAG, "Switching Player Engine to: $type")
-                    val oldEngine = _activePlayer.value
+                if (isCurrentlyLive) {
+                    val type = if (mode == "VLC") PlayerType.VLC else PlayerType.EXO
+                    val newEngine = if (type == PlayerType.VLC) vlcEngine else media3Engine
                     
-                    // Stop old engine and release its surface before switching.
-                    oldEngine.stop()
-                    oldEngine.clearRenderBinding()
-                    
-                    _activePlayer.value = newEngine
-                    
-                    // If we were playing something, resume it on the new engine.
-                    // The new engine will prepare once its surface is ready.
-                    lastStreamInfo?.let { info ->
-                        Log.d(TAG, "Restoring playback on new engine: ${info.url}")
-                        newEngine.prepare(info)
+                    if (_activePlayer.value != newEngine) {
+                        Log.i(TAG, "Switching Live Player Engine to: $type")
+                        switchEngine(newEngine)
                     }
                 }
             }
             .launchIn(scope)
     }
 
+    private fun switchEngine(newEngine: PlayerEngine) {
+        val oldEngine = _activePlayer.value
+        if (oldEngine == newEngine) return
+
+        // Stop old engine and release its surface before switching.
+        oldEngine.stop()
+        oldEngine.clearRenderBinding()
+        
+        _activePlayer.value = newEngine
+        
+        // If we were playing something, resume it on the new engine.
+        // The new engine will prepare once its surface is ready.
+        lastStreamInfo?.let { info ->
+            Log.d(TAG, "Restoring playback on new engine: ${info.url}")
+            newEngine.prepare(info)
+        }
+    }
+
     override fun prepare(streamInfo: StreamInfo) {
         lastStreamInfo = streamInfo
-        _activePlayer.value.prepare(streamInfo)
+        
+        val targetEngine = if (!streamInfo.isLive) {
+            // VOD ALWAYS uses VLC
+            vlcEngine
+        } else {
+            // Live uses the preference
+            val mode = preferenceRepository.playerEngineMode.value
+            if (mode == "VLC") vlcEngine else media3Engine
+        }
+
+        if (_activePlayer.value != targetEngine) {
+            Log.i(TAG, "Content-based engine switch: isLive=${streamInfo.isLive} -> ${if (targetEngine == vlcEngine) "VLC" else "EXO"}")
+            switchEngine(targetEngine)
+        } else {
+            _activePlayer.value.prepare(streamInfo)
+        }
     }
 
     override fun play() = _activePlayer.value.play()

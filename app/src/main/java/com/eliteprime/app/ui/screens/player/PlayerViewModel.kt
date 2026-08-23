@@ -341,7 +341,7 @@ class PlayerViewModel @Inject constructor(
                     )
                 )
 
-                playerEngine.prepare(StreamInfo(episode.id, episode.title, url, StreamType.PROGRESSIVE))
+                playerEngine.prepare(StreamInfo(episode.id, episode.title, url, StreamType.PROGRESSIVE, isLive = false))
                 playerEngine.play()
                 
                 updateEpisodeNavigation(episode)
@@ -361,7 +361,7 @@ class PlayerViewModel @Inject constructor(
                     streamId = channel.id
                 )
                 
-                playerEngine.prepare(StreamInfo(channel.id, channel.name, url, StreamType.MPEG_TS))
+                playerEngine.prepare(StreamInfo(channel.id, channel.name, url, StreamType.MPEG_TS, isLive = true))
                 playerEngine.play()
                 
                 updateLiveNavigation(channel)
@@ -450,7 +450,8 @@ class PlayerViewModel @Inject constructor(
                         streamId = targetStreamId, 
                         name = targetTitle, 
                         url = url, 
-                        streamType = if (type == "live") StreamType.MPEG_TS else StreamType.fromContainerExtension(extension)
+                        streamType = if (type == "live") StreamType.MPEG_TS else StreamType.fromContainerExtension(extension),
+                        isLive = (type == "live")
                     ))
                     
                     if (resumeAt != null) {

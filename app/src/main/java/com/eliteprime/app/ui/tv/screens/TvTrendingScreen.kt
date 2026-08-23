@@ -25,6 +25,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -34,6 +35,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.ClickableSurfaceDefaults
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Precision
+import coil3.size.Size
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
@@ -41,6 +45,7 @@ import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
 import com.eliteprime.app.ui.screens.dashboard.TrendingItem
 import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.util.DeviceRenderProfile
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -79,29 +84,33 @@ fun TvTrendingScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    val isLite = DeviceRenderProfile.isLiteMode()
+
+    Box(modifier = Modifier.fillMaxSize().background(if (isLite) Color(0xFF0C0F14) else Color.Transparent)) {
         // --- 1. IMMERSIVE BACKDROP ---
-        Crossfade(targetState = focusedItem, animationSpec = tween(1000), label = "trendingBg") { item ->
-            Box(modifier = Modifier.fillMaxSize()) {
-                AsyncImage(
-                    model = item?.backdropUrl ?: item?.posterUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.45f
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            remember {
-                                Brush.verticalGradient(
-                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
-                                    startY = 300f
-                                )
-                            }
-                        )
-                )
+        if (!isLite) {
+            Crossfade(targetState = focusedItem, animationSpec = tween(1000), label = "trendingBg") { item ->
+                Box(modifier = Modifier.fillMaxSize()) {
+                    AsyncImage(
+                        model = item?.backdropUrl ?: item?.posterUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.45f
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                remember {
+                                    Brush.verticalGradient(
+                                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
+                                        startY = 300f
+                                    )
+                                }
+                            )
+                    )
+                }
             }
         }
 
@@ -235,7 +244,11 @@ private fun TvTrendingPosterCard(
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp))
         ) {
             AsyncImage(
-                model = item.posterUrl ?: item.backdropUrl,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(item.posterUrl ?: item.backdropUrl)
+                    .size(Size(400, 600)) // ~134dp * 3
+                    .precision(Precision.INEXACT)
+                    .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()

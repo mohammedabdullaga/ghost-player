@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,6 +41,9 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Precision
+import coil3.size.Size
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Episode
 import com.eliteprime.app.data.local.entity.Series
@@ -47,6 +51,7 @@ import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.details.SeriesDetailsViewModel
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.util.DeviceRenderProfile
 import com.eliteprime.app.util.formatPositionMs
 import kotlinx.coroutines.delay
 
@@ -124,6 +129,8 @@ fun TvSeriesDetailsScreen(
         }
     }
 
+    val isLite = DeviceRenderProfile.isLiteMode()
+
     AppBackground(isTransparent = true) {
         if (series == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -133,24 +140,30 @@ fun TvSeriesDetailsScreen(
             val s = series!!
             val cleanedSeriesName = remember(s.name) { cleanSeriesTitle(s.name) }
 
-            AsyncImage(
-                model = s.backdropUrl ?: s.cover,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                alpha = 0.45f
-            )
+            // Backdrop (Disabled in Lite Mode for instant rendering)
+            if (!isLite) {
+                AsyncImage(
+                    model = s.backdropUrl ?: s.cover,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    alpha = 0.45f
+                )
+            }
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        remember {
-                            Brush.horizontalGradient(
-                                colors = listOf(Color.Black, Color.Black.copy(alpha = 0.8f), Color.Transparent),
-                                endX = 1400f
-                            )
-                        }
+                    .then(
+                        if (isLite) Modifier.background(Color(0xFF0C0F14))
+                        else Modifier.background(
+                            remember {
+                                Brush.horizontalGradient(
+                                    colors = listOf(Color.Black, Color.Black.copy(alpha = 0.8f), Color.Transparent),
+                                    endX = 1400f
+                                )
+                            }
+                        )
                     )
             )
 
@@ -494,7 +507,16 @@ private fun TvEpisodeRowSeriesEnlarged(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(modifier = Modifier.size(110.dp, 64.dp).clip(RoundedCornerShape(8.dp)).background(Color.Black)) {
-                AsyncImage(model = episode.coverUrl, contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(episode.coverUrl)
+                        .size(Size(330, 192)) // ~110dp * 3
+                        .precision(Precision.INEXACT)
+                        .build(),
+                    contentDescription = null, 
+                    modifier = Modifier.fillMaxSize(), 
+                    contentScale = ContentScale.Crop
+                )
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.2f)))
                 Surface(
                     color = Color.Black.copy(alpha = 0.55f),

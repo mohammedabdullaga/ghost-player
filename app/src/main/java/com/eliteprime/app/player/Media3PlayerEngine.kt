@@ -335,7 +335,8 @@ class Media3PlayerEngine @Inject constructor(
         val plan = buildPlaybackPreparationPlan(streamInfo) { _playbackState.value == PlaybackState.READY }
         activeStreamType = plan.resolvedStreamType
         
-        val bufferPolicy = PlaybackBufferPolicies.forPlayback(activeStreamType, _videoFormat.value, streamInfo)
+        val isLite = preferenceRepository.isLiteModeEnabled.value
+        val bufferPolicy = PlaybackBufferPolicies.forPlayback(activeStreamType, _videoFormat.value, streamInfo, isLite)
         if (exoPlayer == null || currentBufferPolicy?.label != bufferPolicy.label) {
             initializePlayer(bufferPolicy)
         }
@@ -671,7 +672,8 @@ class Media3PlayerEngine @Inject constructor(
 
     private fun promoteBufferIfNeeded(observed: VideoFormat) {
         val info = activeStreamInfo ?: return
-        val next = PlaybackBufferPolicies.forPlayback(activeStreamType, observed, info)
+        val isLite = preferenceRepository.isLiteModeEnabled.value
+        val next = PlaybackBufferPolicies.forPlayback(activeStreamType, observed, info, isLite)
         if (currentBufferPolicy?.label != next.label) {
             Log.i(TAG, "PROMOTING: ${currentBufferPolicy?.label} -> ${next.label} (${next.qualityReason})")
             val pos = exoPlayer?.currentPosition ?: 0L

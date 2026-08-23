@@ -1,5 +1,6 @@
 package com.eliteprime.app.ui.components
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,7 +45,10 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import coil3.request.CachePolicy
+import coil3.request.bitmapConfig
+import coil3.request.crossfade
+import coil3.size.Precision
+import coil3.size.Size
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.LiveStream
@@ -441,8 +445,19 @@ private fun VodPosterCardContent(
                 .aspectRatio(2f / 3f)
                 .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
         ) {
+            val isLite = DeviceRenderProfile.isLiteMode()
             AsyncImage(
-                model = posterUrl,
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(posterUrl)
+                    .crossfade(!isLite)
+                    .size(Size(300, 450)) // Optimize: Limit resolution for thumbnails to save RAM and Data
+                    .precision(Precision.INEXACT)
+                    .apply {
+                        if (isLite) {
+                            bitmapConfig(Bitmap.Config.RGB_565) // Save 50% memory per bitmap
+                        }
+                    }
+                    .build(),
                 contentDescription = name,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop

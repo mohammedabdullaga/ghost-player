@@ -4,21 +4,26 @@ import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -34,6 +39,18 @@ import com.eliteprime.app.ui.components.ArenaLiveLogo
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
+
+// One unified tile color for all four primary tiles, deliberately
+// desaturated — a saturated hue repeated across four large TV-sized
+// blocks is tiring on the eyes over a long viewing session. A calm,
+// slightly blue-leaning slate reads comfortably at a distance and
+// doesn't compete with the app's orange accent used for focus states
+// elsewhere.
+private object HubBrand {
+    val Tile = Color(0xFF25344A)
+    val PanelDark = Color(0xFF161A22)
+    val Background = Color(0xFF0C0F14)
+}
 
 @Composable
 fun TvLiteHubScreen(
@@ -75,7 +92,7 @@ fun TvLiteHubScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showSwitchModeDialog = false
-                    viewModel.setLiteMode(false) // Switch to Standard Mode
+                    viewModel.setLiteMode(false)
                     (activity as? MainActivity)?.restartApp()
                 }) {
                     Text(
@@ -94,7 +111,7 @@ fun TvLiteHubScreen(
                 }
             },
             shape = RoundedCornerShape(16.dp),
-            containerColor = Color(0xFF161A22),
+            containerColor = HubBrand.PanelDark,
             titleContentColor = Color.White,
             textContentColor = Color.White.copy(alpha = 0.7f)
         )
@@ -123,141 +140,134 @@ fun TvLiteHubScreen(
                 }
             },
             shape = RoundedCornerShape(16.dp),
-            containerColor = Color(0xFF161A22),
+            containerColor = HubBrand.PanelDark,
             titleContentColor = Color.White,
             textContentColor = Color.White.copy(alpha = 0.7f)
         )
     }
 
-    // Flat solid background color (Zero blur, zero gradients, zero images for pure performance)
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0C0F14))
-            .padding(horizontal = 48.dp, vertical = 32.dp)
+            .background(HubBrand.Background)
     ) {
-        // Top Bar: Brand Logo + Account Expiry Info
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopStart),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ArenaLiveLogo(textSize = 22.sp)
+        Image(
+            painter = painterResource(R.drawable.lite_mode_background),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
 
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 56.dp, vertical = 36.dp)
+        ) {
+            // Top Bar
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                ArenaLiveLogo(textSize = 26.sp)
+
                 if (!uiState.formattedExpiryDate.isNullOrBlank()) {
                     Surface(
-                        color = Color(0xFF161A22),
+                        color = HubBrand.PanelDark,
                         shape = RoundedCornerShape(8.dp),
                         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
                     ) {
                         Text(
                             text = stringResource(R.string.hub_expires_format, uiState.formattedExpiryDate!!),
                             color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                         )
                     }
                 }
             }
-        }
 
-        // Center Content Area: Main 4 Primary Tiles (Left/Center) + Secondary Action Rows (Right)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.Center)
-                .padding(top = 24.dp, bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(32.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // ── Primary 2x2 Square Destination Tiles ──────────────────
-            Column(
-                modifier = Modifier.weight(0.68f),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
-                    HubPrimaryTile(
-                        title = stringResource(R.string.nav_live_tv),
-                        icon = Icons.Default.LiveTv,
-                        tileColor = Color(0xFF1E293B), // Flat Slate Blue
-                        focusRequester = firstTileRequester,
-                        isTv = isTv,
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToLive
-                    )
-
-                    HubPrimaryTile(
-                        title = stringResource(R.string.nav_movies),
-                        icon = Icons.Default.Movie,
-                        tileColor = Color(0xFF1E293B),
-                        focusRequester = null,
-                        isTv = isTv,
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToMovies
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
-                    HubPrimaryTile(
-                        title = stringResource(R.string.nav_series),
-                        icon = Icons.Default.VideoLibrary,
-                        tileColor = Color(0xFF1E293B),
-                        focusRequester = null,
-                        isTv = isTv,
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToSeries
-                    )
-
-                    HubPrimaryTile(
-                        title = stringResource(R.string.nav_search),
-                        icon = Icons.Default.Search,
-                        tileColor = Color(0xFF1E293B),
-                        focusRequester = null,
-                        isTv = isTv,
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToSearch
-                    )
-                }
-            }
-
-            // ── Secondary Action Rows Column ──────────────────────────
-            Column(
+            // Main content — now takes up the full available height
+            // between the top and bottom bars, tiles sized generously
+            // instead of a small centered cluster.
+            Row(
                 modifier = Modifier
-                    .weight(0.32f)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.Center
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(vertical = 32.dp),
+                horizontalArrangement = Arrangement.spacedBy(36.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.weight(0.7f).fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(28.dp)
                 ) {
-                    // Settings Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(28.dp)
+                    ) {
+                        HubPrimaryTile(
+                            title = stringResource(R.string.nav_live_tv),
+                            icon = Icons.Default.LiveTv,
+                            tileColor = HubBrand.Tile,
+                            focusRequester = firstTileRequester,
+                            isTv = isTv,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            onClick = onNavigateToLive
+                        )
+                        HubPrimaryTile(
+                            title = stringResource(R.string.nav_movies),
+                            icon = Icons.Default.Movie,
+                            tileColor = HubBrand.Tile,
+                            focusRequester = null,
+                            isTv = isTv,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            onClick = onNavigateToMovies
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(28.dp)
+                    ) {
+                        HubPrimaryTile(
+                            title = stringResource(R.string.nav_series),
+                            icon = Icons.Default.VideoLibrary,
+                            tileColor = HubBrand.Tile,
+                            focusRequester = null,
+                            isTv = isTv,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            onClick = onNavigateToSeries
+                        )
+                        HubPrimaryTile(
+                            title = stringResource(R.string.nav_search),
+                            icon = Icons.Default.Search,
+                            tileColor = HubBrand.Tile,
+                            focusRequester = null,
+                            isTv = isTv,
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            onClick = onNavigateToSearch
+                        )
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.weight(0.3f).fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(18.dp)
+                ) {
                     HubSecondaryActionRow(
                         title = stringResource(R.string.nav_settings),
                         icon = Icons.Default.Settings,
                         isTv = isTv,
+                        modifier = Modifier.weight(1f),
                         onClick = onNavigateToSettings
                     )
-
-                    // Reload / Sync Catalog Row
                     HubSecondaryActionRow(
                         title = if (uiState.isSyncing) stringResource(R.string.hub_syncing) else stringResource(R.string.hub_reload),
                         icon = Icons.Default.Refresh,
                         isLoading = uiState.isSyncing,
                         isTv = isTv,
+                        modifier = Modifier.weight(1f),
                         onClick = {
                             if (!uiState.isSyncing) {
                                 viewModel.reloadData { success ->
@@ -270,47 +280,47 @@ fun TvLiteHubScreen(
                             }
                         }
                     )
-
-                    // Switch Mode Row (Instead of Exit)
                     HubSecondaryActionRow(
                         title = stringResource(R.string.mode_standard_title),
                         icon = Icons.Default.Dashboard,
                         isTv = isTv,
+                        modifier = Modifier.weight(1f),
                         onClick = { showSwitchModeDialog = true }
+                    )
+                    HubSecondaryActionRow(
+                        title = stringResource(R.string.hub_exit),
+                        icon = Icons.AutoMirrored.Filled.ExitToApp,
+                        isTv = isTv,
+                        accentColor = Color(0xFFEF5350),
+                        modifier = Modifier.weight(1f),
+                        onClick = { showExitDialog = true }
                     )
                 }
             }
-        }
 
-        // Bottom Bar: App Version Info
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomStart),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "v${BuildConfig.VERSION_NAME}",
-                color = Color.White.copy(alpha = 0.35f),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Normal
-            )
-
-            Text(
-                text = "⚡ Lite Mode",
-                color = AppColors.ArenaOrange.copy(alpha = 0.75f),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
-            )
+            // Bottom Bar
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "v${BuildConfig.VERSION_NAME}",
+                    color = Color.White.copy(alpha = 0.35f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Normal
+                )
+                Text(
+                    text = "⚡ Lite Mode",
+                    color = AppColors.ArenaOrange.copy(alpha = 0.75f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
 
-/**
- * Primary Large Flat Square Tile for Lite Mode Hub.
- * Icon + Label only. Zero shadows, zero gradients, zero glow.
- */
 @Composable
 private fun HubPrimaryTile(
     title: String,
@@ -325,21 +335,20 @@ private fun HubPrimaryTile(
 
     if (isTv) {
         val tvModifier = modifier
-            .height(130.dp)
             .onFocusChanged { isFocused = it.isFocused }
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
 
         TvSurface(
             onClick = onClick,
             modifier = tvModifier,
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(20.dp)),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = tileColor,
-                focusedContainerColor = AppColors.ArenaOrange
+                focusedContainerColor = Color.White
             ),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f),
             border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(3.dp, Color.White)),
+                focusedBorder = Border(BorderStroke(4.dp, Color.White)),
                 border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)))
             )
         ) {
@@ -352,22 +361,22 @@ private fun HubPrimaryTile(
                     imageVector = icon,
                     contentDescription = null,
                     tint = if (isFocused) Color.Black else Color.White,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(56.dp)
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Text(
                     text = title,
                     color = if (isFocused) Color.Black else Color.White,
                     fontWeight = FontWeight.Black,
-                    fontSize = 16.sp
+                    fontSize = 20.sp
                 )
             }
         }
     } else {
         Surface(
             onClick = onClick,
-            modifier = modifier.height(130.dp),
-            shape = RoundedCornerShape(16.dp),
+            modifier = modifier,
+            shape = RoundedCornerShape(20.dp),
             color = tileColor,
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
         ) {
@@ -380,29 +389,27 @@ private fun HubPrimaryTile(
                     imageVector = icon,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(56.dp)
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 Text(
                     text = title,
                     color = Color.White,
                     fontWeight = FontWeight.Black,
-                    fontSize = 16.sp
+                    fontSize = 20.sp
                 )
             }
         }
     }
 }
 
-/**
- * Secondary Action Row for Settings, Reload, Exit.
- */
 @Composable
 private fun HubSecondaryActionRow(
     title: String,
     icon: ImageVector,
     isTv: Boolean,
     isLoading: Boolean = false,
+    accentColor: Color = Color.White,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -413,11 +420,10 @@ private fun HubSecondaryActionRow(
             onClick = onClick,
             modifier = modifier
                 .fillMaxWidth()
-                .height(58.dp)
                 .onFocusChanged { isFocused = it.isFocused },
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = Color(0xFF161A22),
+                containerColor = HubBrand.PanelDark,
                 focusedContainerColor = AppColors.ArenaOrange
             ),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f),
@@ -429,7 +435,7 @@ private fun HubSecondaryActionRow(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = 22.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -443,33 +449,30 @@ private fun HubSecondaryActionRow(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = if (isFocused) Color.Black else Color.White,
+                        tint = if (isFocused) Color.Black else accentColor,
                         modifier = Modifier.size(24.dp)
                     )
                 }
-
                 Text(
                     text = title,
                     color = if (isFocused) Color.Black else Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    fontSize = 16.sp
                 )
             }
         }
     } else {
         Surface(
             onClick = onClick,
-            modifier = modifier
-                .fillMaxWidth()
-                .height(58.dp),
-            shape = RoundedCornerShape(12.dp),
-            color = Color(0xFF161A22),
+            modifier = modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(14.dp),
+            color = HubBrand.PanelDark,
             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = 22.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -483,16 +486,15 @@ private fun HubSecondaryActionRow(
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = accentColor,
                         modifier = Modifier.size(24.dp)
                     )
                 }
-
                 Text(
                     text = title,
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    fontSize = 16.sp
                 )
             }
         }

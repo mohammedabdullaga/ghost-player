@@ -7,7 +7,8 @@ data class StreamInfo(
     val streamType: StreamType = StreamType.UNKNOWN,
     val title: String? = null,
     val userAgent: String? = null,
-    val headers: Map<String, String> = emptyMap()
+    val headers: Map<String, String> = emptyMap(),
+    val isLive: Boolean = false
 )
 
 enum class StreamType {

@@ -46,6 +46,9 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Precision
+import coil3.size.Size
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.EPGProgram
@@ -186,15 +189,12 @@ fun TvLiveTvScreen(
         }
     }
 
-    val isLite = DeviceRenderProfile.isLiteMode()
-
-    AppBackground(isTransparent = !isLite) {
-        Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-            TvGlassPane(
-                modifier = Modifier.fillMaxSize(),
-                backgroundColor = if (isLite) Color(0xFF10141D) else TvColors.GlassBase,
-                shape = RoundedCornerShape(LiveRadius.pane)
-            ) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent).padding(16.dp)) {
+        TvGlassPane(
+            modifier = Modifier.fillMaxSize(),
+            backgroundColor = TvColors.GlassBase,
+            shape = RoundedCornerShape(LiveRadius.pane)
+        ) {
                 Row(modifier = Modifier.fillMaxSize()) {
                     // --- 1. CATEGORIES (tonal rail) ---
                     Column(
@@ -390,23 +390,17 @@ fun TvLiveTvScreen(
                                     viewModel.globalPlayerState.enterPreview(viewModel.playerEngine)
                                 }
 
-                                val bgModifier = if (isLite) {
-                                    Modifier.background(Color.Black.copy(alpha = 0.8f))
-                                } else {
-                                    Modifier.background(
-                                        remember {
-                                            Brush.verticalGradient(
-                                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
-                                            )
-                                        }
-                                    )
-                                }
-
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .align(Alignment.BottomStart)
-                                        .then(bgModifier)
+                                        .background(
+                                            remember {
+                                                Brush.verticalGradient(
+                                                    colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                                                )
+                                            }
+                                        )
                                         .padding(horizontal = LiveSpacing.md, vertical = LiveSpacing.sm)
                                 ) {
                                     Column {
@@ -452,7 +446,6 @@ fun TvLiveTvScreen(
                     }
                 }
             }
-        }
 
         // --- DIALOGS ---
 
@@ -767,7 +760,15 @@ private fun TvChannelItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(modifier = Modifier.size(40.dp).clip(RoundedCornerShape(LiveRadius.chip)).background(Color.White.copy(alpha = 0.07f)), contentAlignment = Alignment.Center) {
-                AsyncImage(model = channel.streamIcon, contentDescription = null, modifier = Modifier.fillMaxSize().padding(5.dp))
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(channel.streamIcon)
+                        .size(Size(120, 120))
+                        .precision(Precision.INEXACT)
+                        .build(),
+                    contentDescription = null, 
+                    modifier = Modifier.fillMaxSize().padding(5.dp)
+                )
             }
             Spacer(modifier = Modifier.width(LiveSpacing.md))
             Text(

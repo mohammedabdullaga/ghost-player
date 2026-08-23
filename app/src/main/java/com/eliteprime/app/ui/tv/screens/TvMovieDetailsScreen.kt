@@ -36,6 +36,7 @@ import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.screens.details.MovieDetailViewModel
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.util.DeviceRenderProfile
 import com.eliteprime.app.util.formatPositionMs
 import androidx.tv.material3.Border
 import androidx.compose.foundation.BorderStroke
@@ -61,6 +62,8 @@ fun TvMovieDetailsScreen(
         }
     }
 
+    val isLite = DeviceRenderProfile.isLiteMode()
+
     AppBackground(isTransparent = true) {
         if (movie == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -69,25 +72,30 @@ fun TvMovieDetailsScreen(
         } else {
             val m = movie!!
             
-            // Backdrop
-            AsyncImage(
-                model = m.backdropUrl ?: m.streamIcon,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                alpha = 0.45f
-            )
+            // Backdrop (Disabled in Lite Mode for instant rendering)
+            if (!isLite) {
+                AsyncImage(
+                    model = m.backdropUrl ?: m.streamIcon,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    alpha = 0.45f
+                )
+            }
             
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        remember {
-                            Brush.horizontalGradient(
-                                colors = listOf(Color.Black, Color.Black.copy(alpha = 0.8f), Color.Transparent),
-                                endX = 1400f
-                            )
-                        }
+                    .then(
+                        if (isLite) Modifier.background(Color(0xFF0C0F14))
+                        else Modifier.background(
+                            remember {
+                                Brush.horizontalGradient(
+                                    colors = listOf(Color.Black, Color.Black.copy(alpha = 0.8f), Color.Transparent),
+                                    endX = 1400f
+                                )
+                            }
+                        )
                     )
             )
 

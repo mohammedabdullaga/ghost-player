@@ -251,7 +251,7 @@ class LiveViewModel @Inject constructor(
                     kind = "live",
                     streamId = channel.id
                 )
-                playerEngine.prepare(StreamInfo(channel.id, channel.name, url, StreamType.MPEG_TS))
+                playerEngine.prepare(StreamInfo(channel.id, channel.name, url, StreamType.MPEG_TS, isLive = true))
                 playerEngine.play()
             }
         }
