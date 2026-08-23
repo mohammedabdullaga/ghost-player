@@ -74,7 +74,11 @@
 -keep interface org.videolan.libvlc.** { *; }
 -dontwarn org.videolan.libvlc.**
 
-# 7. General Hardening
+# 7. Player Engine Protection
+-keep class com.eliteprime.app.player.** { *; }
+-keep interface com.eliteprime.app.player.** { *; }
+
+# 8. General Hardening
 # Remove log statements from the production build
 -assumenosideeffects class android.util.Log {
     public static *** d(...);

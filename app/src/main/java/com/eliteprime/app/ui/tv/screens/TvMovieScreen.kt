@@ -25,10 +25,12 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -156,6 +158,7 @@ fun TvMovieScreen(
             }
 
             // --- PANE 2: CONTENT GRID (70%) ---
+            val layoutDirection = LocalLayoutDirection.current
             TvGlassPane(modifier = Modifier.weight(0.70f).fillMaxHeight()) {
                 LazyVerticalGrid(
                     state = gridState,
@@ -175,7 +178,13 @@ fun TvMovieScreen(
                                 .focusRequester(requester)
                                 .onFocusChanged { if (it.isFocused) focusedMovie = movie }
                                 .focusProperties { 
-                                    if (isLastInRow) right = FocusRequester.Cancel
+                                    if (isLastInRow) {
+                                        if (layoutDirection == LayoutDirection.Ltr) {
+                                            right = FocusRequester.Cancel
+                                        } else {
+                                            left = FocusRequester.Cancel
+                                        }
+                                    }
                                 },
                             onClick = { onMovieClick(movie) }
                         )

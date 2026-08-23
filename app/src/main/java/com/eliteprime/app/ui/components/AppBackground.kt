@@ -10,6 +10,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Size
 import com.eliteprime.app.R
 import com.eliteprime.app.util.LocalRenderTier
 import com.eliteprime.app.util.RenderTier
@@ -31,15 +35,18 @@ fun AppBackground(
     ) {
         if (!isTransparent) {
             val imageModifier = if (shouldBlur) {
-                Modifier.fillMaxSize().blur(50.dp)
+                Modifier.fillMaxSize().blur(20.dp)
             } else {
                 Modifier.fillMaxSize()
             }
 
             val resId = if (isLite) R.drawable.lite_mode_background else R.drawable.app_background
 
-            Image(
-                painter = painterResource(id = resId),
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(resId)
+                    .size(if (shouldBlur) Size(480, 270) else Size.ORIGINAL) // Downsample heavily if we're blurring
+                    .build(),
                 contentDescription = null,
                 modifier = imageModifier,
                 contentScale = ContentScale.Crop

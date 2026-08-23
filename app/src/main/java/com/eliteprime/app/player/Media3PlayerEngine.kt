@@ -282,6 +282,8 @@ class Media3PlayerEngine @Inject constructor(
         playerToRelease?.let { old ->
             Log.d(TAG, "Synchronously releasing old player instance")
             try { 
+                // CRITICAL: Unbind from view before release to prevent native crash
+                boundPlayerView?.player = null
                 old.stop() 
                 old.release() // CRITICAL: Release synchronously to free AudioTrack slots
             } catch (e: Exception) {
@@ -427,7 +429,11 @@ class Media3PlayerEngine @Inject constructor(
         playbackWatchdogJob?.cancel()
         positionUpdateJob?.cancel()
         scope.cancel()
-        exoPlayer?.release()
+        try {
+            boundPlayerView?.player = null
+            exoPlayer?.stop()
+            exoPlayer?.release()
+        } catch (e: Exception) {}
     }
 
     override fun createRenderView(context: Context, resizeMode: PlayerSurfaceResizeMode, surfaceType: PlayerRenderSurfaceType): View {

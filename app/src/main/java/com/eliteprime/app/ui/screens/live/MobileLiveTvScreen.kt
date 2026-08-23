@@ -8,6 +8,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -177,28 +178,28 @@ fun MobileLiveTvScreen(
                 onNavigateToSeries = onNavigateToSeries
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                // --- Pane 1: Categories ---
-                PaneSurface(modifier = Modifier.weight(0.28f)) {
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(text = if (uiState.isCategoryReorderMode) stringResource(R.string.live_reordering) else stringResource(R.string.generic_groups), color = LivePalette.textSecondary, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
-                            
-                            if (uiState.isCategoryReorderMode) {
-                                TextButton(onClick = { viewModel.saveCategoryOrder() }) {
-                                    Text(stringResource(R.string.generic_done), color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 11.sp)
-                                }
-                            } else {
-                                if (isTv) {
+            if (isTv) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    // --- Pane 1: Categories (0.28f weight) ---
+                    PaneSurface(modifier = Modifier.weight(0.28f)) {
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = if (uiState.isCategoryReorderMode) stringResource(R.string.live_reordering) else stringResource(R.string.generic_groups), color = LivePalette.textSecondary, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
+                                
+                                if (uiState.isCategoryReorderMode) {
+                                    TextButton(onClick = { viewModel.saveCategoryOrder() }) {
+                                        Text(stringResource(R.string.generic_done), color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                                    }
+                                } else {
                                     TvSurface(
                                         onClick = { showAddGroupDialog = true },
                                         modifier = Modifier.size(28.dp),
@@ -217,191 +218,250 @@ fun MobileLiveTvScreen(
                                             Icon(Icons.Default.Add, contentDescription = "Add Group", tint = if (isFocused) Color.Black else AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
                                         }
                                     }
-                                } else {
-                                    IconButton(onClick = { showAddGroupDialog = true }, modifier = Modifier.size(28.dp)) {
-                                        Icon(Icons.Default.Add, contentDescription = "Add Group", tint = AppColors.ArenaOrange, modifier = Modifier.size(20.dp))
+                                }
+                            }
+                            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(LivePalette.hairline))
+
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                items(uiState.categories) { category ->
+                                    if (uiState.isCategoryReorderMode) {
+                                        ReorderCategoryRow(
+                                            category = category,
+                                            onMoveUp = { viewModel.moveCategoryUp(category) },
+                                            onMoveDown = { viewModel.moveCategoryDown(category) }
+                                        )
+                                    } else {
+                                        CategoryTabWithLongClick(
+                                            category = category,
+                                            isSelected = category.id == uiState.selectedCategory?.id,
+                                            onClick = { viewModel.selectCategory(category) },
+                                            onLongClick = { selectedCategoryForOptions = category }
+                                        )
                                     }
                                 }
                             }
                         }
-                        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(LivePalette.hairline))
+                    }
 
-                        LazyColumn(
+                    // --- Pane 2: Channel List (0.32f weight) ---
+                    PaneSurface(modifier = Modifier.weight(0.32f)) {
+                        Column {
+                            PaneHeader(title = uiState.selectedCategory?.categoryName ?: stringResource(R.string.generic_channels))
+                            LazyColumn(
+                                state = channelListState,
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(vertical = 8.dp)
+                            ) {
+                                items(uiState.filteredChannels, key = { it.id }) { channel ->
+                                    val focusRequester = channelFocusRequesters.getOrPut(channel.id) { FocusRequester() }
+                                    ChannelRowWithLongClick(
+                                        channel = channel,
+                                        isSelected = previewChannel?.id == channel.id,
+                                        focusRequester = focusRequester,
+                                        onFocusChanged = { if (it.isFocused) lastFocusedChannelId = channel.id },
+                                        onClick = { 
+                                            if (previewChannel?.id == channel.id) {
+                                                viewModel.confirmChannel(channel)
+                                                onPlayChannel(channel)
+                                            } else {
+                                                viewModel.previewChannel(channel)
+                                            }
+                                        },
+                                        onLongClick = { selectedChannelForOptions = channel }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // --- Pane 3: Preview & EPG (0.4f weight) ---
+                    PaneSurface(
+                        modifier = Modifier.weight(0.4f),
+                        backgroundColor = Color.Transparent // DON'T DIM THE PANE (VIDEO IS BEHIND)
+                    ) {
+                        Column(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(0.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .aspectRatio(16f / 9f)
+                                    .padding(12.dp)
+                                    .onGloballyPositioned { coords ->
+                                        viewModel.globalPlayerState.updatePreviewBounds(coords.boundsInRoot())
+                                    },
+                                color = Color.Transparent,
+                                shape = RoundedCornerShape(16.dp),
+                                border = BorderStroke(1.dp, LivePalette.hairline)
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    if (previewChannel != null) {
+                                        LaunchedEffect(Unit) {
+                                            viewModel.globalPlayerState.enterPreview(viewModel.playerEngine)
+                                        }
+                                        
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(Color.Transparent)
+                                                .clickable { 
+                                                    viewModel.confirmChannel(previewChannel!!)
+                                                    viewModel.globalPlayerState.enterFullScreen(viewModel.playerEngine)
+                                                    onPlayChannel(previewChannel!!) 
+                                                }
+                                        )
+                                    } else {
+                                        Icon(
+                                            Icons.Default.PlayCircle,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(48.dp),
+                                            tint = LivePalette.textTertiary
+                                        )
+                                    }
+                                }
+                            }
+
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                                    .background(
+                                        LivePalette.paneFill, 
+                                        RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                if (previewChannel != null) {
+                                    Text(
+                                        text = stringResource(R.string.live_now),
+                                        color = AppColors.ArenaOrange,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 10.sp,
+                                        letterSpacing = 1.sp
+                                    )
+                                    Text(
+                                        text = previewChannel!!.name,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 18.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    
+                                    Text(
+                                        text = stringResource(R.string.live_upcoming_guide),
+                                        color = Color.White.copy(alpha = 0.4f),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    
+                                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(LivePalette.hairline))
+                                    
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentPadding = PaddingValues(vertical = 8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        if (epgList.isEmpty()) {
+                                            item {
+                                                Text(
+                                                    stringResource(R.string.live_no_epg),
+                                                    color = LivePalette.textSecondary,
+                                                    fontSize = 13.sp,
+                                                    modifier = Modifier.padding(vertical = 8.dp)
+                                                )
+                                            }
+                                        } else {
+                                            items(epgList) { program ->
+                                                val now = System.currentTimeMillis()
+                                                val isCurrent = now in program.startTimestamp..program.stopTimestamp
+                                                EpgRow(program, isCurrent)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // MOBILE LAYOUT: Stacked
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // 1. Preview Area (Always on top for Mobile)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                            .onGloballyPositioned { coords ->
+                                viewModel.globalPlayerState.updatePreviewBounds(coords.boundsInRoot())
+                            },
+                        color = Color.Black
+                    ) {
+                        if (previewChannel != null) {
+                            LaunchedEffect(Unit) {
+                                viewModel.globalPlayerState.enterPreview(viewModel.playerEngine)
+                            }
+                            Box(modifier = Modifier.fillMaxSize().clickable { 
+                                viewModel.confirmChannel(previewChannel!!)
+                                viewModel.globalPlayerState.enterFullScreen(viewModel.playerEngine)
+                                onPlayChannel(previewChannel!!) 
+                            })
+                        } else {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.PlayCircle, null, tint = Color.White.copy(alpha = 0.2f), modifier = Modifier.size(48.dp))
+                            }
+                        }
+                    }
+
+                    // 2. Categories (Horizontal Scroll)
+                    Box(modifier = Modifier.fillMaxWidth().height(56.dp).background(LivePalette.paneFill)) {
+                        LazyRow(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             items(uiState.categories) { category ->
-                                if (uiState.isCategoryReorderMode) {
-                                    ReorderCategoryRow(
-                                        category = category,
-                                        onMoveUp = { viewModel.moveCategoryUp(category) },
-                                        onMoveDown = { viewModel.moveCategoryDown(category) }
-                                    )
-                                } else {
-                                    CategoryTabWithLongClick(
-                                        category = category,
-                                        isSelected = category.id == uiState.selectedCategory?.id,
-                                        onClick = { viewModel.selectCategory(category) },
-                                        onLongClick = { selectedCategoryForOptions = category }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // --- Pane 2: Channel List ---
-                PaneSurface(modifier = Modifier.weight(0.32f)) {
-                    Column {
-                        PaneHeader(title = uiState.selectedCategory?.categoryName ?: stringResource(R.string.generic_channels))
-                        LazyColumn(
-                            state = channelListState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 8.dp)
-                        ) {
-                            items(uiState.filteredChannels, key = { it.id }) { channel ->
-                                val focusRequester = channelFocusRequesters.getOrPut(channel.id) { FocusRequester() }
-                                ChannelRowWithLongClick(
-                                    channel = channel,
-                                    isSelected = previewChannel?.id == channel.id,
-                                    focusRequester = focusRequester,
-                                    onFocusChanged = { if (it.isFocused) lastFocusedChannelId = channel.id },
-                                    onClick = { 
-                                        if (previewChannel?.id == channel.id) {
-                                            viewModel.confirmChannel(channel)
-                                            onPlayChannel(channel)
-                                        } else {
-                                            viewModel.previewChannel(channel)
-                                        }
-                                    },
-                                    onLongClick = { selectedChannelForOptions = channel }
+                                CategoryTabWithLongClick(
+                                    category = category,
+                                    isSelected = category.id == uiState.selectedCategory?.id,
+                                    onClick = { viewModel.selectCategory(category) },
+                                    onLongClick = { selectedCategoryForOptions = category }
                                 )
                             }
                         }
                     }
-                }
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(LivePalette.hairline))
 
-                // --- Pane 3: Preview & EPG ---
-                PaneSurface(
-                    modifier = Modifier.weight(0.4f),
-                    backgroundColor = Color.Transparent // DON'T DIM THE PANE (VIDEO IS BEHIND)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(0.dp)
+                    // 3. Channels (Vertical List)
+                    LazyColumn(
+                        state = channelListState,
+                        modifier = Modifier.weight(1f).fillMaxWidth().background(LivePalette.paneFill),
+                        contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(16f / 9f)
-                                .padding(12.dp)
-                                .onGloballyPositioned { coords ->
-                                    viewModel.globalPlayerState.updatePreviewBounds(coords.boundsInRoot())
-                                },
-                            color = Color.Transparent,
-                            shape = RoundedCornerShape(16.dp),
-                            border = BorderStroke(1.dp, LivePalette.hairline)
-                        ) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                if (previewChannel != null) {
-                                    // Ensure global player knows it should be visible in preview mode
-                                    LaunchedEffect(Unit) {
-                                        viewModel.globalPlayerState.enterPreview(viewModel.playerEngine)
-                                    }
-                                    
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(Color.Transparent)
-                                            .clickable { 
-                                                viewModel.confirmChannel(previewChannel!!)
-                                                viewModel.globalPlayerState.enterFullScreen(viewModel.playerEngine)
-                                                onPlayChannel(previewChannel!!) 
-                                            }
-                                    )
-                                } else {
-                                    Icon(
-                                        Icons.Default.PlayCircle,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(48.dp),
-                                        tint = LivePalette.textTertiary
-                                    )
-                                }
-                            }
-                        }
-
-                        // Channel Info & EPG Area - APPLY BACKGROUND HERE INSTEAD OF WHOLE PANE
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .background(
-                                    LivePalette.paneFill, 
-                                    RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
-                                )
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
-                            if (previewChannel != null) {
-                                Text(
-                                    text = stringResource(R.string.live_now),
-                                    color = AppColors.ArenaOrange,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 10.sp,
-                                    letterSpacing = 1.sp
-                                )
-                                Text(
-                                    text = previewChannel!!.name,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 18.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                
-                                Spacer(modifier = Modifier.height(12.dp))
-                                
-                                Text(
-                                    text = stringResource(R.string.live_upcoming_guide),
-                                    color = Color.White.copy(alpha = 0.4f),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp,
-                                    letterSpacing = 0.5.sp
-                                )
-                                
-                                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(LivePalette.hairline))
-                                
-                                val now = System.currentTimeMillis()
-                                LazyColumn(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(vertical = 8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    if (epgList.isEmpty()) {
-                                        item {
-                                            Text(
-                                                stringResource(R.string.live_no_epg),
-                                                color = LivePalette.textSecondary,
-                                                fontSize = 13.sp,
-                                                modifier = Modifier.padding(vertical = 8.dp)
-                                            )
-                                        }
+                        items(uiState.filteredChannels, key = { it.id }) { channel ->
+                            ChannelRowWithLongClick(
+                                channel = channel,
+                                isSelected = previewChannel?.id == channel.id,
+                                focusRequester = remember { FocusRequester() },
+                                onClick = { 
+                                    if (previewChannel?.id == channel.id) {
+                                        viewModel.confirmChannel(channel)
+                                        onPlayChannel(channel)
                                     } else {
-                                        items(epgList) { program ->
-                                            val isCurrent = now in program.startTimestamp..program.stopTimestamp
-                                            EpgRow(program, isCurrent)
-                                        }
+                                        viewModel.previewChannel(channel)
                                     }
-                                }
-                            } else {
-                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    Text(
-                                        stringResource(R.string.live_select_channel_prompt),
-                                        color = LivePalette.textTertiary,
-                                        fontSize = 13.sp
-                                    )
-                                }
-                            }
+                                },
+                                onLongClick = { selectedChannelForOptions = channel }
+                            )
                         }
                     }
                 }

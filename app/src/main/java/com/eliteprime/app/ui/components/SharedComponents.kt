@@ -428,6 +428,7 @@ private fun VodPosterCardContent(
     totalDuration: Long = 0,
     isFocused: Boolean
 ) {
+    val isTv = LocalContext.current.isTelevisionDevice()
     Column(
         modifier = Modifier
             .background(
@@ -452,7 +453,7 @@ private fun VodPosterCardContent(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(posterUrl)
                     .crossfade(!isLite)
-                    .size(Size(300, 450)) // Optimize: Limit resolution for thumbnails to save RAM and Data
+                    .size(if (isTv) Size(300, 450) else Size(200, 300)) // Smaller size for mobile
                     .precision(Precision.INEXACT)
                     .apply {
                         if (isLite) {
@@ -467,17 +468,17 @@ private fun VodPosterCardContent(
 
             if (rating > 0) {
                 Surface(
-                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(if (isTv) 8.dp else 4.dp),
                     color = Color.Black.copy(alpha = 0.6f),
                     shape = RoundedCornerShape(6.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = if (isTv) 6.dp else 4.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(Icons.Default.Star, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.size(10.dp))
-                        Text("%.1f".format(rating), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.Star, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.size(if (isTv) 10.dp else 8.dp))
+                        Text("%.1f".format(rating), color = Color.White, fontSize = if (isTv) 10.sp else 9.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -488,7 +489,7 @@ private fun VodPosterCardContent(
                     color = Color.Black.copy(alpha = 0.55f),
                     shape = RoundedCornerShape(topEnd = 8.dp)
                 ) {
-                    Icon(Icons.Default.Star, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.padding(6.dp).size(12.dp))
+                    Icon(Icons.Default.Star, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.padding(if (isTv) 6.dp else 4.dp).size(if (isTv) 12.dp else 10.dp))
                 }
             }
             
@@ -499,7 +500,7 @@ private fun VodPosterCardContent(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .height(3.dp),
+                        .height(if (isTv) 3.dp else 2.dp),
                     color = AppColors.ArenaOrange,
                     trackColor = Color.Transparent
                 )
@@ -509,14 +510,14 @@ private fun VodPosterCardContent(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(34.dp)
-                .padding(horizontal = 8.dp),
+                .height(if (isTv) 34.dp else 28.dp)
+                .padding(horizontal = if (isTv) 8.dp else 4.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = name.cleanVodName(),
                 color = if (isFocused) Color.Black else Color.White.copy(alpha = 0.8f),
-                fontSize = 11.sp,
+                fontSize = if (isTv) 11.sp else 9.sp,
                 fontWeight = if (isFocused) FontWeight.Black else FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 maxLines = 1,

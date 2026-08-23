@@ -29,8 +29,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.eliteprime.app.player.GlobalPlayerState
 import com.eliteprime.app.player.PlayerEngine
+import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.GlobalPlayerHost
 import com.eliteprime.app.ui.tv.navigation.TvAppNavigation
@@ -92,10 +94,16 @@ fun TvMainShell(
         }
     }
 
+    val mode by globalPlayerState.mode.collectAsStateWithLifecycle()
+    val isFullScreen = mode == PlayerViewMode.FULLSCREEN
+
     CompositionLocalProvider(LocalTvFocusManager provides isOverlayActive) {
         ElitPrimeTvTheme {
             Box(modifier = Modifier.fillMaxSize()) {
-                AppBackground(modifier = Modifier.fillMaxSize()) { }
+                AppBackground(
+                    modifier = Modifier.fillMaxSize(),
+                    isTransparent = isFullScreen
+                ) { }
 
                 GlobalPlayerHost(
                     globalPlayerState = globalPlayerState,

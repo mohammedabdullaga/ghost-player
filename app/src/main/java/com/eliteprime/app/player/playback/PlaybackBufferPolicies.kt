@@ -22,14 +22,15 @@ object PlaybackBufferPolicies {
 
     private const val LIVE_MIN_BUFFER_MS = 6_000 // Fast startup
     private const val LIVE_MAX_BUFFER_MS = 25_000
-    private const val LITE_LIVE_MIN_BUFFER_MS = 2_500 // Ultra-fast for Lite/TV Sticks
+    private const val LITE_LIVE_MIN_BUFFER_MS = 3_500 // Ultra-fast for Lite/TV Sticks
     private const val LITE_LIVE_MAX_BUFFER_MS = 10_000
 
     private const val VOD_MIN_BUFFER_MS = 15_000 // Fast startup on VOD
     private const val VOD_MAX_BUFFER_MS = 45_000
     private const val PLAYBACK_BUFFER_MS = 1_500 // Start rendering quickly
-    private const val LITE_PLAYBACK_BUFFER_MS = 800 // Even faster for Lite mode
+    private const val LITE_PLAYBACK_BUFFER_MS = 1_000 // Even faster for Lite mode
     private const val REBUFFER_MS = 3_000
+    private const val LITE_REBUFFER_MS = 2_500 // Lower rebuffer threshold for Lite mode
     private const val VOD_PLAYBACK_BUFFER_MS = 2_000 // Start VOD within 2s instead of 5s
     private const val VOD_REBUFFER_MS = 5_000
 
@@ -69,13 +70,14 @@ object PlaybackBufferPolicies {
         
         val maxBuffer = if (isLiteMode) LITE_LIVE_MAX_BUFFER_MS else if (isMpegTs) 30_000 else LIVE_MAX_BUFFER_MS
         val playbackBuffer = if (isLiteMode) LITE_PLAYBACK_BUFFER_MS else PLAYBACK_BUFFER_MS
+        val rebuffer = if (isLiteMode) LITE_REBUFFER_MS else REBUFFER_MS
 
         return PlaybackBufferPolicy(
             label = if (isLiteMode) "lite-live" else if (isMpegTs) "mpeg-ts-live" else "stable-live",
             minBufferMs = minBuffer,
             maxBufferMs = maxBuffer,
             playbackBufferMs = playbackBuffer,
-            rebufferMs = REBUFFER_MS,
+            rebufferMs = rebuffer,
             targetBufferBytes = if (isMpegTs) MPEG_TS_LIVE_TARGET_BUFFER_BYTES else DEFAULT_TARGET_BUFFER_BYTES,
             prioritizeTimeOverSizeThresholds = true
         )
