@@ -64,7 +64,17 @@
 -keep class * extends androidx.lifecycle.ViewModel
 -keep @dagger.hilt.android.AndroidEntryPoint class *
 
-# 5. General Hardening
+# 5. Media3 & ExoPlayer Protection
+-keep class androidx.media3.** { *; }
+-keep interface androidx.media3.** { *; }
+-dontwarn androidx.media3.**
+
+# 6. libVLC Protection
+-keep class org.videolan.libvlc.** { *; }
+-keep interface org.videolan.libvlc.** { *; }
+-dontwarn org.videolan.libvlc.**
+
+# 7. General Hardening
 # Remove log statements from the production build
 -assumenosideeffects class android.util.Log {
     public static *** d(...);
@@ -75,4 +85,4 @@
 
 # Prevent R8 from keeping original file names and line numbers
 -renamesourcefileattribute SourceFile
--keepattributes SourceFile,LineNumberTable
+-keepattributes SourceFile,LineNumberTable,Signature,InnerClasses,EnclosingMethod,Exceptions
