@@ -118,6 +118,9 @@ class VlcPlayerEngine @Inject constructor(
             val args = arrayListOf(
                 // FORCE VLC NATIVE MEDIACODEC HARDWARE MODULE OVER AVCODEC/FFMPEG
                 "--codec=mediacodec_ndk,mediacodec_jni,all",
+                "--aout=android_audiotrack", // STABILITY: Prefer standard Android AudioTrack for maximum device compatibility
+                "--audio-resampler=soxr",    // QUALITY: Better resampling for cheap TV sticks
+                "--audio-time-stretch",      // SYNC: Maintain pitch during speed changes or jitter
                 "--network-caching=3000",
                 "--live-caching=3000",
                 "--file-caching=3000",

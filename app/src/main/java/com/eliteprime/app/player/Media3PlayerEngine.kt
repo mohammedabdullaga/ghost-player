@@ -207,7 +207,11 @@ class Media3PlayerEngine @Inject constructor(
 
         val decoderMode = preferenceRepository.decoderMode.value
         val codecSelector = CapabilityAwareMediaCodecSelector(context, decoderMode)
-        val newTrackSelector = DefaultTrackSelector(context)
+        val newTrackSelector = DefaultTrackSelector(context).apply {
+            parameters = buildUponParameters()
+                .setPreferredAudioMimeType(MimeTypes.AUDIO_AAC) // PREFER AAC for maximum device compatibility
+                .build()
+        }
         currentTrackSelector = newTrackSelector
 
         val audioSink = DefaultAudioSink.Builder(context)
@@ -297,11 +301,17 @@ class Media3PlayerEngine @Inject constructor(
             .setFallbackMaxPlaybackSpeed(1.05f)
             .build()
 
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build()
+
         exoPlayer = ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(newTrackSelector)
             .setLoadControl(loadControl)
             .setBandwidthMeter(bandwidthMeter)
             .setLivePlaybackSpeedControl(speedControl)
+            .setAudioAttributes(audioAttributes, true) // FIX: Properly handle audio focus and device volume
             .build()
             .apply {
                 addListener(PlayerListener())

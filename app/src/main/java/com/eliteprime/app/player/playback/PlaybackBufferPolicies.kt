@@ -20,17 +20,17 @@ object PlaybackBufferPolicies {
     private const val MPEG_TS_LIVE_TARGET_BUFFER_BYTES = 16 * 1024 * 1024 // 16MB for TS to prevent RAM pressure
     private const val LARGE_LIVE_TARGET_BUFFER_BYTES = 32 * 1024 * 1024
 
-    private const val LIVE_MIN_BUFFER_MS = 6_000 // Fast startup
-    private const val LIVE_MAX_BUFFER_MS = 25_000
-    private const val LITE_LIVE_MIN_BUFFER_MS = 3_500 // Ultra-fast for Lite/TV Sticks
-    private const val LITE_LIVE_MAX_BUFFER_MS = 10_000
+    private const val LIVE_MIN_BUFFER_MS = 4_000 // Faster zapping for Pro mode
+    private const val LIVE_MAX_BUFFER_MS = 30_000
+    private const val LITE_LIVE_MIN_BUFFER_MS = 3_000 // Ultra-fast for Lite/TV Sticks
+    private const val LITE_LIVE_MAX_BUFFER_MS = 15_000
 
     private const val VOD_MIN_BUFFER_MS = 15_000 // Fast startup on VOD
     private const val VOD_MAX_BUFFER_MS = 45_000
-    private const val PLAYBACK_BUFFER_MS = 1_500 // Start rendering quickly
-    private const val LITE_PLAYBACK_BUFFER_MS = 1_000 // Even faster for Lite mode
-    private const val REBUFFER_MS = 3_000
-    private const val LITE_REBUFFER_MS = 2_500 // Lower rebuffer threshold for Lite mode
+    private const val PLAYBACK_BUFFER_MS = 1_000 // Start rendering quickly
+    private const val LITE_PLAYBACK_BUFFER_MS = 700 // Even faster for Lite mode
+    private const val REBUFFER_MS = 2_500
+    private const val LITE_REBUFFER_MS = 1_500 // Lower rebuffer threshold for Lite mode
     private const val VOD_PLAYBACK_BUFFER_MS = 2_000 // Start VOD within 2s instead of 5s
     private const val VOD_REBUFFER_MS = 5_000
 
@@ -64,7 +64,7 @@ object PlaybackBufferPolicies {
         // Lite mode uses smaller buffers for faster channel switching on TV sticks
         val minBuffer = when {
             isLiteMode -> LITE_LIVE_MIN_BUFFER_MS
-            isMpegTs -> 8_000
+            isMpegTs -> 5_000 // Was 8,000 - reduced for faster start
             else -> LIVE_MIN_BUFFER_MS
         }
         
