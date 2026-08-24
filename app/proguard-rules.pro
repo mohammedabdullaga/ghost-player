@@ -1,97 +1,72 @@
 # -------------------------------------------------------------------------
-# ArenaLive - Production Performance & Hardening Rules
+# ArenaLive - "Ultra-Soft" Stability & Speed Rules
 # -------------------------------------------------------------------------
+# These rules prioritize 100% device compatibility and runtime performance.
+# We minimize obfuscation on critical paths (Player, Network, DB) to avoid
+# reflection overhead and ensure smooth execution on low-end TV hardware.
 
-# 1. Balanced Optimization (Performance over APK Size)
+# 1. Disable Aggressive Optimization
 # -------------------------------------------------------------------------
+-optimizationpasses 1
 -allowaccessmodification
-# Reduced to 2 passes: 5 passes can create complex bytecode that slows down
-# older Android devices (ART) due to excessive inlining.
--optimizationpasses 2
-# DO NOT use -overloadaggressively as it can conflict with hardware-specific
-# reflection used by video decoders on some TV devices.
+-dontnote **
+-dontwarn **
 
-# 2. Jetpack Compose Performance
+# 2. Main App Logic Protection (NO OBFUSCATION)
 # -------------------------------------------------------------------------
--keep class androidx.compose.runtime.** { *; }
--keep @androidx.compose.runtime.Composable class * { *; }
--dontwarn androidx.compose.**
+# We keep the entire app package structure and names to ensure speed and
+# to prevent any issues with reflection, serialization, or JNI.
+-keep class com.eliteprime.app.** { *; }
+-keep interface com.eliteprime.app.** { *; }
 
-# 3. Kotlin Coroutines & Flow
-# -------------------------------------------------------------------------
--keepnames class kotlinx.coroutines.internal.MainDispatcherLoader {}
--keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
--keepnames class kotlinx.coroutines.android.HandlerContext {}
--keepclassmembernames class kotlinx.coroutines.internal.LockFreeTaskQueue {
-    long _cur;
-}
--keepclassmembernames class kotlinx.coroutines.internal.ResizableAtomicArray {
-    java.lang.Object[] array;
-}
--dontwarn kotlinx.coroutines.**
-
-# 4. ObjectBox Database Stability
+# 3. Database Layer (ObjectBox)
 # -------------------------------------------------------------------------
 -keep class io.objectbox.** { *; }
 -keep interface io.objectbox.** { *; }
--keep class com.eliteprime.app.data.local.entity.MyObjectBox { *; }
--keep class com.eliteprime.app.data.local.entity.Internal** { *; }
--keep @io.objectbox.annotation.Entity class * { *; }
--keepclassmembers class * {
-    @io.objectbox.annotation.Id long id;
-    @io.objectbox.annotation.Index *;
-}
--keep class **Cursor { *; }
--keep class **_ { *; }
+-keep enum io.objectbox.** { *; }
 
-# 5. Serialization & Network (Gson, Retrofit, OkHttp)
+# 4. Networking & API (Retrofit, OkHttp, Gson)
 # -------------------------------------------------------------------------
-# Keep all data models for safe parsing
--keep class com.eliteprime.app.data.remote.** { *; }
--keep class com.eliteprime.app.domain.model.** { *; }
--keep class com.eliteprime.app.data.local.entity.** { *; }
-
-# Gson & Kotlin Serialization
--keepattributes Signature, *Annotation*, EnclosingMethod, InnerClasses, Exceptions
--keepclassmembers class ** {
-    @kotlinx.serialization.Serializable *;
-    @com.google.gson.annotations.SerializedName <fields>;
-}
--keepclassmembers class ** {
-    kotlinx.serialization.KSerializer serializer(...);
-}
-
-# OkHttp/Retrofit
--keep @retrofit2.http.** interface * { *; }
 -keep class retrofit2.** { *; }
+-keep interface retrofit2.** { *; }
 -keep class okhttp3.** { *; }
--dontwarn okhttp3.**
--dontwarn retrofit2.**
+-keep interface okhttp3.** { *; }
+-keep class com.google.gson.** { *; }
+-keep interface com.google.gson.** { *; }
 
-# 6. Media3 (ExoPlayer) & libVLC
+# 5. Media Players (Media3, ExoPlayer, libVLC)
 # -------------------------------------------------------------------------
-# CRITICAL: Do not obfuscate player engines as they rely on JNI and reflection
-# to talk to native hardware decoders.
+# Player engines MUST be identical to source for hardware decoder stability.
 -keep class androidx.media3.** { *; }
 -keep interface androidx.media3.** { *; }
 -keep class org.videolan.libvlc.** { *; }
 -keep interface org.videolan.libvlc.** { *; }
--keep class com.eliteprime.app.player.** { *; }
--keep interface com.eliteprime.app.player.** { *; }
--dontwarn androidx.media3.**
--dontwarn org.videolan.libvlc.**
 
-# 7. Dependency Injection (Hilt/Dagger)
+# 6. Jetpack Compose & UI Performance
 # -------------------------------------------------------------------------
--keep class * extends android.app.Application
--keep class * extends android.app.Activity
--keep class * extends androidx.fragment.app.Fragment
--keep class * extends androidx.lifecycle.ViewModel
--keep @dagger.hilt.android.AndroidEntryPoint class *
+-keep class androidx.compose.** { *; }
+-keep interface androidx.compose.** { *; }
+-keep class androidx.navigation.** { *; }
+-keep interface androidx.navigation.** { *; }
 
-# 8. General Performance Hardening
+# 7. Async & Threading (Coroutines)
 # -------------------------------------------------------------------------
-# Remove log statements to reduce APK size and slightly improve runtime speed
+-keep class kotlinx.coroutines.** { *; }
+-keep interface kotlinx.coroutines.** { *; }
+
+# 8. Dependency Injection (Hilt/Dagger)
+# -------------------------------------------------------------------------
+-keep class dagger.** { *; }
+-keep interface dagger.** { *; }
+-keep class com.google.dagger.** { *; }
+
+# 9. Resource & Attribute Hardening
+# -------------------------------------------------------------------------
+-keepattributes Signature, *Annotation*, EnclosingMethod, InnerClasses, Exceptions, SourceFile, LineNumberTable
+
+# 10. General Cleanliness
+# -------------------------------------------------------------------------
+# Remove logs to keep the binary clean, but keep everything else fast.
 -assumenosideeffects class android.util.Log {
     public static *** d(...);
     public static *** v(...);
@@ -99,6 +74,5 @@
     public static *** w(...);
 }
 
-# Preserve line numbers for crash reporting but rename file source
--renamesourcefileattribute SourceFile
+# Maintain original filenames in stacktraces for easier debugging of "silent" device errors
 -keepattributes SourceFile,LineNumberTable
