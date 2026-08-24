@@ -262,7 +262,7 @@ private fun SearchTopNavBar(onBack: () -> Unit) {
                 }
             }
 
-            EliteTvLogo(textSize = 20.sp)
+            ArenaLiveLogo(textSize = 20.sp)
         }
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(SearchPalette.hairline))
     }
@@ -299,11 +299,11 @@ private fun SearchInputField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = SearchPalette.textPrimary,
             unfocusedTextColor = SearchPalette.textPrimary,
-            focusedBorderColor = AppColors.EliteOrange,
+            focusedBorderColor = AppColors.ArenaOrange,
             unfocusedBorderColor = SearchPalette.fieldBorder,
             focusedContainerColor = SearchPalette.fieldFill,
             unfocusedContainerColor = SearchPalette.fieldFill,
-            cursorColor = AppColors.EliteOrange
+            cursorColor = AppColors.ArenaOrange
         )
     )
 }
@@ -330,7 +330,7 @@ private fun IdleState() {
 @Composable
 private fun LoadingState() {
     Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = AppColors.EliteOrange, strokeWidth = 2.5.dp)
+        CircularProgressIndicator(color = AppColors.ArenaOrange, strokeWidth = 2.5.dp)
     }
 }
 
@@ -361,6 +361,7 @@ private fun ResultsSectionLabel(title: String, count: Int) {
             fontSize = 13.sp,
             letterSpacing = 1.sp
         )
-        Text(text = count.toString(), color = AppColors.EliteOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(text = count.toString(), color = AppColors.ArenaOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
+

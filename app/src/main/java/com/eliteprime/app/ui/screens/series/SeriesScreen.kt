@@ -52,7 +52,7 @@ private object VodSpacing {
 
 private object VodPalette {
     val paneFill = Color.Black.copy(alpha = 0.65f)
-    val paneBorder = AppColors.EliteOrange.copy(alpha = 0.18f)
+    val paneBorder = AppColors.ArenaOrange.copy(alpha = 0.18f)
     val hairline = Color.White.copy(alpha = 0.1f)
     val textSecondary = Color.White.copy(alpha = 0.6f)
 }
@@ -220,7 +220,7 @@ private fun VodTopNavBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            EliteTvLogo(textSize = 20.sp)
+            ArenaLiveLogo(textSize = 20.sp)
 
             Spacer(modifier = Modifier.width(32.dp))
 
@@ -287,12 +287,12 @@ private fun VodRoundIconButton(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
                 focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             border = ClickableSurfaceDefaults.border(
-                border = Border(BorderStroke(2.dp, if (isActive) AppColors.EliteOrange.copy(alpha = 0.85f) else Color.Transparent)),
+                border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent)),
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
@@ -308,14 +308,15 @@ private fun VodRoundIconButton(
     } else {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.35f), CircleShape)
+            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.35f), CircleShape)
         ) {
             Icon(
                 icon, 
                 contentDescription = contentDescription, 
-                tint = if (isActive) AppColors.EliteOrange else Color.White, 
+                tint = if (isActive) AppColors.ArenaOrange else Color.White, 
                 modifier = Modifier.size(20.dp)
             )
         }
     }
 }
+

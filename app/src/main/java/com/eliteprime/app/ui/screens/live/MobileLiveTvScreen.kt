@@ -196,7 +196,7 @@ fun MobileLiveTvScreen(
                             
                             if (uiState.isCategoryReorderMode) {
                                 TextButton(onClick = { viewModel.saveCategoryOrder() }) {
-                                    Text(stringResource(R.string.generic_done), color = AppColors.EliteOrange, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                                    Text(stringResource(R.string.generic_done), color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 11.sp)
                                 }
                             } else {
                                 if (isTv) {
@@ -215,12 +215,12 @@ fun MobileLiveTvScreen(
                                     ) {
                                         var isFocused by remember { mutableStateOf(false) }
                                         Box(modifier = Modifier.fillMaxSize().onFocusChanged { isFocused = it.isFocused }, contentAlignment = Alignment.Center) {
-                                            Icon(Icons.Default.Add, contentDescription = "Add Group", tint = if (isFocused) Color.Black else AppColors.EliteOrange, modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Default.Add, contentDescription = "Add Group", tint = if (isFocused) Color.Black else AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
                                         }
                                     }
                                 } else {
                                     IconButton(onClick = { showAddGroupDialog = true }, modifier = Modifier.size(28.dp)) {
-                                        Icon(Icons.Default.Add, contentDescription = "Add Group", tint = AppColors.EliteOrange, modifier = Modifier.size(20.dp))
+                                        Icon(Icons.Default.Add, contentDescription = "Add Group", tint = AppColors.ArenaOrange, modifier = Modifier.size(20.dp))
                                     }
                                 }
                             }
@@ -263,7 +263,7 @@ fun MobileLiveTvScreen(
                             itemsIndexed(uiState.filteredChannels, key = { _, it -> it.id }) { index, channel ->
                                 if (index >= uiState.filteredChannels.size - 10) {
                                     SideEffect {
-                                        viewModel.loadNextPage()
+                                        viewModel.loadMore()
                                     }
                                 }
                                 val focusRequester = channelFocusRequesters.getOrPut(channel.id) { FocusRequester() }
@@ -350,7 +350,7 @@ fun MobileLiveTvScreen(
                             if (previewChannel != null) {
                                 Text(
                                     text = stringResource(R.string.live_now),
-                                    color = AppColors.EliteOrange,
+                                    color = AppColors.ArenaOrange,
                                     fontWeight = FontWeight.Black,
                                     fontSize = 10.sp,
                                     letterSpacing = 1.sp
@@ -432,7 +432,7 @@ fun MobileLiveTvScreen(
                         viewModel.addCustomGroup(newGroupName)
                         showAddGroupDialog = false
                         newGroupName = ""
-                    }) { Text(stringResource(R.string.generic_create), color = AppColors.EliteOrange) }
+                    }) { Text(stringResource(R.string.generic_create), color = AppColors.ArenaOrange) }
                 },
                 dismissButton = {
                     TextButton(onClick = { showAddGroupDialog = false }) { Text(stringResource(R.string.generic_cancel)) }
@@ -448,7 +448,7 @@ fun MobileLiveTvScreen(
                     Column {
                         ListItem(
                             headlineContent = { Text(if (channel.isFavorite) stringResource(R.string.fav_remove) else stringResource(R.string.fav_add)) },
-                            leadingContent = { Icon(if (channel.isFavorite) Icons.Default.Star else Icons.Default.StarBorder, null, tint = AppColors.EliteOrange) },
+                            leadingContent = { Icon(if (channel.isFavorite) Icons.Default.Star else Icons.Default.StarBorder, null, tint = AppColors.ArenaOrange) },
                             modifier = Modifier.clickable { 
                                 viewModel.toggleFavorite(channel)
                                 selectedChannelForOptions = null
@@ -466,7 +466,7 @@ fun MobileLiveTvScreen(
                         val groups = uiState.categories.filter { it.id >= 1000000 }
                         if (groups.isNotEmpty()) {
                             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = LivePalette.hairline)
-                            Text(stringResource(R.string.group_add_to), style = MaterialTheme.typography.labelSmall, color = AppColors.EliteOrange, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                            Text(stringResource(R.string.group_add_to), style = MaterialTheme.typography.labelSmall, color = AppColors.ArenaOrange, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                             groups.forEach { group ->
                                 ListItem(
                                     headlineContent = { Text(group.categoryName) },
@@ -499,7 +499,7 @@ fun MobileLiveTvScreen(
                     Column {
                         ListItem(
                             headlineContent = { Text(stringResource(R.string.group_create_title)) },
-                            leadingContent = { Icon(Icons.Default.Add, null, tint = AppColors.EliteOrange) },
+                            leadingContent = { Icon(Icons.Default.Add, null, tint = AppColors.ArenaOrange) },
                             modifier = Modifier.clickable(enabled = canInteract) { 
                                 showAddGroupDialog = true
                                 selectedCategoryForOptions = null
@@ -556,14 +556,14 @@ private fun CategoryTabWithLongClick(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isSelected) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
                 focusedContainerColor = Color.White,
                 pressedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             border = ClickableSurfaceDefaults.border(
                 focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.EliteOrange.copy(alpha = 0.85f) else Color.Transparent))
+                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
             )
         ) {
             CategoryTabContent(category, isSelected, isFocused)
@@ -579,7 +579,7 @@ private fun CategoryTabWithLongClick(
                         onLongPress = { onLongClick() }
                     )
                 },
-            color = if (isSelected) AppColors.EliteOrange.copy(alpha = 0.12f) else Color.Transparent,
+            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.12f) else Color.Transparent,
             shape = RoundedCornerShape(12.dp)
         ) {
             CategoryTabContent(category, isSelected)
@@ -598,7 +598,7 @@ private fun CategoryTabContent(category: Category, isActive: Boolean, isFocused:
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.width(3.dp).height(18.dp).clip(CircleShape).background(if (isActive || isFocused) AppColors.EliteOrange else Color.Transparent))
+        Box(modifier = Modifier.width(3.dp).height(18.dp).clip(CircleShape).background(if (isActive || isFocused) AppColors.ArenaOrange else Color.Transparent))
         Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = category.categoryName,
@@ -628,10 +628,10 @@ private fun ReorderCategoryRow(
         ) {
             Text(category.categoryName, color = Color.White, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
             IconButton(onClick = onMoveUp, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Default.ArrowUpward, null, tint = AppColors.EliteOrange, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.ArrowUpward, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(16.dp))
             }
             IconButton(onClick = onMoveDown, modifier = Modifier.size(24.dp)) {
-                Icon(Icons.Default.ArrowDownward, null, tint = AppColors.EliteOrange, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.ArrowDownward, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(16.dp))
             }
         }
     }
@@ -663,14 +663,14 @@ private fun ChannelRowWithLongClick(
                 .focusRequester(focusRequester),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isSelected) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
                 focusedContainerColor = Color.White,
                 pressedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             border = ClickableSurfaceDefaults.border(
                 focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.EliteOrange.copy(alpha = 0.85f) else Color.Transparent))
+                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
             )
         ) {
             ChannelRowContent(channel, isSelected, isFocused)
@@ -686,7 +686,7 @@ private fun ChannelRowWithLongClick(
                         onLongPress = { onLongClick() }
                     )
                 },
-            color = if (isSelected) AppColors.EliteOrange.copy(alpha = 0.1f) else Color.Transparent,
+            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.1f) else Color.Transparent,
             shape = RoundedCornerShape(12.dp)
         ) {
             ChannelRowContent(channel, isSelected)
@@ -721,7 +721,7 @@ private fun ChannelRowContent(channel: LiveStream, isActive: Boolean, isFocused:
                 Icon(Icons.Default.Tv, contentDescription = null, modifier = Modifier.size(18.dp), tint = secondaryContentColor)
             }
             if (channel.isFavorite) {
-                Box(modifier = Modifier.align(Alignment.TopEnd).offset(x=4.dp, y=(-4).dp).size(14.dp).background(AppColors.EliteOrange, CircleShape), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.align(Alignment.TopEnd).offset(x=4.dp, y=(-4).dp).size(14.dp).background(AppColors.ArenaOrange, CircleShape), contentAlignment = Alignment.Center) {
                     Icon(Icons.Default.Star, null, tint = Color.White, modifier = Modifier.size(8.dp))
                 }
             }
@@ -752,12 +752,12 @@ private fun EpgRow(program: EPGProgram, isCurrent: Boolean) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(44.dp)) {
             Text(
                 text = startTime,
-                color = if (isCurrent) AppColors.EliteOrange else Color.White.copy(alpha = 0.6f),
+                color = if (isCurrent) AppColors.ArenaOrange else Color.White.copy(alpha = 0.6f),
                 fontWeight = if (isCurrent) FontWeight.Black else FontWeight.Bold,
                 fontSize = 12.sp
             )
             if (isCurrent) {
-                Text(stringResource(R.string.epg_now), color = AppColors.EliteOrange, fontWeight = FontWeight.Black, fontSize = 8.sp)
+                Text(stringResource(R.string.epg_now), color = AppColors.ArenaOrange, fontWeight = FontWeight.Black, fontSize = 8.sp)
             }
         }
         
@@ -780,7 +780,7 @@ private fun EpgRow(program: EPGProgram, isCurrent: Boolean) {
                 LinearProgressIndicator(
                     progress = { progress.coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).height(3.dp),
-                    color = AppColors.EliteOrange,
+                    color = AppColors.ArenaOrange,
                     trackColor = Color.White.copy(alpha = 0.1f),
                     strokeCap = StrokeCap.Round
                 )
@@ -814,7 +814,7 @@ private fun LiveTopNavBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            EliteTvLogo(textSize = 20.sp)
+            ArenaLiveLogo(textSize = 20.sp)
 
             Spacer(modifier = Modifier.width(32.dp))
 
@@ -863,12 +863,12 @@ private fun LiveRoundIconButton(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
                 focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             border = ClickableSurfaceDefaults.border(
-                border = Border(BorderStroke(2.dp, if (isActive) AppColors.EliteOrange.copy(alpha = 0.85f) else Color.Transparent)),
+                border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent)),
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
@@ -884,12 +884,12 @@ private fun LiveRoundIconButton(
     } else {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.35f), CircleShape)
+            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.35f), CircleShape)
         ) {
             Icon(
                 icon, 
                 contentDescription = contentDescription, 
-                tint = if (isActive) AppColors.EliteOrange else Color.White, 
+                tint = if (isActive) AppColors.ArenaOrange else Color.White, 
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -919,3 +919,4 @@ private fun PaneHeader(title: String) {
     }
     Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(LivePalette.hairline))
 }
+

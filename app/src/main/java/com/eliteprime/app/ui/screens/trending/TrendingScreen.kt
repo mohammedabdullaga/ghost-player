@@ -137,7 +137,7 @@ fun TrendingScreen(
             ) {
                 if (uiState.isTrendingLoading) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = AppColors.EliteOrange)
+                        CircularProgressIndicator(color = AppColors.ArenaOrange)
                         Spacer(Modifier.height(16.dp))
                         Text(stringResource(R.string.trending_loading), color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp)
                     }
@@ -175,12 +175,12 @@ private fun TrendingTabButton(label: String, isSelected: Boolean, onClick: () ->
             modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isSelected) AppColors.EliteOrange.copy(alpha = 0.2f) else Color.Transparent,
+                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.Transparent,
                 focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             border = ClickableSurfaceDefaults.border(
-                border = if (isSelected && !isFocused) Border(BorderStroke(1.dp, AppColors.EliteOrange)) else Border.None,
+                border = if (isSelected && !isFocused) Border(BorderStroke(1.dp, AppColors.ArenaOrange)) else Border.None,
                 focusedBorder = Border(BorderStroke(3.dp, Color.White))
             )
         ) {
@@ -197,9 +197,9 @@ private fun TrendingTabButton(label: String, isSelected: Boolean, onClick: () ->
         val alpha by animateFloatAsState(if (isSelected) 1f else 0.5f, label = "tabAlpha")
         Surface(
             onClick = onClick,
-            color = if (isSelected) AppColors.EliteOrange.copy(alpha = 0.2f) else Color.Transparent,
+            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.Transparent,
             shape = RoundedCornerShape(12.dp),
-            border = if (isSelected) BorderStroke(1.dp, AppColors.EliteOrange) else null
+            border = if (isSelected) BorderStroke(1.dp, AppColors.ArenaOrange) else null
         ) {
             Text(
                 text = label,
@@ -397,13 +397,13 @@ private fun TrendingCard(
                         ?: stringResource(R.string.generic_recommended)
 
                     Surface(
-                        color = AppColors.EliteOrange.copy(alpha = 0.16f),
+                        color = AppColors.ArenaOrange.copy(alpha = 0.16f),
                         shape = RoundedCornerShape(7.dp),
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         Text(
                             text = genreText,
-                            color = AppColors.EliteOrange,
+                            color = AppColors.ArenaOrange,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Black,
                             maxLines = 1,
@@ -445,7 +445,7 @@ private fun TrendingCard(
                     contentPadding = PaddingValues(horizontal = 28.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = AppColors.EliteOrange,
+                        containerColor = AppColors.ArenaOrange,
                         disabledContainerColor = Color.White.copy(alpha = 0.12f)
                     )
                 ) {
@@ -478,3 +478,4 @@ private fun EmptyTrendingView() {
         )
     }
 }
+
