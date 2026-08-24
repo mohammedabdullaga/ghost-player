@@ -1,72 +1,85 @@
 # -------------------------------------------------------------------------
-# ArenaLive - "Ultra-Soft" Stability & Speed Rules
+# ArenaLive - Optimized Scoped Rules (Stability Fix)
 # -------------------------------------------------------------------------
-# These rules prioritize 100% device compatibility and runtime performance.
-# We minimize obfuscation on critical paths (Player, Network, DB) to avoid
-# reflection overhead and ensure smooth execution on low-end TV hardware.
 
-# 1. Disable Aggressive Optimization
-# -------------------------------------------------------------------------
--optimizationpasses 1
+# 1. Shrinking & Optimization
+-optimizationpasses 2
 -allowaccessmodification
--dontnote **
--dontwarn **
 
-# 2. Main App Logic Protection (NO OBFUSCATION)
-# -------------------------------------------------------------------------
-# We keep the entire app package structure and names to ensure speed and
-# to prevent any issues with reflection, serialization, or JNI.
--keep class com.eliteprime.app.** { *; }
--keep interface com.eliteprime.app.** { *; }
-
-# 3. Database Layer (ObjectBox)
-# -------------------------------------------------------------------------
+# 2. Database (ObjectBox)
 -keep class io.objectbox.** { *; }
 -keep interface io.objectbox.** { *; }
 -keep enum io.objectbox.** { *; }
+-keep @io.objectbox.annotation.Entity class * { *; }
+-keepclassmembers class * {
+    @io.objectbox.annotation.Id long id;
+    @io.objectbox.annotation.Index *;
+}
+# Scoped Cursor and generated model keeps
+-keep class com.eliteprime.app.data.local.entity.*_ { *; }
+-keep class com.eliteprime.app.data.local.entity.**Cursor { *; }
+# Keep the generated MyObjectBox (using a more lenient pattern if package varies)
+-keep class com.eliteprime.app.data.local.entity.MyObjectBox { *; }
+-keep class **.MyObjectBox { *; }
 
-# 4. Networking & API (Retrofit, OkHttp, Gson)
-# -------------------------------------------------------------------------
--keep class retrofit2.** { *; }
--keep interface retrofit2.** { *; }
--keep class okhttp3.** { *; }
--keep interface okhttp3.** { *; }
--keep class com.google.gson.** { *; }
--keep interface com.google.gson.** { *; }
+# 3. Serialization & Remote Models (Gson / Retrofit / Kotlin Serialization)
+# Keep all data models used for JSON parsing to prevent mapping failures
+-keep class com.eliteprime.app.data.remote.** { *; }
+-keepclassmembers class com.eliteprime.app.data.remote.** {
+    <fields>;
+    @com.google.gson.annotations.SerializedName <fields>;
+}
 
-# 5. Media Players (Media3, ExoPlayer, libVLC)
-# -------------------------------------------------------------------------
-# Player engines MUST be identical to source for hardware decoder stability.
--keep class androidx.media3.** { *; }
--keep interface androidx.media3.** { *; }
+-keep class com.eliteprime.app.data.local.entity.** { *; }
+-keepclassmembers class com.eliteprime.app.data.local.entity.** {
+    <fields>;
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
+-keep class com.eliteprime.app.domain.model.** { *; }
+-keepclassmembers class com.eliteprime.app.domain.model.** {
+    <fields>;
+}
+
+# Preserve fields annotated with @SerializedName everywhere
+-keepclassmembers class ** {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
+# 4. Media Players (libVLC)
 -keep class org.videolan.libvlc.** { *; }
 -keep interface org.videolan.libvlc.** { *; }
 
-# 6. Jetpack Compose & UI Performance
-# -------------------------------------------------------------------------
--keep class androidx.compose.** { *; }
--keep interface androidx.compose.** { *; }
--keep class androidx.navigation.** { *; }
--keep interface androidx.navigation.** { *; }
+# 5. Player Engine Implementation
+-keep class com.eliteprime.app.player.CapabilityAwareMediaCodecSelector { *; }
+-keepclassmembers enum com.eliteprime.app.player.** {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
 
-# 7. Async & Threading (Coroutines)
-# -------------------------------------------------------------------------
--keep class kotlinx.coroutines.** { *; }
--keep interface kotlinx.coroutines.** { *; }
+# 6. Dependency Injection (Hilt / Dagger)
+-keep class * extends android.app.Application
+-keep class * extends android.app.Activity
+-keep class * extends androidx.fragment.app.Fragment
+-keep class * extends androidx.lifecycle.ViewModel
+-keep @dagger.hilt.android.AndroidEntryPoint class *
+-keep class **_HiltModules* { *; }
+-keep class **_Factory { *; }
+-keep class **_MembersInjector { *; }
 
-# 8. Dependency Injection (Hilt/Dagger)
-# -------------------------------------------------------------------------
--keep class dagger.** { *; }
--keep interface dagger.** { *; }
--keep class com.google.dagger.** { *; }
+# 7. Kotlin Serialization
+-keepattributes *Annotation*, EnclosingMethod, InnerClasses
+-keepclassmembers class ** {
+    @kotlinx.serialization.Serializable *;
+}
+-keepclassmembers class ** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
 
-# 9. Resource & Attribute Hardening
-# -------------------------------------------------------------------------
+# 8. Debugging Attributes & Source Mapping
 -keepattributes Signature, *Annotation*, EnclosingMethod, InnerClasses, Exceptions, SourceFile, LineNumberTable
 
-# 10. General Cleanliness
-# -------------------------------------------------------------------------
-# Remove logs to keep the binary clean, but keep everything else fast.
+# 9. Log Stripping
 -assumenosideeffects class android.util.Log {
     public static *** d(...);
     public static *** v(...);
@@ -74,5 +87,9 @@
     public static *** w(...);
 }
 
-# Maintain original filenames in stacktraces for easier debugging of "silent" device errors
--keepattributes SourceFile,LineNumberTable
+# 10. Refined Warning Suppression
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
+-dontwarn org.checkerframework.**
+-dontwarn okio.**
+-dontwarn retrofit2.**

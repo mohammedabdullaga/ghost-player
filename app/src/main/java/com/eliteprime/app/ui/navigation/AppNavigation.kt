@@ -7,6 +7,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
+import com.eliteprime.app.util.isTelevisionDevice
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -55,7 +57,8 @@ fun AppNavigation(
     startDestination: String = "login"
 ) {
     val isLite = DeviceRenderProfile.isLiteMode()
-    val defaultLanding = if (isLite) "hub" else "home"
+    val isTv = LocalContext.current.isTelevisionDevice()
+    val defaultLanding = if (isLite && isTv) "hub" else "home"
 
     val navigateFromHubToLeaf = { leafRoute: String ->
         globalPlayerState.hide()

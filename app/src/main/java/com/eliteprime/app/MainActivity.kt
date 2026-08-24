@@ -72,8 +72,9 @@ class MainActivity : AppCompatActivity() {
 
         val accountBox = boxStore.boxFor(XtreamAccount::class.java)
         val hasActiveAccount = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() != null
+        val isTv = isTelevisionDevice()
         val startDest = if (hasActiveAccount) {
-            if (isLite) "hub" else "home"
+            if (isLite && isTv) "hub" else "home"
         } else "login"
 
         _pictureInPictureModeFlow.value = isInPictureInPictureMode

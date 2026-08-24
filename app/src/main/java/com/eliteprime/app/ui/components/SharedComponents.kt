@@ -832,54 +832,82 @@ fun TvConfirmDialog(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        var isYesFocused by remember { mutableStateOf(false) }
-                        TvSurface(
-                            onClick = onConfirm,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .focusRequester(focusRequester)
-                                .onFocusChanged { isYesFocused = it.isFocused },
-                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
-                            colors = ClickableSurfaceDefaults.colors(
-                                containerColor = confirmColor.copy(alpha = 0.2f),
-                                focusedContainerColor = Color.White
-                            ),
-                            border = ClickableSurfaceDefaults.border(
-                                focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-                                border = Border(BorderStroke(1.dp, confirmColor.copy(alpha = 0.5f)))
-                            )
-                        ) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = confirmText.uppercase(),
-                                    color = if (isYesFocused) Color.Black else Color.White,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 14.sp
+                        val isTv = LocalContext.current.isTelevisionDevice()
+                        
+                        if (isTv) {
+                            var isYesFocused by remember { mutableStateOf(false) }
+                            TvSurface(
+                                onClick = onConfirm,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .focusRequester(focusRequester)
+                                    .onFocusChanged { isYesFocused = it.isFocused },
+                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
+                                colors = ClickableSurfaceDefaults.colors(
+                                    containerColor = confirmColor.copy(alpha = 0.2f),
+                                    focusedContainerColor = Color.White
+                                ),
+                                border = ClickableSurfaceDefaults.border(
+                                    focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                                    border = Border(BorderStroke(1.dp, confirmColor.copy(alpha = 0.5f)))
                                 )
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = confirmText.uppercase(),
+                                        color = if (isYesFocused) Color.Black else Color.White,
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 14.sp
+                                    )
+                                }
                             }
-                        }
 
-                        var isNoFocused by remember { mutableStateOf(false) }
-                        TvSurface(
-                            onClick = onDismiss,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                                .onFocusChanged { isNoFocused = it.isFocused },
-                            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
-                            colors = ClickableSurfaceDefaults.colors(
-                                containerColor = Color.White.copy(alpha = 0.05f),
-                                focusedContainerColor = Color.White
-                            )
-                        ) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = stringResource(android.R.string.cancel).uppercase(),
-                                    color = if (isNoFocused) Color.Black else Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
+                            var isNoFocused by remember { mutableStateOf(false) }
+                            TvSurface(
+                                onClick = onDismiss,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .onFocusChanged { isNoFocused = it.isFocused },
+                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(24.dp)),
+                                colors = ClickableSurfaceDefaults.colors(
+                                    containerColor = Color.White.copy(alpha = 0.05f),
+                                    focusedContainerColor = Color.White
                                 )
+                            ) {
+                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = stringResource(android.R.string.cancel).uppercase(),
+                                        color = if (isNoFocused) Color.Black else Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            }
+                        } else {
+                            // Mobile/Touch Buttons
+                            Button(
+                                onClick = onConfirm,
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = confirmColor
+                                )
+                            ) {
+                                Text(confirmText.uppercase(), fontWeight = FontWeight.Black, color = Color.White)
+                            }
+
+                            Button(
+                                onClick = onDismiss,
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                shape = RoundedCornerShape(24.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White.copy(alpha = 0.1f),
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Text(stringResource(android.R.string.cancel).uppercase(), fontWeight = FontWeight.Bold)
                             }
                         }
                     }

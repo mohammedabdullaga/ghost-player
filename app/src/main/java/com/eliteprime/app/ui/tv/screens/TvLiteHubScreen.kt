@@ -7,7 +7,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
@@ -140,113 +143,170 @@ fun TvLiteHubScreen(
                 }
             }
 
-            // Main content — now takes up the full available height
-            // between the top and bottom bars, tiles sized generously
-            // instead of a small centered cluster.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(vertical = 32.dp),
-                horizontalArrangement = Arrangement.spacedBy(36.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    modifier = Modifier.weight(0.7f).fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(28.dp)
+            // Main content
+            if (isTv) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(vertical = 32.dp),
+                    horizontalArrangement = Arrangement.spacedBy(36.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(28.dp)
+                    Column(
+                        modifier = Modifier
+                            .weight(0.7f)
+                            .fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(28.dp)
                     ) {
-                        HubPrimaryTile(
-                            title = stringResource(R.string.nav_live_tv),
-                            icon = Icons.Default.LiveTv,
-                            tileColor = HubBrand.Tile,
-                            focusRequester = firstTileRequester,
-                            isTv = isTv,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            onClick = onNavigateToLive
-                        )
-                        HubPrimaryTile(
-                            title = stringResource(R.string.nav_movies),
-                            icon = Icons.Default.Movie,
-                            tileColor = HubBrand.Tile,
-                            focusRequester = null,
-                            isTv = isTv,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            onClick = onNavigateToMovies
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(28.dp)
+                        ) {
+                            HubPrimaryTile(
+                                title = stringResource(R.string.nav_live_tv),
+                                icon = Icons.Default.LiveTv,
+                                tileColor = HubBrand.Tile,
+                                focusRequester = firstTileRequester,
+                                isTv = isTv,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                onClick = onNavigateToLive
+                            )
+                            HubPrimaryTile(
+                                title = stringResource(R.string.nav_movies),
+                                icon = Icons.Default.Movie,
+                                tileColor = HubBrand.Tile,
+                                focusRequester = null,
+                                isTv = isTv,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                onClick = onNavigateToMovies
+                            )
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(28.dp)
+                        ) {
+                            HubPrimaryTile(
+                                title = stringResource(R.string.nav_series),
+                                icon = Icons.Default.VideoLibrary,
+                                tileColor = HubBrand.Tile,
+                                focusRequester = null,
+                                isTv = isTv,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                onClick = onNavigateToSeries
+                            )
+                            HubPrimaryTile(
+                                title = stringResource(R.string.nav_search),
+                                icon = Icons.Default.Search,
+                                tileColor = HubBrand.Tile,
+                                focusRequester = null,
+                                isTv = isTv,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                onClick = onNavigateToSearch
+                            )
+                        }
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(28.dp)
+
+                    Column(
+                        modifier = Modifier
+                            .weight(0.3f)
+                            .fillMaxHeight(),
+                        verticalArrangement = Arrangement.spacedBy(18.dp)
                     ) {
-                        HubPrimaryTile(
-                            title = stringResource(R.string.nav_series),
-                            icon = Icons.Default.VideoLibrary,
-                            tileColor = HubBrand.Tile,
-                            focusRequester = null,
+                        HubSecondaryActionRow(
+                            title = stringResource(R.string.nav_settings),
+                            icon = Icons.Default.Settings,
                             isTv = isTv,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            onClick = onNavigateToSeries
+                            modifier = Modifier.weight(1f),
+                            onClick = onNavigateToSettings
                         )
-                        HubPrimaryTile(
-                            title = stringResource(R.string.nav_search),
-                            icon = Icons.Default.Search,
-                            tileColor = HubBrand.Tile,
-                            focusRequester = null,
+                        HubSecondaryActionRow(
+                            title = if (uiState.isSyncing) stringResource(R.string.hub_syncing) else stringResource(R.string.hub_reload),
+                            icon = Icons.Default.Refresh,
+                            isLoading = uiState.isSyncing,
                             isTv = isTv,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            onClick = onNavigateToSearch
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                if (!uiState.isSyncing) {
+                                    viewModel.reloadData { success ->
+                                        Toast.makeText(
+                                            context,
+                                            if (success) syncSuccessMsg else syncFailedMsg,
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            }
+                        )
+                        HubSecondaryActionRow(
+                            title = stringResource(R.string.mode_standard_title),
+                            icon = Icons.Default.Dashboard,
+                            isTv = isTv,
+                            modifier = Modifier.weight(1f),
+                            onClick = { showSwitchModeDialog = true }
+                        )
+                        HubSecondaryActionRow(
+                            title = stringResource(R.string.hub_exit),
+                            icon = Icons.AutoMirrored.Filled.ExitToApp,
+                            isTv = isTv,
+                            accentColor = Color(0xFFEF5350),
+                            modifier = Modifier.weight(1f),
+                            onClick = { showExitDialog = true }
                         )
                     }
                 }
-
+            } else {
+                // MOBILE LAYOUT: Vertical Scroll
                 Column(
-                    modifier = Modifier.weight(0.3f).fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(18.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(vertical = 16.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    HubSecondaryActionRow(
-                        title = stringResource(R.string.nav_settings),
-                        icon = Icons.Default.Settings,
-                        isTv = isTv,
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToSettings
-                    )
+                    // Primary Tiles in a 2x2 grid (or just rows)
+                    Row(modifier = Modifier.fillMaxWidth().height(140.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        HubPrimaryTile(stringResource(R.string.nav_live_tv), Icons.Default.LiveTv, HubBrand.Tile, null, false, Modifier.weight(1f), onNavigateToLive)
+                        HubPrimaryTile(stringResource(R.string.nav_movies), Icons.Default.Movie, HubBrand.Tile, null, false, Modifier.weight(1f), onNavigateToMovies)
+                    }
+                    Row(modifier = Modifier.fillMaxWidth().height(140.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        HubPrimaryTile(stringResource(R.string.nav_series), Icons.Default.VideoLibrary, HubBrand.Tile, null, false, Modifier.weight(1f), onNavigateToSeries)
+                        HubPrimaryTile(stringResource(R.string.nav_search), Icons.Default.Search, HubBrand.Tile, null, false, Modifier.weight(1f), onNavigateToSearch)
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Secondary Actions as vertical rows
+                    HubSecondaryActionRow(stringResource(R.string.nav_settings), Icons.Default.Settings, false, modifier = Modifier.height(60.dp), onClick = onNavigateToSettings)
                     HubSecondaryActionRow(
                         title = if (uiState.isSyncing) stringResource(R.string.hub_syncing) else stringResource(R.string.hub_reload),
                         icon = Icons.Default.Refresh,
+                        isTv = false,
                         isLoading = uiState.isSyncing,
-                        isTv = isTv,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.height(60.dp),
                         onClick = {
                             if (!uiState.isSyncing) {
                                 viewModel.reloadData { success ->
-                                    Toast.makeText(
-                                        context,
-                                        if (success) syncSuccessMsg else syncFailedMsg,
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    Toast.makeText(context, if (success) syncSuccessMsg else syncFailedMsg, Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
                     )
-                    HubSecondaryActionRow(
-                        title = stringResource(R.string.mode_standard_title),
-                        icon = Icons.Default.Dashboard,
-                        isTv = isTv,
-                        modifier = Modifier.weight(1f),
-                        onClick = { showSwitchModeDialog = true }
-                    )
-                    HubSecondaryActionRow(
-                        title = stringResource(R.string.hub_exit),
-                        icon = Icons.AutoMirrored.Filled.ExitToApp,
-                        isTv = isTv,
-                        accentColor = Color(0xFFEF5350),
-                        modifier = Modifier.weight(1f),
-                        onClick = { showExitDialog = true }
-                    )
+                    HubSecondaryActionRow(stringResource(R.string.mode_standard_title), Icons.Default.Dashboard, false, modifier = Modifier.height(60.dp), onClick = { showSwitchModeDialog = true })
+                    HubSecondaryActionRow(stringResource(R.string.hub_exit), Icons.AutoMirrored.Filled.ExitToApp, false, accentColor = Color(0xFFEF5350), modifier = Modifier.height(60.dp), onClick = { showExitDialog = true })
                 }
             }
 
