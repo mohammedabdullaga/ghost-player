@@ -42,7 +42,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
-import com.eliteprime.app.MainActivity
 import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.XtreamAccount
@@ -232,12 +231,7 @@ fun SettingsScreen(
                         SettingCategory.GENERAL -> {
                             GeneralSettingsContent(
                                 currentLanguage = uiState.language,
-                                isLiteMode = uiState.isLiteModeEnabled,
                                 onLanguageChange = { viewModel.setLanguage(it) },
-                                onToggleLiteMode = { targetLite ->
-                                    viewModel.setLiteModeEnabled(targetLite)
-                                    (context as? MainActivity)?.restartApp()
-                                },
                                 storageConfig = uiState.storageConfig,
                                 onFolderSelected = { viewModel.updateStorageConfig(it) },
                                 isTv = isTv
@@ -490,41 +484,11 @@ private fun NetworkSettingsContent(
 @Composable
 private fun GeneralSettingsContent(
     currentLanguage: String,
-    isLiteMode: Boolean,
     onLanguageChange: (String) -> Unit,
-    onToggleLiteMode: (Boolean) -> Unit,
     storageConfig: DownloadStorageConfig,
     onFolderSelected: (Uri) -> Unit,
     isTv: Boolean
 ) {
-    var showRestartDialog by remember { mutableStateOf(false) }
-    var pendingLiteToggle by remember { mutableStateOf(false) }
-
-    if (showRestartDialog) {
-        AlertDialog(
-            onDismissRequest = { showRestartDialog = false },
-            title = { Text(stringResource(R.string.settings_lite_mode_restart_title), fontWeight = FontWeight.Bold) },
-            text = { Text(stringResource(R.string.settings_lite_mode_restart_msg)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showRestartDialog = false
-                    onToggleLiteMode(pendingLiteToggle)
-                }) {
-                    Text(stringResource(R.string.generic_yes).uppercase(), color = AppColors.ArenaOrange, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRestartDialog = false }) {
-                    Text(stringResource(android.R.string.cancel), color = Color.White.copy(alpha = 0.6f))
-                }
-            },
-            shape = RoundedCornerShape(STRadius.lg),
-            containerColor = Color(0xFF1A1C1E),
-            titleContentColor = Color.White,
-            textContentColor = Color.White.copy(alpha = 0.7f)
-        )
-    }
-
     val folderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri?.let(onFolderSelected)
     }
@@ -561,61 +525,6 @@ private fun GeneralSettingsContent(
                         isTv = isTv,
                         modifier = Modifier.weight(1f)
                     )
-                }
-            }
-        }
-
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
-                Text(
-                    text = "APP MODE / PERFORMANCE",
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp
-                )
-
-                Surface(
-                    onClick = {
-                        pendingLiteToggle = !isLiteMode
-                        showRestartDialog = true
-                    },
-                    color = if (isLiteMode) AppColors.ArenaOrange.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.05f),
-                    shape = RoundedCornerShape(STRadius.md),
-                    border = BorderStroke(1.dp, if (isLiteMode) AppColors.ArenaOrange.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.1f))
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(STSpacing.md),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = STSpacing.md)) {
-                            Text(
-                                text = stringResource(R.string.settings_lite_mode),
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = stringResource(R.string.settings_lite_mode_desc),
-                                color = Color.White.copy(alpha = 0.5f),
-                                fontSize = 11.sp,
-                                lineHeight = 15.sp
-                            )
-                        }
-
-                        Switch(
-                            checked = isLiteMode,
-                            onCheckedChange = null,
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = AppColors.ArenaOrange,
-                                uncheckedThumbColor = Color.White.copy(alpha = 0.4f),
-                                uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
-                            )
-                        )
-                    }
                 }
             }
         }
@@ -1090,7 +999,7 @@ private fun RadioOptionRow(
                 selected = isSelected,
                 onClick = null,
                 colors = RadioButtonDefaults.colors(
-                    selectedColor = AppColors.ArenaOrange,
+                    selectedColor = AppColors.EliteOrange,
                     unselectedColor = Color.White.copy(alpha = 0.2f)
                 )
             )
@@ -1120,13 +1029,13 @@ private fun SettingToggleItem(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .background(if (checked) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f), CircleShape),
+                    .background(if (checked) AppColors.EliteOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     icon,
                     null,
-                    tint = if (checked) AppColors.ArenaOrange else Color.White.copy(alpha = 0.4f),
+                    tint = if (checked) AppColors.EliteOrange else Color.White.copy(alpha = 0.4f),
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -1151,7 +1060,7 @@ private fun SettingToggleItem(
                 onCheckedChange = null,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
-                    checkedTrackColor = AppColors.ArenaOrange,
+                    checkedTrackColor = AppColors.EliteOrange,
                     uncheckedThumbColor = Color.White.copy(alpha = 0.4f),
                     uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
                 )
@@ -1176,13 +1085,13 @@ private fun SubtitleColorChip(
             modifier = Modifier.onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.1f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.85f),
+                containerColor = if (isActive) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.85f),
                 focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
             border = ClickableSurfaceDefaults.border(
                 focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-                border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+                border = Border(BorderStroke(2.dp, if (isActive) AppColors.EliteOrange.copy(alpha = 0.85f) else Color.Transparent))
             )
         ) {
             SubtitleColorChipContent(label, color, isActive, isFocused)
@@ -1190,9 +1099,9 @@ private fun SubtitleColorChip(
     } else {
         Surface(
             onClick = onClick,
-            color = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.85f),
+            color = if (isActive) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.85f),
             shape = RoundedCornerShape(10.dp),
-            border = BorderStroke(1.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.15f))
+            border = BorderStroke(1.dp, if (isActive) AppColors.EliteOrange.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.15f))
         ) {
             SubtitleColorChipContent(label, color, isActive, false)
         }
@@ -1244,13 +1153,13 @@ private fun SidebarItem(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Transparent,
+                containerColor = if (isSelected) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.Transparent,
                 focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.md)),
             border = ClickableSurfaceDefaults.border(
                 focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.EliteOrange.copy(alpha = 0.85f) else Color.Transparent))
             )
         ) {
             SidebarItemContent(label, icon, isSelected, isFocused)
@@ -1258,9 +1167,9 @@ private fun SidebarItem(
     } else {
         Surface(
             onClick = onClick,
-            color = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Transparent,
+            color = if (isSelected) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.Transparent,
             shape = RoundedCornerShape(STRadius.md),
-            border = if (isSelected) BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.85f)) else null
+            border = if (isSelected) BorderStroke(1.dp, AppColors.EliteOrange.copy(alpha = 0.85f)) else null
         ) {
             SidebarItemContent(label, icon, isSelected, false)
         }
@@ -1285,7 +1194,7 @@ private fun SidebarItemContent(label: String, icon: ImageVector, isActive: Boole
             modifier = Modifier
                 .width(3.dp)
                 .height(18.dp)
-                .background(if (isActive || isFocused) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(50))
+                .background(if (isActive || isFocused) AppColors.EliteOrange else Color.Transparent, RoundedCornerShape(50))
         )
         Icon(
             imageVector = icon,
@@ -1337,7 +1246,7 @@ private fun AccountSettingsCard(
                 .offset(x = 90.dp, y = (-90).dp)
                 .background(
                     Brush.radialGradient(
-                        colors = listOf(AppColors.ArenaOrange.copy(alpha = 0.16f), Color.Transparent)
+                        colors = listOf(AppColors.EliteOrange.copy(alpha = 0.16f), Color.Transparent)
                     )
                 )
         )
@@ -1355,7 +1264,7 @@ private fun AccountSettingsCard(
                 Column(verticalArrangement = Arrangement.spacedBy(STSpacing.xs)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                         Text(
-                            text = account.name.ifBlank { "ArenaLive" },
+                            text = account.name.ifBlank { "Elite TV" },
                             color = Color.White,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Black
@@ -1382,13 +1291,13 @@ private fun AccountSettingsCard(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(STSpacing.xs)
                         ) {
-                            Icon(Icons.Default.Event, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Default.Event, null, tint = AppColors.EliteOrange, modifier = Modifier.size(15.dp))
                             Text(stringResource(R.string.settings_account_expires, expirationDate), color = Color.White.copy(alpha = 0.9f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
 
-                StatusPill(label = stringResource(R.string.generic_status_active), containerColor = AppColors.ArenaOrange, horizontalPadding = 10.dp, verticalPadding = 4.dp)
+                StatusPill(label = stringResource(R.string.generic_status_active), containerColor = AppColors.EliteOrange, horizontalPadding = 10.dp, verticalPadding = 4.dp)
             }
 
             // 2. Metrics
@@ -1534,13 +1443,13 @@ private fun SettingsActionButton(
             modifier = modifier.onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isPrimary) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f),
+                containerColor = if (isPrimary) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.08f),
                 focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(STRadius.sm)),
             border = ClickableSurfaceDefaults.border(
                 focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-                border = Border(BorderStroke(2.dp, if (isPrimary) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+                border = Border(BorderStroke(2.dp, if (isPrimary) AppColors.EliteOrange.copy(alpha = 0.85f) else Color.Transparent))
             )
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -1557,7 +1466,7 @@ private fun SettingsActionButton(
             onClick = onClick,
             modifier = modifier,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isPrimary) AppColors.ArenaOrange else Color.White.copy(alpha = 0.1f)
+                containerColor = if (isPrimary) AppColors.EliteOrange else Color.White.copy(alpha = 0.1f)
             ),
             shape = RoundedCornerShape(STRadius.sm)
         ) {
@@ -1644,7 +1553,7 @@ private fun AboutSettingsContent(
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
                 ) {
                     Column(modifier = Modifier.padding(STSpacing.md), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        AboutInfoRow(label = stringResource(R.string.settings_about_app_name), value = "ArenaLive")
+                        AboutInfoRow(label = stringResource(R.string.settings_about_app_name), value = "Elite TV")
                         AboutInfoRow(label = stringResource(R.string.settings_about_developed_by), value = "Elit Bahrain")
                         AboutInfoRow(label = stringResource(R.string.settings_about_build_version), value = "1.0.0")
                     }
@@ -1670,7 +1579,7 @@ private fun AboutSettingsContent(
                         AboutInfoRow(
                             label = stringResource(R.string.settings_about_update_status), 
                             value = uiState.updateStatus,
-                            valueColor = if (uiState.updateStatus.contains("available", ignoreCase = true)) AppColors.ArenaOrange else Color.Green.copy(alpha = 0.8f)
+                            valueColor = if (uiState.updateStatus.contains("available", ignoreCase = true)) AppColors.EliteOrange else Color.Green.copy(alpha = 0.8f)
                         )
                         
                         val lastChecked = if (uiState.lastUpdateCheckTimestamp > 0) {
@@ -1738,7 +1647,7 @@ private fun EditAccountDialog(
                 text = stringResource(R.string.settings_edit_account), 
                 fontWeight = FontWeight.Black,
                 fontSize = 18.sp,
-                color = AppColors.ArenaOrange
+                color = AppColors.EliteOrange
             ) 
         },
         text = {
@@ -1758,11 +1667,11 @@ private fun EditAccountDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedBorderColor = AppColors.ArenaOrange,
+                        focusedBorderColor = AppColors.EliteOrange,
                         unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
                         focusedContainerColor = Color.White.copy(alpha = 0.05f),
                         unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                        cursorColor = AppColors.ArenaOrange
+                        cursorColor = AppColors.EliteOrange
                     )
                 )
                 
@@ -1786,11 +1695,11 @@ private fun EditAccountDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.White,
                         unfocusedTextColor = Color.White,
-                        focusedBorderColor = AppColors.ArenaOrange,
+                        focusedBorderColor = AppColors.EliteOrange,
                         unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
                         focusedContainerColor = Color.White.copy(alpha = 0.05f),
                         unfocusedContainerColor = Color.White.copy(alpha = 0.05f),
-                        cursorColor = AppColors.ArenaOrange
+                        cursorColor = AppColors.EliteOrange
                     )
                 )
             }
@@ -1798,7 +1707,7 @@ private fun EditAccountDialog(
         confirmButton = {
             Button(
                 onClick = { onSave(account.copy(username = username, password = password)) },
-                colors = ButtonDefaults.buttonColors(containerColor = AppColors.ArenaOrange),
+                colors = ButtonDefaults.buttonColors(containerColor = AppColors.EliteOrange),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(stringResource(R.string.generic_save_changes), fontWeight = FontWeight.Black)

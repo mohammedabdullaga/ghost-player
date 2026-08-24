@@ -115,7 +115,7 @@ fun SearchScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = if (isTv) 32.dp else 16.dp, vertical = if (isTv) 24.dp else 16.dp)
+                        .padding(horizontal = 32.dp, vertical = 24.dp)
                 ) {
                     SearchInputField(
                         query = query,
@@ -132,43 +132,31 @@ fun SearchScreen(
 
                     if (query.isNotBlank()) {
                         Spacer(modifier = Modifier.height(SearchSpacing.sm))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(SearchSpacing.xs)
-                        ) {
-                            val chipModifier = if (isTv) Modifier else Modifier.weight(1f)
-                            Box(modifier = chipModifier) {
-                                SubFilterChip(
-                                    label = stringResource(R.string.filter_all),
-                                    icon = Icons.Default.Search,
-                                    isActive = selectedFilter == SearchResultType.ALL,
-                                    onClick = { selectedFilter = SearchResultType.ALL }
-                                )
-                            }
-                            Box(modifier = chipModifier) {
-                                SubFilterChip(
-                                    label = stringResource(R.string.filter_movies),
-                                    icon = Icons.Default.Movie,
-                                    isActive = selectedFilter == SearchResultType.MOVIES,
-                                    onClick = { selectedFilter = SearchResultType.MOVIES }
-                                )
-                            }
-                            Box(modifier = chipModifier) {
-                                SubFilterChip(
-                                    label = stringResource(R.string.filter_series),
-                                    icon = Icons.Default.VideoLibrary,
-                                    isActive = selectedFilter == SearchResultType.SERIES,
-                                    onClick = { selectedFilter = SearchResultType.SERIES }
-                                )
-                            }
-                            Box(modifier = chipModifier) {
-                                SubFilterChip(
-                                    label = stringResource(R.string.generic_live),
-                                    icon = Icons.Default.Tv,
-                                    isActive = selectedFilter == SearchResultType.LIVE_TV,
-                                    onClick = { selectedFilter = SearchResultType.LIVE_TV }
-                                )
-                            }
+                        Row(horizontalArrangement = Arrangement.spacedBy(SearchSpacing.xs)) {
+                            SubFilterChip(
+                                label = stringResource(R.string.filter_all),
+                                icon = Icons.Default.Search,
+                                isActive = selectedFilter == SearchResultType.ALL,
+                                onClick = { selectedFilter = SearchResultType.ALL }
+                            )
+                            SubFilterChip(
+                                label = stringResource(R.string.filter_movies),
+                                icon = Icons.Default.Movie,
+                                isActive = selectedFilter == SearchResultType.MOVIES,
+                                onClick = { selectedFilter = SearchResultType.MOVIES }
+                            )
+                            SubFilterChip(
+                                label = stringResource(R.string.filter_series),
+                                icon = Icons.Default.VideoLibrary,
+                                isActive = selectedFilter == SearchResultType.SERIES,
+                                onClick = { selectedFilter = SearchResultType.SERIES }
+                            )
+                            SubFilterChip(
+                                label = stringResource(R.string.generic_live),
+                                icon = Icons.Default.Tv,
+                                isActive = selectedFilter == SearchResultType.LIVE_TV,
+                                onClick = { selectedFilter = SearchResultType.LIVE_TV }
+                            )
                         }
                     }
                 }
@@ -187,16 +175,15 @@ fun SearchScreen(
                         uiState.isLoading -> item { Box(modifier = Modifier.fillParentMaxHeight(), contentAlignment = Alignment.Center) { LoadingState() } }
                         uiState.movies.isEmpty() && uiState.series.isEmpty() && uiState.channels.isEmpty() -> item { Box(modifier = Modifier.fillParentMaxHeight(), contentAlignment = Alignment.Center) { NoResultsState(query) } }
                         else -> {
-                            val horizontalPadding = if (isTv) 32.dp else 16.dp
                             if ((selectedFilter == SearchResultType.ALL || selectedFilter == SearchResultType.MOVIES) && uiState.movies.isNotEmpty()) {
-                                item { Box(modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 8.dp)) { ResultsSectionLabel(stringResource(R.string.nav_movies), uiState.movies.size) } }
+                                item { Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)) { ResultsSectionLabel(stringResource(R.string.nav_movies), uiState.movies.size) } }
                                 item {
                                     LazyRow(
-                                        contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = 16.dp),
+                                        contentPadding = PaddingValues(horizontal = 32.dp, vertical = 16.dp),
                                         horizontalArrangement = Arrangement.spacedBy(SearchSpacing.md)
                                     ) {
                                         items(uiState.movies) { movie ->
-                                            Box(modifier = Modifier.width(if (isTv) 136.dp else 110.dp)) {
+                                            Box(modifier = Modifier.width(136.dp)) {
                                                 VodPosterCard(movie = movie, onClick = { onMovieClick(movie) })
                                             }
                                         }
@@ -205,14 +192,14 @@ fun SearchScreen(
                             }
 
                             if ((selectedFilter == SearchResultType.ALL || selectedFilter == SearchResultType.SERIES) && uiState.series.isNotEmpty()) {
-                                item { Box(modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 8.dp)) { ResultsSectionLabel(stringResource(R.string.nav_series), uiState.series.size) } }
+                                item { Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)) { ResultsSectionLabel(stringResource(R.string.nav_series), uiState.series.size) } }
                                 item {
                                     LazyRow(
-                                        contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = 16.dp),
+                                        contentPadding = PaddingValues(horizontal = 32.dp, vertical = 16.dp),
                                         horizontalArrangement = Arrangement.spacedBy(SearchSpacing.md)
                                     ) {
                                         items(uiState.series) { series ->
-                                            Box(modifier = Modifier.width(if (isTv) 136.dp else 110.dp)) {
+                                            Box(modifier = Modifier.width(136.dp)) {
                                                 SeriesPosterCard(series = series, onClick = { onSeriesClick(series) })
                                             }
                                         }
@@ -221,9 +208,9 @@ fun SearchScreen(
                             }
 
                             if ((selectedFilter == SearchResultType.ALL || selectedFilter == SearchResultType.LIVE_TV) && uiState.channels.isNotEmpty()) {
-                                item { Box(modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 8.dp)) { ResultsSectionLabel(stringResource(R.string.nav_live_tv), uiState.channels.size) } }
+                                item { Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)) { ResultsSectionLabel(stringResource(R.string.nav_live_tv), uiState.channels.size) } }
                                 items(uiState.channels) { channel ->
-                                    Box(modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 4.dp)) {
+                                    Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp)) {
                                         ChannelRow(channel = channel, isSelected = false, onClick = { onChannelClick(channel) })
                                     }
                                 }
@@ -275,7 +262,7 @@ private fun SearchTopNavBar(onBack: () -> Unit) {
                 }
             }
 
-            ArenaLiveLogo(textSize = 20.sp)
+            EliteTvLogo(textSize = 20.sp)
         }
         Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(SearchPalette.hairline))
     }
@@ -312,11 +299,11 @@ private fun SearchInputField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = SearchPalette.textPrimary,
             unfocusedTextColor = SearchPalette.textPrimary,
-            focusedBorderColor = AppColors.ArenaOrange,
+            focusedBorderColor = AppColors.EliteOrange,
             unfocusedBorderColor = SearchPalette.fieldBorder,
             focusedContainerColor = SearchPalette.fieldFill,
             unfocusedContainerColor = SearchPalette.fieldFill,
-            cursorColor = AppColors.ArenaOrange
+            cursorColor = AppColors.EliteOrange
         )
     )
 }
@@ -343,7 +330,7 @@ private fun IdleState() {
 @Composable
 private fun LoadingState() {
     Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = AppColors.ArenaOrange, strokeWidth = 2.5.dp)
+        CircularProgressIndicator(color = AppColors.EliteOrange, strokeWidth = 2.5.dp)
     }
 }
 
@@ -374,6 +361,6 @@ private fun ResultsSectionLabel(title: String, count: Int) {
             fontSize = 13.sp,
             letterSpacing = 1.sp
         )
-        Text(text = count.toString(), color = AppColors.ArenaOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(text = count.toString(), color = AppColors.EliteOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }

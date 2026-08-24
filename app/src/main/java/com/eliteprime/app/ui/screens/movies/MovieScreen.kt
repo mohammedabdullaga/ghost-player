@@ -4,10 +4,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -53,7 +52,7 @@ private object VodSpacing {
 
 private object VodPalette {
     val paneFill = Color.Black.copy(alpha = 0.65f)
-    val paneBorder = AppColors.ArenaOrange.copy(alpha = 0.18f)
+    val paneBorder = AppColors.EliteOrange.copy(alpha = 0.18f)
     val hairline = Color.White.copy(alpha = 0.1f)
     val textSecondary = Color.White.copy(alpha = 0.6f)
 }
@@ -145,74 +144,19 @@ fun MovieScreen(
                 onNavigateToSeries = onNavigateToSeries
             )
 
-            if (isTv) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = VodSpacing.lg, vertical = VodSpacing.xs),
-                    horizontalArrangement = Arrangement.spacedBy(VodSpacing.lg)
-                ) {
-                    // --- Pane 1: Categories (0.3f weight) ---
-                    VodPaneSurface(modifier = Modifier.weight(0.3f)) {
-                        Column {
-                            VodPaneHeader(title = stringResource(R.string.generic_groups))
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(uiState.categories) { category ->
-                                    CategoryTab(
-                                        category = category,
-                                        isSelected = category.id == uiState.selectedCategory?.id,
-                                        onClick = { viewModel.selectCategory(category) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // --- Pane 2: Content Grid (0.7f weight) ---
-                    VodPaneSurface(modifier = Modifier.weight(0.7f)) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            VodPaneHeader(title = uiState.selectedCategory?.categoryName ?: stringResource(R.string.nav_movies).uppercase())
-                            LazyVerticalGrid(
-                                state = movieGridState,
-                                columns = GridCells.Fixed(4),
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(VodSpacing.md),
-                                horizontalArrangement = Arrangement.spacedBy(VodSpacing.md),
-                                verticalArrangement = Arrangement.spacedBy(24.dp)
-                            ) {
-                                items(uiState.filteredMovies) { movie ->
-                                    val focusRequester = movieFocusRequesters.getOrPut(movie.id) { FocusRequester() }
-                                    VodPosterCard(
-                                        movie = movie,
-                                        modifier = Modifier
-                                            .focusRequester(focusRequester)
-                                            .onFocusChanged { 
-                                                if (it.isFocused) {
-                                                    lastFocusedMovieId = movie.id 
-                                                }
-                                            },
-                                        onClick = { onMovieClick(movie) },
-                                        onLongClick = { viewModel.toggleFavorite(movie) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                // MOBILE LAYOUT: Vertical Flow
-                Column(modifier = Modifier.fillMaxSize()) {
-                    // Categories Row (Horizontal on Mobile)
-                    Box(modifier = Modifier.fillMaxWidth().height(56.dp)) {
-                        LazyRow(
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = VodSpacing.lg, vertical = VodSpacing.xs),
+                horizontalArrangement = Arrangement.spacedBy(VodSpacing.lg)
+            ) {
+                // --- Pane 1: Categories ---
+                VodPaneSurface(modifier = Modifier.weight(0.3f)) {
+                    Column {
+                        VodPaneHeader(title = stringResource(R.string.generic_groups))
+                        LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                         ) {
                             items(uiState.categories) { category ->
                                 CategoryTab(
@@ -223,24 +167,40 @@ fun MovieScreen(
                             }
                         }
                     }
+                }
 
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(VodPalette.hairline))
-
-                    // Content Grid
-                    LazyVerticalGrid(
-                        state = movieGridState,
-                        columns = GridCells.Fixed(3), // 3 columns for mobile
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(uiState.filteredMovies) { movie ->
-                            VodPosterCard(
-                                movie = movie,
-                                onClick = { onMovieClick(movie) },
-                                onLongClick = { viewModel.toggleFavorite(movie) }
-                            )
+                // --- Pane 2: Content Grid ---
+                VodPaneSurface(modifier = Modifier.weight(0.7f)) {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        VodPaneHeader(title = uiState.selectedCategory?.categoryName ?: stringResource(R.string.nav_movies).uppercase())
+                        LazyVerticalGrid(
+                            state = movieGridState,
+                            columns = GridCells.Fixed(4),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(VodSpacing.md),
+                            horizontalArrangement = Arrangement.spacedBy(VodSpacing.md),
+                            verticalArrangement = Arrangement.spacedBy(24.dp)
+                        ) {
+                            itemsIndexed(uiState.filteredMovies, key = { _, m -> m.id }) { index, movie ->
+                                if (index >= uiState.filteredMovies.size - 12) {
+                                    SideEffect {
+                                        viewModel.loadNextPage()
+                                    }
+                                }
+                                val focusRequester = movieFocusRequesters.getOrPut(movie.id) { FocusRequester() }
+                                VodPosterCard(
+                                    movie = movie,
+                                    modifier = Modifier
+                                        .focusRequester(focusRequester)
+                                        .onFocusChanged { 
+                                            if (it.isFocused) {
+                                                lastFocusedMovieId = movie.id 
+                                            }
+                                        },
+                                    onClick = { onMovieClick(movie) },
+                                    onLongClick = { viewModel.toggleFavorite(movie) }
+                                )
+                            }
                         }
                     }
                 }
@@ -264,7 +224,7 @@ private fun VodTopNavBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            ArenaLiveLogo(textSize = 20.sp)
+            EliteTvLogo(textSize = 20.sp)
 
             Spacer(modifier = Modifier.width(32.dp))
 
@@ -331,12 +291,12 @@ private fun VodRoundIconButton(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.15f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
+                containerColor = if (isActive) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f),
                 focusedContainerColor = Color.White
             ),
             shape = ClickableSurfaceDefaults.shape(CircleShape),
             border = ClickableSurfaceDefaults.border(
-                border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent)),
+                border = Border(BorderStroke(2.dp, if (isActive) AppColors.EliteOrange.copy(alpha = 0.85f) else Color.Transparent)),
                 focusedBorder = Border(BorderStroke(2.dp, Color.White))
             )
         ) {
@@ -352,14 +312,14 @@ private fun VodRoundIconButton(
     } else {
         IconButton(
             onClick = onClick,
-            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.35f),
+            modifier = Modifier.size(40.dp).background(if (isActive) AppColors.EliteOrange.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.35f),
                 CircleShape
             )
         ) {
             Icon(
                 icon, 
                 contentDescription = contentDescription, 
-                tint = if (isActive) AppColors.ArenaOrange else Color.White, 
+                tint = if (isActive) AppColors.EliteOrange else Color.White, 
                 modifier = Modifier.size(20.dp)
             )
         }

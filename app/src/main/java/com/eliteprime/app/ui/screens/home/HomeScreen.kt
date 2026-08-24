@@ -155,78 +155,32 @@ fun HomeScreen(
 
             val trendingItems = uiState.trendingMovies.ifEmpty { uiState.trendingSeries }
 
-            if (isTv) {
-                Row(
+            val trendingCardHeightFraction = if (isTv) 0.85f else 0.97f
+
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp),
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TrendingHeroCard(
+                    items = trendingItems,
+                    onClick = onNavigateToTrending,
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 32.dp),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TrendingHeroCard(
-                        items = trendingItems,
-                        onClick = onNavigateToTrending,
-                        modifier = Modifier
-                            .weight(0.65f)
-                            .fillMaxHeight(0.85f)
-                            .focusRequester(trendingFocusRequester)
-                            .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.TRENDING }
-                    )
-                    Column(
-                        modifier = Modifier
-                            .weight(0.35f)
-                            .fillMaxHeight(0.85f),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        HomeHeroCard(
-                            title = stringResource(R.string.home_continue_watching),
-                            description = continueDesc,
-                            backgroundUrl = lastWatched?.backdropUrl ?: lastWatched?.posterUrl,
-                            accentColor = Color(0xFFFF4500),
-                            onClick = onNavigateToContinueWatching,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .focusRequester(continueFocusRequester)
-                                .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.CONTINUE },
-                            progress = continueProgress
-                        )
-                        HomeHeroCard(
-                            title = stringResource(R.string.home_downloads),
-                            description = stringResource(R.string.home_downloads_desc),
-                            backgroundUrl = uiState.latestDownloadPoster,
-                            accentColor = Color(0xFF00BFFF),
-                            onClick = onNavigateToDownloads,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                                .alpha(if (uiState.downloadsCount == 0) 0.7f else 1f)
-                                .focusRequester(downloadsFocusRequester)
-                                .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.DOWNLOADS },
-                            badgeLabel = if (uiState.completedDownloadsCount > 0) "${uiState.completedDownloadsCount} ${stringResource(R.string.home_downloads_ready)}" else null
-                        )
-                    }
-                }
-            } else {
-                // MOBILE LAYOUT: Vertical Stack
+                        .weight(0.65f)
+                        .fillMaxHeight(trendingCardHeightFraction)
+                        .focusRequester(trendingFocusRequester)
+                        .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.TRENDING }
+                )
                 Column(
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(bottom = 16.dp),
+                        .weight(0.35f)
+                        .fillMaxHeight(0.85f),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    TrendingHeroCard(
-                        items = trendingItems,
-                        onClick = onNavigateToTrending,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1.2f)
-                    )
-                    
                     HomeHeroCard(
                         title = stringResource(R.string.home_continue_watching),
                         description = continueDesc,
@@ -234,11 +188,12 @@ fun HomeScreen(
                         accentColor = Color(0xFFFF4500),
                         onClick = onNavigateToContinueWatching,
                         modifier = Modifier
-                            .weight(0.9f)
-                            .fillMaxWidth(),
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .focusRequester(continueFocusRequester)
+                            .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.CONTINUE },
                         progress = continueProgress
                     )
-
                     HomeHeroCard(
                         title = stringResource(R.string.home_downloads),
                         description = stringResource(R.string.home_downloads_desc),
@@ -246,9 +201,11 @@ fun HomeScreen(
                         accentColor = Color(0xFF00BFFF),
                         onClick = onNavigateToDownloads,
                         modifier = Modifier
-                            .weight(0.9f)
+                            .weight(1f)
                             .fillMaxWidth()
-                            .alpha(if (uiState.downloadsCount == 0) 0.7f else 1f),
+                            .alpha(if (uiState.downloadsCount == 0) 0.7f else 1f)
+                            .focusRequester(downloadsFocusRequester)
+                            .onFocusChanged { if (it.isFocused) lastFocusedIndex = HomeFocusIndex.DOWNLOADS },
                         badgeLabel = if (uiState.completedDownloadsCount > 0) "${uiState.completedDownloadsCount} ${stringResource(R.string.home_downloads_ready)}" else null
                     )
                 }
@@ -284,57 +241,48 @@ private fun HomeTopNavBar(
     homeNavFocusRequester: FocusRequester,
     onHomeNavFocused: () -> Unit
 ) {
-    val isTv = LocalContext.current.isTelevisionDevice()
-    
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = if (isTv) 32.dp else 16.dp, vertical = if (isTv) 24.dp else 16.dp),
+            .padding(horizontal = 32.dp, vertical = 24.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ArenaLiveLogo(textSize = if (isTv) 22.sp else 18.sp)
+        ArenaLiveLogo(textSize = 22.sp)
 
-        Spacer(modifier = Modifier.width(if (isTv) 48.dp else 16.dp))
+        Spacer(modifier = Modifier.width(48.dp))
 
-        if (isTv) {
-            Row(
-                modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                NavTabButton(
-                    label = stringResource(R.string.nav_home), 
-                    isActive = true, 
-                    onClick = {},
-                    modifier = Modifier.focusRequester(homeNavFocusRequester).onFocusChanged { if (it.isFocused) onHomeNavFocused() }
-                )
-                NavTabButton(label = stringResource(R.string.nav_live_tv), isActive = false, onClick = onNavigateToLiveTv)
-                NavTabButton(label = stringResource(R.string.nav_movies), isActive = false, onClick = onNavigateToMovies)
-                NavTabButton(label = stringResource(R.string.nav_series), isActive = false, onClick = onNavigateToSeries)
-            }
-        } else {
-            // MOBILE: Just a spacer or simplified tabs
-            Spacer(modifier = Modifier.weight(1f))
+        Row(
+            modifier = Modifier.weight(1f),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            NavTabButton(
+                label = stringResource(R.string.nav_home), 
+                isActive = true, 
+                onClick = {},
+                modifier = Modifier.focusRequester(homeNavFocusRequester).onFocusChanged { if (it.isFocused) onHomeNavFocused() }
+            )
+            NavTabButton(label = stringResource(R.string.nav_live_tv), isActive = false, onClick = onNavigateToLiveTv)
+            NavTabButton(label = stringResource(R.string.nav_movies), isActive = false, onClick = onNavigateToMovies)
+            NavTabButton(label = stringResource(R.string.nav_series), isActive = false, onClick = onNavigateToSeries)
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(if (isTv) 16.dp else 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             HomeRoundIconButton(icon = Icons.Default.Search, contentDescription = "Search", onClick = onNavigateToSearch)
             HomeRoundIconButton(icon = Icons.Default.Tune, contentDescription = "Settings", onClick = onNavigateToSettings)
 
-            if (isTv) {
-                Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-                Text(
-                    text = currentTime,
-                    color = Color.White,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp
-                )
-            }
+            Text(
+                text = currentTime,
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
         }
     }
 }
@@ -452,8 +400,6 @@ private fun HomeHeroCardContent(
     badgeLabel: String?,
     shape: RoundedCornerShape
 ) {
-    val isTv = LocalContext.current.isTelevisionDevice()
-    
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -495,12 +441,12 @@ private fun HomeHeroCardContent(
             Surface(
                 color = accentColor,
                 shape = RoundedCornerShape(6.dp),
-                modifier = Modifier.align(Alignment.TopStart).padding(if (isTv) 14.dp else 10.dp)
+                modifier = Modifier.align(Alignment.TopStart).padding(14.dp)
             ) {
                 Text(
                     text = badgeLabel,
                     color = Color(0xFF14100A),
-                    fontSize = if (isTv) 10.sp else 9.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 0.5.sp,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
@@ -511,15 +457,15 @@ private fun HomeHeroCardContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = if (isTv) 16.dp else 12.dp, vertical = if (isTv) 12.dp else 10.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.Bottom
         ) {
             Text(
                 text = title.uppercase(),
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
-                fontSize = if (isTv) 15.sp else 13.sp,
-                lineHeight = if (isTv) 17.sp else 15.sp,
+                fontSize = 15.sp,
+                lineHeight = 17.sp,
                 letterSpacing = (-0.1).sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -530,14 +476,14 @@ private fun HomeHeroCardContent(
             Text(
                 text = description,
                 color = Color.White.copy(alpha = 0.65f),
-                fontSize = if (isTv) 10.sp else 9.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
             if (progress != null) {
-                Spacer(modifier = Modifier.height(if (isTv) 10.dp else 6.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -620,7 +566,6 @@ private fun TrendingHeroCardContent(
     isActive: Boolean,
     shape: RoundedCornerShape
 ) {
-    val isTv = LocalContext.current.isTelevisionDevice()
     val accentColor = Color(0xFFFF3D00)
 
     Box(
@@ -640,7 +585,7 @@ private fun TrendingHeroCardContent(
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(crossfadeItem.backdropUrl ?: crossfadeItem.posterUrl)
-                        .build(),
+                            .build(),
                         contentDescription = crossfadeItem.title,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -674,7 +619,7 @@ private fun TrendingHeroCardContent(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = if (isTv) 28.dp else 20.dp, vertical = if (isTv) 26.dp else 18.dp),
+                        .padding(horizontal = 28.dp, vertical = 26.dp),
                     verticalArrangement = Arrangement.Bottom
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -682,16 +627,16 @@ private fun TrendingHeroCardContent(
                             text = stringResource(R.string.home_trending_title),
                             color = accentColor,
                             fontWeight = FontWeight.Black,
-                            fontSize = if (isTv) 11.sp else 9.sp,
+                            fontSize = 11.sp,
                             letterSpacing = 1.sp
                         )
                         if (itemCount > 1) {
-                            Spacer(modifier = Modifier.width(if (isTv) 10.dp else 6.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 repeat(itemCount.coerceAtMost(8)) { dotIndex ->
                                     Box(
                                         modifier = Modifier
-                                            .size(if (isTv) 5.dp else 4.dp)
+                                            .size(5.dp)
                                             .clip(CircleShape)
                                             .background(
                                                 if (dotIndex == currentIndex) accentColor else Color.White.copy(alpha = 0.25f)
@@ -708,7 +653,7 @@ private fun TrendingHeroCardContent(
                         text = crossfadeItem?.title ?: stringResource(R.string.home_trending_fallback),
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = if (isTv) 22.sp else 18.sp,
+                        fontSize = 22.sp,
                         letterSpacing = (-0.3).sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -717,18 +662,18 @@ private fun TrendingHeroCardContent(
                     if (crossfadeItem != null) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Icon(Icons.Default.Star, null, tint = Color(0xFF9C27B0), modifier = Modifier.size(if (isTv) 13.dp else 11.dp))
+                            Icon(Icons.Default.Star, null, tint = Color(0xFF9C27B0), modifier = Modifier.size(13.dp))
                             Text(
                                 text = "%.1f".format(crossfadeItem.voteAverage),
                                 color = Color.White.copy(alpha = 0.85f),
-                                fontSize = if (isTv) 12.sp else 10.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             crossfadeItem.releaseDate?.take(4)?.let { year ->
                                 Text(
                                     text = "· $year",
                                     color = Color.White.copy(alpha = 0.6f),
-                                    fontSize = if (isTv) 12.sp else 10.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -736,12 +681,12 @@ private fun TrendingHeroCardContent(
                     }
 
                     if (!crossfadeItem?.overview.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(if (isTv) 6.6.dp else 4.dp))
+                        Spacer(modifier = Modifier.height(6.6.dp))
                         Text(
                             text = crossfadeItem!!.overview,
                             color = Color.White.copy(alpha = 0.75f),
-                            fontSize = if (isTv) 12.sp else 10.sp,
-                            lineHeight = if (isTv) 16.sp else 14.sp,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -759,7 +704,7 @@ fun ExitConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.exit_confirm_title), fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.settings_logout_confirm_title), fontWeight = FontWeight.Bold) },
         text = { Text(stringResource(R.string.exit_confirm_msg)) },
         confirmButton = {
             TextButton(onClick = onConfirm) {
