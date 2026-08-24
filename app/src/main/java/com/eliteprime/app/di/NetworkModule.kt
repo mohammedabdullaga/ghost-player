@@ -152,7 +152,8 @@ object NetworkModule {
                 val request = chain.request()
                 val builder = request.newBuilder()
                 if (request.header("User-Agent").isNullOrBlank()) {
-                    builder.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
+                    // Using a common IPTV player User-Agent to ensure maximum compatibility with server filters
+                    builder.header("User-Agent", "IPTVSmartersPlayer")
                 }
                 chain.proceed(builder.build())
             }

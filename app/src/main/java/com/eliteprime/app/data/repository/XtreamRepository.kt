@@ -64,7 +64,7 @@ class XtreamRepository @Inject constructor(
 
                 Log.d(TAG, "Response status: ${response.userInfo?.status}")
 
-                if (response.userInfo?.status == "Active") {
+                if (response.userInfo?.status?.equals("Active", ignoreCase = true) == true) {
                     boxStore.runInTx {
                         accountBox.removeAll()
                         accountBox.put(XtreamAccount(
