@@ -180,7 +180,7 @@ fun SeriesScreen(
                             itemsIndexed(uiState.filteredSeries, key = { _, s -> s.id }) { index, series ->
                                 if (index >= uiState.filteredSeries.size - 12) {
                                     SideEffect {
-                                        viewModel.loadNextPage()
+                                        viewModel.loadMore()
                                     }
                                 }
                                 val focusRequester = seriesFocusRequesters.getOrPut(series.id) { FocusRequester() }
@@ -319,4 +319,5 @@ private fun VodRoundIconButton(
         }
     }
 }
+
 

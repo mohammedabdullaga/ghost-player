@@ -184,7 +184,7 @@ fun MovieScreen(
                             itemsIndexed(uiState.filteredMovies, key = { _, m -> m.id }) { index, movie ->
                                 if (index >= uiState.filteredMovies.size - 12) {
                                     SideEffect {
-                                        viewModel.loadNextPage()
+                                        viewModel.loadMore()
                                     }
                                 }
                                 val focusRequester = movieFocusRequesters.getOrPut(movie.id) { FocusRequester() }
@@ -325,4 +325,5 @@ private fun VodRoundIconButton(
         }
     }
 }
+
 
