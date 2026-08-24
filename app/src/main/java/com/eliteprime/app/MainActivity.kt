@@ -74,6 +74,7 @@ class MainActivity : AppCompatActivity() {
         val hasActiveAccount = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() != null
         val isTv = isTelevisionDevice()
         val startDest = if (hasActiveAccount) {
+            // Mobile devices always land on full home, TV sticks land on Hub only if lite is on
             if (isLite && isTv) "hub" else "home"
         } else "login"
 
@@ -82,7 +83,14 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val isTv = isTelevisionDevice()
             val currentLiteMode by preferenceRepository.isLiteModeEnabled.collectAsState()
-            val renderTier = if (currentLiteMode) RenderTier.LITE else remember { DeviceRenderProfile.getTier() }
+            
+            // LITE tier is strictly reserved for TV devices with the setting enabled.
+            // Mobile devices ignore the LITE tier to maintain original high-quality UI.
+            val renderTier = if (currentLiteMode && isTv) {
+                RenderTier.LITE
+            } else {
+                remember { DeviceRenderProfile.getTier() }
+            }
             
             CompositionLocalProvider(LocalRenderTier provides renderTier) {
                 ArenaLiveTheme {

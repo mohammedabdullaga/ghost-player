@@ -1,12 +1,24 @@
 # -------------------------------------------------------------------------
-# ArenaLive - Optimized Scoped Rules (Stability Fix)
+# ArenaLive - High-Stability ProGuard Rules
 # -------------------------------------------------------------------------
+# Optimized for reliable Login and Syncing by excluding critical business
+# logic and data layers from obfuscation and shrinking.
 
 # 1. Shrinking & Optimization
 -optimizationpasses 2
 -allowaccessmodification
 
-# 2. Database (ObjectBox)
+# 2. Main App Logic - Critical Paths (NO OBFUSCATION)
+# We exclude the data, repository, and domain layers to ensure login and
+# syncing work exactly as they do in debug mode.
+-keep class com.eliteprime.app.data.** { *; }
+-keep interface com.eliteprime.app.data.** { *; }
+-keep class com.eliteprime.app.domain.** { *; }
+-keep interface com.eliteprime.app.domain.** { *; }
+-keep class com.eliteprime.app.di.** { *; }
+-keep interface com.eliteprime.app.di.** { *; }
+
+# 3. Database (ObjectBox)
 -keep class io.objectbox.** { *; }
 -keep interface io.objectbox.** { *; }
 -keep enum io.objectbox.** { *; }
@@ -15,49 +27,40 @@
     @io.objectbox.annotation.Id long id;
     @io.objectbox.annotation.Index *;
 }
-# Scoped Cursor and generated model keeps
 -keep class com.eliteprime.app.data.local.entity.*_ { *; }
 -keep class com.eliteprime.app.data.local.entity.**Cursor { *; }
-# Keep the generated MyObjectBox (using a more lenient pattern if package varies)
--keep class com.eliteprime.app.data.local.entity.MyObjectBox { *; }
 -keep class **.MyObjectBox { *; }
 
-# 3. Serialization & Remote Models (Gson / Retrofit / Kotlin Serialization)
-# Keep all data models used for JSON parsing to prevent mapping failures
--keep class com.eliteprime.app.data.remote.** { *; }
--keepclassmembers class com.eliteprime.app.data.remote.** {
-    <fields>;
-    @com.google.gson.annotations.SerializedName <fields>;
-}
-
--keep class com.eliteprime.app.data.local.entity.** { *; }
--keepclassmembers class com.eliteprime.app.data.local.entity.** {
-    <fields>;
-    @com.google.gson.annotations.SerializedName <fields>;
-}
-
--keep class com.eliteprime.app.domain.model.** { *; }
--keepclassmembers class com.eliteprime.app.domain.model.** {
-    <fields>;
-}
-
-# Preserve fields annotated with @SerializedName everywhere
+# 4. Serialization (Gson / Kotlin Serialization)
+# Keep everything in common models and network packages
 -keepclassmembers class ** {
     @com.google.gson.annotations.SerializedName <fields>;
 }
+-keepattributes *Annotation*, EnclosingMethod, InnerClasses, Signature, Exceptions
+-keepclassmembers class ** {
+    @kotlinx.serialization.Serializable *;
+}
+-keepclassmembers class ** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
 
-# 4. Media Players (libVLC)
+# 5. Networking (Retrofit / OkHttp)
+-keep class retrofit2.** { *; }
+-keep interface retrofit2.** { *; }
+-keep class okhttp3.** { *; }
+-keep interface okhttp3.** { *; }
+-dontwarn retrofit2.**
+-dontwarn okhttp3.**
+
+# 6. Media Players (libVLC)
 -keep class org.videolan.libvlc.** { *; }
 -keep interface org.videolan.libvlc.** { *; }
 
-# 5. Player Engine Implementation
--keep class com.eliteprime.app.player.CapabilityAwareMediaCodecSelector { *; }
--keepclassmembers enum com.eliteprime.app.player.** {
-    public static **[] values();
-    public static ** valueOf(java.lang.String);
-}
+# 7. Player Engine Implementation
+-keep class com.eliteprime.app.player.** { *; }
+-keep interface com.eliteprime.app.player.** { *; }
 
-# 6. Dependency Injection (Hilt / Dagger)
+# 8. Dependency Injection (Hilt / Dagger)
 -keep class * extends android.app.Application
 -keep class * extends android.app.Activity
 -keep class * extends androidx.fragment.app.Fragment
@@ -67,19 +70,7 @@
 -keep class **_Factory { *; }
 -keep class **_MembersInjector { *; }
 
-# 7. Kotlin Serialization
--keepattributes *Annotation*, EnclosingMethod, InnerClasses
--keepclassmembers class ** {
-    @kotlinx.serialization.Serializable *;
-}
--keepclassmembers class ** {
-    kotlinx.serialization.KSerializer serializer(...);
-}
-
-# 8. Debugging Attributes & Source Mapping
--keepattributes Signature, *Annotation*, EnclosingMethod, InnerClasses, Exceptions, SourceFile, LineNumberTable
-
-# 9. Log Stripping
+# 9. General Hardening & Debugging
 -assumenosideeffects class android.util.Log {
     public static *** d(...);
     public static *** v(...);
@@ -87,9 +78,11 @@
     public static *** w(...);
 }
 
+-renamesourcefileattribute SourceFile
+-keepattributes SourceFile,LineNumberTable
+
 # 10. Refined Warning Suppression
 -dontwarn com.google.errorprone.annotations.**
 -dontwarn javax.annotation.**
 -dontwarn org.checkerframework.**
 -dontwarn okio.**
--dontwarn retrofit2.**
