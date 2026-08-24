@@ -1,24 +1,41 @@
 # -------------------------------------------------------------------------
-# ArenaLive - Reverse Engineering Hardening Rules (STEP 1)
+# ArenaLive - Production Performance & Hardening Rules
 # -------------------------------------------------------------------------
 
-# 1. Aggressive Obfuscation & Optimization
-# Flatten the package hierarchy into a single root package (Temporarily disabled to debug login)
-# -repackageclasses ''
-# Allow R8 to change access modifiers for better inlining/merging
+# 1. Balanced Optimization (Performance over APK Size)
+# -------------------------------------------------------------------------
 -allowaccessmodification
-# Overload method names aggressively (multiple methods share same name if signatures differ)
--overloadaggressively
-# Perform up to 5 optimization passes
--optimizationpasses 5
+# Reduced to 2 passes: 5 passes can create complex bytecode that slows down
+# older Android devices (ART) due to excessive inlining.
+-optimizationpasses 2
+# DO NOT use -overloadaggressively as it can conflict with hardware-specific
+# reflection used by video decoders on some TV devices.
 
-# 2. ObjectBox Database Protection
+# 2. Jetpack Compose Performance
+# -------------------------------------------------------------------------
+-keep class androidx.compose.runtime.** { *; }
+-keep @androidx.compose.runtime.Composable class * { *; }
+-dontwarn androidx.compose.**
+
+# 3. Kotlin Coroutines & Flow
+# -------------------------------------------------------------------------
+-keepnames class kotlinx.coroutines.internal.MainDispatcherLoader {}
+-keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+-keepnames class kotlinx.coroutines.android.HandlerContext {}
+-keepclassmembernames class kotlinx.coroutines.internal.LockFreeTaskQueue {
+    long _cur;
+}
+-keepclassmembernames class kotlinx.coroutines.internal.ResizableAtomicArray {
+    java.lang.Object[] array;
+}
+-dontwarn kotlinx.coroutines.**
+
+# 4. ObjectBox Database Stability
+# -------------------------------------------------------------------------
 -keep class io.objectbox.** { *; }
 -keep interface io.objectbox.** { *; }
 -keep class com.eliteprime.app.data.local.entity.MyObjectBox { *; }
 -keep class com.eliteprime.app.data.local.entity.Internal** { *; }
-
-# Protect Entity classes
 -keep @io.objectbox.annotation.Entity class * { *; }
 -keepclassmembers class * {
     @io.objectbox.annotation.Id long id;
@@ -27,59 +44,54 @@
 -keep class **Cursor { *; }
 -keep class **_ { *; }
 
-# 3. Serialization (Gson & Kotlin Serialization)
-# Keep all data classes used for JSON parsing
+# 5. Serialization & Network (Gson, Retrofit, OkHttp)
+# -------------------------------------------------------------------------
+# Keep all data models for safe parsing
 -keep class com.eliteprime.app.data.remote.** { *; }
 -keep class com.eliteprime.app.domain.model.** { *; }
 -keep class com.eliteprime.app.data.local.entity.** { *; }
 
-# Kotlin Serialization specific rules
--keepattributes *Annotation*, EnclosingMethod, InnerClasses
+# Gson & Kotlin Serialization
+-keepattributes Signature, *Annotation*, EnclosingMethod, InnerClasses, Exceptions
 -keepclassmembers class ** {
     @kotlinx.serialization.Serializable *;
+    @com.google.gson.annotations.SerializedName <fields>;
 }
 -keepclassmembers class ** {
     kotlinx.serialization.KSerializer serializer(...);
 }
 
-# Gson specific rules
--keepattributes Signature
--keepattributes *Annotation*
--keep class com.google.gson.reflect.TypeToken
--keep class * extends com.google.gson.reflect.TypeToken
--keepclassmembers class * {
-    @com.google.gson.annotations.SerializedName <fields>;
-}
-
-# 4. Retrofit
+# OkHttp/Retrofit
 -keep @retrofit2.http.** interface * { *; }
 -keep class retrofit2.** { *; }
--keepclasseswithmembers interface * {
-    @retrofit2.http.** <methods>;
-}
-# Prevent stripping of Hilt entry points
+-keep class okhttp3.** { *; }
+-dontwarn okhttp3.**
+-dontwarn retrofit2.**
+
+# 6. Media3 (ExoPlayer) & libVLC
+# -------------------------------------------------------------------------
+# CRITICAL: Do not obfuscate player engines as they rely on JNI and reflection
+# to talk to native hardware decoders.
+-keep class androidx.media3.** { *; }
+-keep interface androidx.media3.** { *; }
+-keep class org.videolan.libvlc.** { *; }
+-keep interface org.videolan.libvlc.** { *; }
+-keep class com.eliteprime.app.player.** { *; }
+-keep interface com.eliteprime.app.player.** { *; }
+-dontwarn androidx.media3.**
+-dontwarn org.videolan.libvlc.**
+
+# 7. Dependency Injection (Hilt/Dagger)
+# -------------------------------------------------------------------------
 -keep class * extends android.app.Application
 -keep class * extends android.app.Activity
 -keep class * extends androidx.fragment.app.Fragment
 -keep class * extends androidx.lifecycle.ViewModel
 -keep @dagger.hilt.android.AndroidEntryPoint class *
 
-# 5. Media3 & ExoPlayer Protection
--keep class androidx.media3.** { *; }
--keep interface androidx.media3.** { *; }
--dontwarn androidx.media3.**
-
-# 6. libVLC Protection
--keep class org.videolan.libvlc.** { *; }
--keep interface org.videolan.libvlc.** { *; }
--dontwarn org.videolan.libvlc.**
-
-# 7. Player Engine Protection
--keep class com.eliteprime.app.player.** { *; }
--keep interface com.eliteprime.app.player.** { *; }
-
-# 8. General Hardening
-# Remove log statements from the production build
+# 8. General Performance Hardening
+# -------------------------------------------------------------------------
+# Remove log statements to reduce APK size and slightly improve runtime speed
 -assumenosideeffects class android.util.Log {
     public static *** d(...);
     public static *** v(...);
@@ -87,6 +99,6 @@
     public static *** w(...);
 }
 
-# Prevent R8 from keeping original file names and line numbers
+# Preserve line numbers for crash reporting but rename file source
 -renamesourcefileattribute SourceFile
--keepattributes SourceFile,LineNumberTable,Signature,InnerClasses,EnclosingMethod,Exceptions
+-keepattributes SourceFile,LineNumberTable
