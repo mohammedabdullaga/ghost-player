@@ -10,8 +10,7 @@ interface XtreamApi {
     suspend fun authenticate(
         @Url url: String,
         @Query("username") username: String,
-        @Query("password") password: String,
-        @Query("action") action: String? = null
+        @Query("password") password: String
     ): XtreamAuthResponse
 
     @GET

@@ -11,8 +11,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -36,8 +34,6 @@ class XtreamRepository @Inject constructor(
     private val seriesBox = boxStore.boxFor(Series::class.java)
     private val epgBox = boxStore.boxFor(EPGProgram::class.java)
 
-    private val syncMutex = Mutex()
-
     suspend fun login(user: String, pass: String): Boolean = withContext(Dispatchers.IO) {
         val hosts = configRepository.getActiveHosts()
         if (hosts.isEmpty()) {
@@ -53,18 +49,10 @@ class XtreamRepository @Inject constructor(
                 val fullUrl = "${baseUrl}player_api.php"
                 Log.d(TAG, "Authenticating against: $fullUrl")
                 
-                // Some newer Xtream servers require the action=login parameter to return proper user info.
-                // We try with the action first as it is the standard for most modern systems.
-                val response = try {
-                    xtreamApi.authenticate(fullUrl, user, pass, action = "login")
-                } catch (e: Exception) {
-                    Log.w(TAG, "Auth with action=login failed, retrying without action...")
-                    xtreamApi.authenticate(fullUrl, user, pass)
-                }
-
+                val response = xtreamApi.authenticate(fullUrl, user, pass)
                 Log.d(TAG, "Response status: ${response.userInfo?.status}")
 
-                if (response.userInfo?.status?.equals("Active", ignoreCase = true) == true) {
+                if (response.userInfo?.status == "Active") {
                     boxStore.runInTx {
                         accountBox.removeAll()
                         accountBox.put(XtreamAccount(
@@ -119,62 +107,42 @@ class XtreamRepository @Inject constructor(
         onMovieProgress: (Int) -> Unit,
         onSeriesProgress: (Int) -> Unit
     ) = withContext(Dispatchers.IO) {
-        if (!syncMutex.tryLock()) {
-            Log.d(TAG, "Sync already in progress — skipping")
-            return@withContext
+        val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
+        
+        coroutineScope {
+            launch { syncStreamType(account, "get_live_streams") { inputStream -> parser.parseLiveStreams(inputStream, null, onLiveProgress) } }
+            launch { syncStreamType(account, "get_vod_streams") { inputStream -> parser.parseMovies(inputStream, null, onMovieProgress) } }
+            launch { syncStreamType(account, "get_series") { inputStream -> parser.parseSeries(inputStream, null, onSeriesProgress) } }
         }
-        try {
-            val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
-            
-            coroutineScope {
-                launch { 
-                    try {
-                        syncStreamType(account, "get_live_streams") { inputStream -> parser.parseLiveStreams(inputStream, null, onLiveProgress) } 
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Sync Live failed: ${e.message}")
-                    }
-                }
-                launch { 
-                    try {
-                        syncStreamType(account, "get_vod_streams") { inputStream -> parser.parseMovies(inputStream, null, onMovieProgress) } 
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Sync Movies failed: ${e.message}")
-                    }
-                }
-                launch { 
-                    try {
-                        syncStreamType(account, "get_series") { inputStream -> parser.parseSeries(inputStream, null, onSeriesProgress) } 
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Sync Series failed: ${e.message}")
-                    }
-                }
-            }
 
-            // Cleanup: Remove orphaned data for channels that no longer exist
-            cleanupOrphanedData()
-        } finally {
-            syncMutex.unlock()
-        }
+        // Cleanup: Remove orphaned data for channels that no longer exist
+        cleanupOrphanedData()
     }
 
     private fun cleanupOrphanedData() {
-        val startTime = System.currentTimeMillis()
-        Log.d(TAG, "Starting orphaned data cleanup...")
-        
         // Optimized Cleanup: Only fetch IDs
-        val liveIds = liveBox.query().build().property(LiveStream_.id).findLongs()
-        val seriesIds = seriesBox.query().build().property(Series_.id).findLongs()
+        val liveIds = liveBox.query().build().property(LiveStream_.id).findLongs().toSet()
+        val seriesIds = seriesBox.query().build().property(Series_.id).findLongs().toSet()
         
-        val episodeBox = boxStore.boxFor(Episode::class.java)
-        val seasonBox = boxStore.boxFor(Season::class.java)
-        
-        // Native notIn removal - no long-running write transaction around the filtering step
-        episodeBox.query().notIn(Episode_.seriesId, seriesIds).build().remove()
-        seasonBox.query().notIn(Season_.seriesId, seriesIds).build().remove()
-        epgBox.query().notIn(EPGProgram_.channelId, liveIds).build().remove()
-        
-        val duration = System.currentTimeMillis() - startTime
-        Log.d(TAG, "Orphaned data cleanup completed in ${duration}ms")
+        boxStore.runInTx {
+            val episodeBox = boxStore.boxFor(Episode::class.java)
+            val seasonBox = boxStore.boxFor(Season::class.java)
+            
+            // Native Query removal is faster. 
+            // ObjectBox doesn't have a direct "id NOT IN (list)" for removal in a single call easily 
+            // without fetching, but we can at least minimize the data.
+            
+            val orphanedEpisodes = episodeBox.query().build().find().filter { it.seriesId !in seriesIds }
+            episodeBox.remove(orphanedEpisodes)
+            
+            val orphanedSeasons = seasonBox.query().build().find().filter { it.seriesId !in seriesIds }
+            seasonBox.remove(orphanedSeasons)
+            
+            if (!epgBox.isEmpty) {
+                val orphanedEpg = epgBox.query().build().find().filter { it.channelId !in liveIds }
+                epgBox.remove(orphanedEpg)
+            }
+        }
     }
 
     private suspend fun syncStreamType(account: XtreamAccount, action: String, parseAction: suspend (InputStream) -> Unit) {

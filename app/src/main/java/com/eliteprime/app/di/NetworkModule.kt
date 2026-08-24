@@ -1,8 +1,8 @@
 package com.eliteprime.app.di
 
-import com.eliteprime.app.BuildConfig
 import com.eliteprime.app.data.remote.TmdbApiService
 import com.eliteprime.app.data.remote.XtreamApi
+import com.eliteprime.app.data.remote.util.RateLimitInterceptor
 import com.eliteprime.app.domain.model.ProxyConfig
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -90,12 +90,12 @@ object NetworkModule {
                 if (!ProxyConfig.isEnabled) return listOf(Proxy.NO_PROXY)
 
                 val host = uri?.host ?: ""
-                // Bypass local engine, config endpoint, and common metadata providers
+                // Bypass local engine and common metadata providers
                 if (host == "127.0.0.1" || 
                     host == "localhost" || 
-                    host.contains("dropremax.site", ignoreCase = true) ||
                     host.contains("tmdb.org", ignoreCase = true) || 
-                    host.contains("themoviedb.org", ignoreCase = true)) {
+                    host.contains("themoviedb.org", ignoreCase = true) ||
+                    host.contains("api.arenaliveapp.top", ignoreCase = true)) {
                     return listOf(Proxy.NO_PROXY)
                 }
 
@@ -152,18 +152,14 @@ object NetworkModule {
                 val request = chain.request()
                 val builder = request.newBuilder()
                 if (request.header("User-Agent").isNullOrBlank()) {
-                    // Using a common IPTV player User-Agent to ensure maximum compatibility with server filters
-                    builder.header("User-Agent", "IPTVSmartersPlayer")
+                    builder.header("User-Agent", "ELITPRIME/1.0 (Android; Media3; OkHttp)")
                 }
                 chain.proceed(builder.build())
             }
-            .apply {
-                if (BuildConfig.DEBUG) {
-                    addInterceptor(HttpLoggingInterceptor().apply {
-                        level = HttpLoggingInterceptor.Level.HEADERS
-                    })
-                }
-            }
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.HEADERS
+            })
+            .addInterceptor(RateLimitInterceptor(60))
             .build()
     }
 
@@ -192,6 +188,6 @@ object NetworkModule {
 
 object NetworkTimeoutConfig {
     const val CONNECT_TIMEOUT_SECONDS = 30L
-    const val READ_TIMEOUT_SECONDS = 90L
+    const val READ_TIMEOUT_SECONDS = 30L
     const val WRITE_TIMEOUT_SECONDS = 30L
 }
