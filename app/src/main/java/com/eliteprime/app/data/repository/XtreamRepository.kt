@@ -127,9 +127,27 @@ class XtreamRepository @Inject constructor(
             val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
             
             coroutineScope {
-                launch { syncStreamType(account, "get_live_streams") { inputStream -> parser.parseLiveStreams(inputStream, null, onLiveProgress) } }
-                launch { syncStreamType(account, "get_vod_streams") { inputStream -> parser.parseMovies(inputStream, null, onMovieProgress) } }
-                launch { syncStreamType(account, "get_series") { inputStream -> parser.parseSeries(inputStream, null, onSeriesProgress) } }
+                launch { 
+                    try {
+                        syncStreamType(account, "get_live_streams") { inputStream -> parser.parseLiveStreams(inputStream, null, onLiveProgress) } 
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Sync Live failed: ${e.message}")
+                    }
+                }
+                launch { 
+                    try {
+                        syncStreamType(account, "get_vod_streams") { inputStream -> parser.parseMovies(inputStream, null, onMovieProgress) } 
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Sync Movies failed: ${e.message}")
+                    }
+                }
+                launch { 
+                    try {
+                        syncStreamType(account, "get_series") { inputStream -> parser.parseSeries(inputStream, null, onSeriesProgress) } 
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Sync Series failed: ${e.message}")
+                    }
+                }
             }
 
             // Cleanup: Remove orphaned data for channels that no longer exist
