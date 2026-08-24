@@ -53,7 +53,15 @@ class XtreamRepository @Inject constructor(
                 val fullUrl = "${baseUrl}player_api.php"
                 Log.d(TAG, "Authenticating against: $fullUrl")
                 
-                val response = xtreamApi.authenticate(fullUrl, user, pass)
+                // Some newer Xtream servers require the action=login parameter to return proper user info.
+                // We try with the action first as it is the standard for most modern systems.
+                val response = try {
+                    xtreamApi.authenticate(fullUrl, user, pass, action = "login")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Auth with action=login failed, retrying without action...")
+                    xtreamApi.authenticate(fullUrl, user, pass)
+                }
+
                 Log.d(TAG, "Response status: ${response.userInfo?.status}")
 
                 if (response.userInfo?.status == "Active") {

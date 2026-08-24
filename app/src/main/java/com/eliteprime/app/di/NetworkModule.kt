@@ -152,7 +152,7 @@ object NetworkModule {
                 val request = chain.request()
                 val builder = request.newBuilder()
                 if (request.header("User-Agent").isNullOrBlank()) {
-                    builder.header("User-Agent", "ELITPRIME/1.0 (Android; Media3; OkHttp)")
+                    builder.header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
                 }
                 chain.proceed(builder.build())
             }

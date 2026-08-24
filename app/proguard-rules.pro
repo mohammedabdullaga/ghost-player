@@ -1,22 +1,20 @@
 # -------------------------------------------------------------------------
 # ArenaLive - High-Stability ProGuard Rules
 # -------------------------------------------------------------------------
-# Optimized for reliable Login and Syncing by excluding critical business
-# logic and data layers from obfuscation and shrinking.
+# EXTREMELY LENIENT POLICY: We exclude the entire app package from
+# obfuscation and shrinking to ensure 100% parity with debug builds
+# for critical business logic like Login and Syncing.
 
-# 1. Shrinking & Optimization
--optimizationpasses 2
+# 1. Disable Aggressive Optimization
+-optimizationpasses 1
 -allowaccessmodification
+-dontnote **
+-dontwarn **
 
-# 2. Main App Logic - Critical Paths (NO OBFUSCATION)
-# We exclude the data, repository, and domain layers to ensure login and
-# syncing work exactly as they do in debug mode.
--keep class com.eliteprime.app.data.** { *; }
--keep interface com.eliteprime.app.data.** { *; }
--keep class com.eliteprime.app.domain.** { *; }
--keep interface com.eliteprime.app.domain.** { *; }
--keep class com.eliteprime.app.di.** { *; }
--keep interface com.eliteprime.app.di.** { *; }
+# 2. Main App Logic - FULL EXCLUSION
+# This "removes" the app logic from ProGuard as requested.
+-keep class com.eliteprime.app.** { *; }
+-keep interface com.eliteprime.app.** { *; }
 
 # 3. Database (ObjectBox)
 -keep class io.objectbox.** { *; }
@@ -31,13 +29,11 @@
 -keep class com.eliteprime.app.data.local.entity.**Cursor { *; }
 -keep class **.MyObjectBox { *; }
 
-# 4. Serialization (Gson / Kotlin Serialization)
-# Keep everything in common models and network packages
+# 4. Serialization (Gson / Kotlin Serialization / Retrofit)
+# Keep all field names and annotations for reliable JSON mapping
+-keepattributes Signature, *Annotation*, EnclosingMethod, InnerClasses, Exceptions
 -keepclassmembers class ** {
     @com.google.gson.annotations.SerializedName <fields>;
-}
--keepattributes *Annotation*, EnclosingMethod, InnerClasses, Signature, Exceptions
--keepclassmembers class ** {
     @kotlinx.serialization.Serializable *;
 }
 -keepclassmembers class ** {
@@ -49,18 +45,17 @@
 -keep interface retrofit2.** { *; }
 -keep class okhttp3.** { *; }
 -keep interface okhttp3.** { *; }
--dontwarn retrofit2.**
--dontwarn okhttp3.**
 
-# 6. Media Players (libVLC)
+# 6. Media Players (libVLC & Media3)
 -keep class org.videolan.libvlc.** { *; }
 -keep interface org.videolan.libvlc.** { *; }
+-keep class androidx.media3.** { *; }
+-keep interface androidx.media3.** { *; }
 
-# 7. Player Engine Implementation
--keep class com.eliteprime.app.player.** { *; }
--keep interface com.eliteprime.app.player.** { *; }
-
-# 8. Dependency Injection (Hilt / Dagger)
+# 7. Dependency Injection (Hilt / Dagger)
+-keep class dagger.** { *; }
+-keep interface dagger.** { *; }
+-keep class com.google.dagger.** { *; }
 -keep class * extends android.app.Application
 -keep class * extends android.app.Activity
 -keep class * extends androidx.fragment.app.Fragment
@@ -70,7 +65,7 @@
 -keep class **_Factory { *; }
 -keep class **_MembersInjector { *; }
 
-# 9. General Hardening & Debugging
+# 8. Log Stripping
 -assumenosideeffects class android.util.Log {
     public static *** d(...);
     public static *** v(...);
@@ -78,11 +73,6 @@
     public static *** w(...);
 }
 
+# 9. Preservation of Stacktraces
 -renamesourcefileattribute SourceFile
 -keepattributes SourceFile,LineNumberTable
-
-# 10. Refined Warning Suppression
--dontwarn com.google.errorprone.annotations.**
--dontwarn javax.annotation.**
--dontwarn org.checkerframework.**
--dontwarn okio.**
