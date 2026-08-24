@@ -116,7 +116,7 @@ fun TvLiteHubScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 56.dp, vertical = 36.dp)
+                .padding(horizontal = if (isTv) 56.dp else 20.dp, vertical = if (isTv) 36.dp else 24.dp)
         ) {
             // Top Bar
             Row(
@@ -124,7 +124,7 @@ fun TvLiteHubScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                ArenaLiveLogo(textSize = 26.sp)
+                ArenaLiveLogo(textSize = if (isTv) 26.sp else 20.sp)
 
                 if (!uiState.formattedExpiryDate.isNullOrBlank()) {
                     Surface(
@@ -135,9 +135,9 @@ fun TvLiteHubScreen(
                         Text(
                             text = stringResource(R.string.hub_expires_format, uiState.formattedExpiryDate!!),
                             color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 13.sp,
+                            fontSize = if (isTv) 13.sp else 11.sp,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
+                            modifier = Modifier.padding(horizontal = if (isTv) 14.dp else 10.dp, vertical = if (isTv) 7.dp else 5.dp)
                         )
                     }
                 }
@@ -389,14 +389,14 @@ private fun HubPrimaryTile(
                         imageVector = icon,
                         contentDescription = null,
                         tint = if (isFocused) Color.Black else Color.White,
-                        modifier = Modifier.size(56.dp)
+                        modifier = Modifier.size(if (isTv) 56.dp else 48.dp)
                     )
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(if (isTv) 14.dp else 10.dp))
                     Text(
                         text = title,
                         color = if (isFocused) Color.Black else Color.White,
                         fontWeight = FontWeight.Black,
-                        fontSize = 20.sp
+                        fontSize = if (isTv) 20.sp else 18.sp
                     )
                 }
             }
@@ -418,14 +418,14 @@ private fun HubPrimaryTile(
                     imageVector = icon,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(56.dp)
+                    modifier = Modifier.size(48.dp)
                 )
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = title,
                     color = Color.White,
                     fontWeight = FontWeight.Black,
-                    fontSize = 20.sp
+                    fontSize = 18.sp
                 )
             }
         }

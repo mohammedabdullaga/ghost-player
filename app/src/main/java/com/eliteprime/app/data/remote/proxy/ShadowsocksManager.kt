@@ -45,7 +45,11 @@ class ShadowsocksManager @Inject constructor(
             }
 
             val proxyHosts = configRepository.getProxyHosts()
-            val serverHost = proxyHosts.firstOrNull() ?: "cdn.sharkbh.online"
+            val serverHost = proxyHosts.firstOrNull()
+            if (serverHost == null) {
+                Log.e(TAG, "No proxy hosts available. Shadowsocks cannot start.")
+                return@launch
+            }
             currentServerHost = serverHost
 
             val nativeDir = context.applicationInfo.nativeLibraryDir
@@ -103,9 +107,13 @@ class ShadowsocksManager @Inject constructor(
 
     fun restartProxy(context: Context) {
         val proxyHosts = configRepository.getProxyHosts()
-        val targetHost = proxyHosts.firstOrNull() ?: "cdn.sharkbh.online"
+        val targetHost = proxyHosts.firstOrNull()
         
-        // Only restart if the proxy host actually changed
+        if (targetHost == null) {
+            Log.e(TAG, "No proxy hosts available for restart.")
+            stopProxy()
+            return
+        }
         if (targetHost == currentServerHost && processRef.get() != null) {
             Log.d(TAG, "Shadowsocks already running with active host: $targetHost. No restart needed.")
             return

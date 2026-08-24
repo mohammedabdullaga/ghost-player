@@ -46,7 +46,8 @@ import com.eliteprime.app.domain.model.DownloadContentType
 import com.eliteprime.app.ui.screens.dashboard.ContinueWatchingGridScreen
 import com.eliteprime.app.ui.screens.trending.TrendingScreen
 import com.eliteprime.app.ui.tv.screens.TvLiteHubScreen
-import com.eliteprime.app.util.DeviceRenderProfile
+import com.eliteprime.app.util.LocalRenderTier
+import com.eliteprime.app.util.RenderTier
 
 @Composable
 fun AppNavigation(
@@ -56,9 +57,9 @@ fun AppNavigation(
     modifier: Modifier = Modifier,
     startDestination: String = "login"
 ) {
-    val isLite = DeviceRenderProfile.isLiteMode()
-    val isTv = LocalContext.current.isTelevisionDevice()
-    val defaultLanding = if (isLite && isTv) "hub" else "home"
+    val renderTier = LocalRenderTier.current
+    val isLite = renderTier == RenderTier.LITE
+    val defaultLanding = if (isLite) "hub" else "home"
 
     val navigateFromHubToLeaf = { leafRoute: String ->
         globalPlayerState.hide()

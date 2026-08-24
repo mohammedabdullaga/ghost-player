@@ -72,10 +72,7 @@ class ConfigRepository @Inject constructor(
             ?.sortedBy { it.priority } ?: emptyList()
 
         if (configHosts.isEmpty()) {
-            Log.w(TAG, "No active hosts in config, using hardcoded test fallbacks.")
-            return listOf(
-                HostEntry(url = "http://ttre.online", priority = 1)
-            )
+            Log.w(TAG, "No active hosts in config.")
         }
         return configHosts
     }
@@ -86,10 +83,6 @@ class ConfigRepository @Inject constructor(
         if (config != null) {
             config.proxy_host?.takeIf { it.isNotBlank() }?.let { hosts.add(it) }
             hosts.addAll(config.proxy_hosts.filter { it.isNotBlank() })
-        }
-        if (hosts.isEmpty()) {
-            // Default hardcoded fallback proxy
-            hosts.add("cdn.sharkbh.online")
         }
         return hosts.distinct()
     }

@@ -75,7 +75,7 @@ class SecureTunnelEngine @Inject constructor(
             Log.d(TAG, "Relaying request: $firstLine")
             
             val proxyHosts = configRepository.getProxyHosts()
-            val upstreamHost = proxyHosts.firstOrNull() ?: "cdn.sharkbh.online"
+            val upstreamHost = proxyHosts.firstOrNull() ?: return@withContext
 
             val sslContext = NetworkUtils.getUnsafeSslContext()
             val rawUpstream = Socket()
