@@ -1,22 +1,23 @@
 package com.eliteprime.app
 
 import android.R
-import android.util.Log
 import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.util.Rational
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
-import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
 import com.eliteprime.app.data.local.entity.XtreamAccount
 import com.eliteprime.app.data.local.entity.XtreamAccount_
@@ -31,6 +32,7 @@ import com.eliteprime.app.util.DeviceRenderProfile
 import com.eliteprime.app.util.LocalRenderTier
 import com.eliteprime.app.util.RenderTier
 import com.eliteprime.app.util.isTelevisionDevice
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.AndroidEntryPoint
 import io.objectbox.BoxStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +57,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        FirebaseCrashlytics.getInstance().log("MainActivity onCreate started")
+        Log.e("MainActivity", "Firebase Crashlytics check: ${FirebaseCrashlytics.getInstance().didCrashOnPreviousExecution()}")
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val permission = "android.permission.POST_NOTIFICATIONS"
             if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
@@ -72,10 +77,9 @@ class MainActivity : AppCompatActivity() {
 
         val accountBox = boxStore.boxFor(XtreamAccount::class.java)
         val hasActiveAccount = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() != null
-        val isTv = isTelevisionDevice()
         val startDest = if (hasActiveAccount) {
-            // Mobile devices always land on full home, TV sticks land on Hub only if lite is on
-            if (isLite && isTv) "hub" else "home"
+            // Lite Hub is now default for both TV and Mobile if Lite Mode is enabled
+            if (isLite) "hub" else "home"
         } else "login"
 
         _pictureInPictureModeFlow.value = isInPictureInPictureMode
@@ -84,9 +88,8 @@ class MainActivity : AppCompatActivity() {
             val isTv = isTelevisionDevice()
             val currentLiteMode by preferenceRepository.isLiteModeEnabled.collectAsState()
             
-            // LITE tier is strictly reserved for TV devices with the setting enabled.
-            // Mobile devices ignore the LITE tier to maintain original high-quality UI.
-            val renderTier = if (currentLiteMode && isTv) {
+            // LITE tier applies to all devices if the setting is enabled.
+            val renderTier = if (currentLiteMode) {
                 RenderTier.LITE
             } else {
                 remember { DeviceRenderProfile.getTier() }

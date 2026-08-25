@@ -95,6 +95,24 @@ fun SettingsScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
+    // TEMPORARY CRASH TRIGGER FOR MOBILE RELEASE TESTING
+    var showCrashConfirm by remember { mutableStateOf(false) }
+    if (showCrashConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCrashConfirm = false },
+            title = { Text("Trigger Test Crash?") },
+            text = { Text("This will force a RuntimeException to verify Firebase Crashlytics is working in this release build.") },
+            confirmButton = {
+                TextButton(onClick = { throw RuntimeException("Firebase Crashlytics Mobile Manual Test") }) {
+                    Text("CRASH NOW", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCrashConfirm = false }) { Text("CANCEL") }
+            }
+        )
+    }
+
     LaunchedEffect(Unit) {
         viewModel.userMessage.collect { msg ->
             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
@@ -224,6 +242,16 @@ fun SettingsScreen(
                                     LogoutButton(
                                         isTv = isTv,
                                         onLogout = { showLogoutDialog = true }
+                                    )
+                                }
+
+                                item {
+                                    SettingsActionButton(
+                                        label = "DEBUG: TEST CRASH",
+                                        onClick = { showCrashConfirm = true },
+                                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                                        isTv = isTv,
+                                        isPrimary = false
                                     )
                                 }
                             }

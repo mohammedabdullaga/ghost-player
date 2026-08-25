@@ -54,11 +54,9 @@
 -keep class **_MembersInjector { *; }
 
 # 8. DISABLE DEBUG LOGS IN RELEASE
-# This strips standard Android logs for security and performance.
 -assumenosideeffects class android.util.Log {
     public static *** d(...);
     public static *** v(...);
-    public static *** i(...);
 }
 
 # 9. Avoid warnings from 3rd party libraries

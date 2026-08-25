@@ -1,6 +1,7 @@
 package com.eliteprime.app.ui.screens.home
 
 import android.app.Activity
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -42,6 +43,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.eliteprime.app.R
@@ -115,6 +117,8 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
+        FirebaseCrashlytics.getInstance().log("Entering Full Home Screen (isTv=$isTv)")
+        Log.e("HomeScreen", "CRASH_CHECK_LOG: Home screen visible")
         while (true) {
             currentTime.value = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
             delay(60000)
@@ -226,6 +230,18 @@ fun HomeScreen(
                     Text(text = date, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
+        }
+
+        Button(
+            onClick = { 
+                Log.e("HomeScreen", "CRASH BUTTON CLICKED")
+                throw RuntimeException("Manual Home Crash") 
+            },
+            modifier = Modifier.align(Alignment.Center).size(200.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f)),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 50.dp)
+        ) {
+            Text("FORCE CRASH", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
         }
     }
 }

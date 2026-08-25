@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -65,6 +66,7 @@ class XtreamStreamParser @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing live stream at count $count: ${e.message}")
+                    FirebaseCrashlytics.getInstance().recordException(e)
                     if (e is IOException || e is JsonSyntaxException) {
                         // Connection reset or bad JSON - stop here but save what we have
                         break
@@ -77,6 +79,7 @@ class XtreamStreamParser @Inject constructor(
             reader.endArray()
         } catch (e: Exception) {
             Log.e(TAG, "Critical error in parseLiveStreams: ${e.message}")
+            FirebaseCrashlytics.getInstance().recordException(e)
         } finally {
             writeChannel.close()
             writerJob.join()
@@ -118,6 +121,7 @@ class XtreamStreamParser @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing movie at count $count: ${e.message}")
+                    FirebaseCrashlytics.getInstance().recordException(e)
                     if (e is IOException || e is JsonSyntaxException) {
                         break
                     }
@@ -129,6 +133,7 @@ class XtreamStreamParser @Inject constructor(
             reader.endArray()
         } catch (e: Exception) {
             Log.e(TAG, "Critical error in parseMovies: ${e.message}")
+            FirebaseCrashlytics.getInstance().recordException(e)
         } finally {
             writeChannel.close()
             writerJob.join()
@@ -170,6 +175,7 @@ class XtreamStreamParser @Inject constructor(
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Error parsing series at count $count: ${e.message}")
+                    FirebaseCrashlytics.getInstance().recordException(e)
                     if (e is IOException || e is JsonSyntaxException) {
                         break
                     }
@@ -181,6 +187,7 @@ class XtreamStreamParser @Inject constructor(
             reader.endArray()
         } catch (e: Exception) {
             Log.e(TAG, "Critical error in parseSeries: ${e.message}")
+            FirebaseCrashlytics.getInstance().recordException(e)
         } finally {
             writeChannel.close()
             writerJob.join()

@@ -15,6 +15,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.InputStream
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -72,6 +73,7 @@ class XtreamRepository @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Login failed for host ${host.url}: ${e.message}")
+                FirebaseCrashlytics.getInstance().recordException(e)
             }
         }
         false
@@ -99,6 +101,7 @@ class XtreamRepository @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
     }
 
@@ -120,28 +123,33 @@ class XtreamRepository @Inject constructor(
     }
 
     private fun cleanupOrphanedData() {
-        // Optimized Cleanup: Only fetch IDs
-        val liveIds = liveBox.query().build().property(LiveStream_.id).findLongs().toSet()
-        val seriesIds = seriesBox.query().build().property(Series_.id).findLongs().toSet()
-        
-        boxStore.runInTx {
-            val episodeBox = boxStore.boxFor(Episode::class.java)
-            val seasonBox = boxStore.boxFor(Season::class.java)
+        try {
+            // Optimized Cleanup: Only fetch IDs
+            val liveIds = liveBox.query().build().property(LiveStream_.id).findLongs().toSet()
+            val seriesIds = seriesBox.query().build().property(Series_.id).findLongs().toSet()
             
-            // Native Query removal is faster. 
-            // ObjectBox doesn't have a direct "id NOT IN (list)" for removal in a single call easily 
-            // without fetching, but we can at least minimize the data.
-            
-            val orphanedEpisodes = episodeBox.query().build().find().filter { it.seriesId !in seriesIds }
-            episodeBox.remove(orphanedEpisodes)
-            
-            val orphanedSeasons = seasonBox.query().build().find().filter { it.seriesId !in seriesIds }
-            seasonBox.remove(orphanedSeasons)
-            
-            if (!epgBox.isEmpty) {
-                val orphanedEpg = epgBox.query().build().find().filter { it.channelId !in liveIds }
-                epgBox.remove(orphanedEpg)
+            boxStore.runInTx {
+                val episodeBox = boxStore.boxFor(Episode::class.java)
+                val seasonBox = boxStore.boxFor(Season::class.java)
+                
+                // Native Query removal is faster. 
+                // ObjectBox doesn't have a direct "id NOT IN (list)" for removal in a single call easily 
+                // without fetching, but we can at least minimize the data.
+                
+                val orphanedEpisodes = episodeBox.query().build().find().filter { it.seriesId !in seriesIds }
+                episodeBox.remove(orphanedEpisodes)
+                
+                val orphanedSeasons = seasonBox.query().build().find().filter { it.seriesId !in seriesIds }
+                seasonBox.remove(orphanedSeasons)
+                
+                if (!epgBox.isEmpty) {
+                    val orphanedEpg = epgBox.query().build().find().filter { it.channelId !in liveIds }
+                    epgBox.remove(orphanedEpg)
+                }
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Cleanup orphaned data failed: ${e.message}")
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
     }
 
@@ -194,6 +202,7 @@ class XtreamRepository @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
     }
 
@@ -271,6 +280,7 @@ class XtreamRepository @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
     }
 
@@ -291,6 +301,7 @@ class XtreamRepository @Inject constructor(
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
     }
 }

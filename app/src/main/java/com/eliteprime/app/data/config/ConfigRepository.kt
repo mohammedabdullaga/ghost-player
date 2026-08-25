@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import javax.inject.Inject
@@ -32,6 +33,7 @@ class ConfigRepository @Inject constructor(
                 cachedConfig = json.decodeFromString<ConfigResponse>(saved)
             } catch (e: Exception) {
                 e.printStackTrace()
+                FirebaseCrashlytics.getInstance().recordException(e)
             }
         }
     }
@@ -62,6 +64,7 @@ class ConfigRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching config: ${e.message}", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
         cachedConfig
     }

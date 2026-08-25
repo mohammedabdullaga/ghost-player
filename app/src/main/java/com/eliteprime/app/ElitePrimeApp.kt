@@ -2,6 +2,8 @@ package com.eliteprime.app
 
 import android.app.Application
 import android.util.Log
+import com.google.firebase.FirebaseApp
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -60,6 +62,16 @@ class ElitePrimeApp : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        
+        // Initialize Firebase explicitly
+        try {
+            FirebaseApp.initializeApp(this)
+            FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(true)
+            Log.i("ElitePrimeApp", "Firebase initialized successfully")
+        } catch (e: Exception) {
+            Log.e("ElitePrimeApp", "Firebase initialization failed: ${e.message}")
+        }
+
         val isLite = preferenceRepository.isLiteModeEnabled.value
         DeviceRenderProfile.initialize(this, liteMode = isLite)
         preferenceRepository.applySavedLocale()

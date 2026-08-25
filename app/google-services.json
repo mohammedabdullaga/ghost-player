@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "652504288822",
+    "project_id": "elitprime-a6b59",
+    "storage_bucket": "elitprime-a6b59.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:652504288822:android:39e0771ed6f6bf29cbd297",
+        "android_client_info": {
+          "package_name": "com.eliteprime.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCG2D4_rGhyAcDyXisjzM9hMuX5vJS8_EQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
