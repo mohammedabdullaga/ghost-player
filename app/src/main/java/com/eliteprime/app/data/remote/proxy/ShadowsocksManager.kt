@@ -69,6 +69,7 @@ class ShadowsocksManager @Inject constructor(
             try {
                 val connTrace = FirebasePerformance.getInstance().newTrace("proxy_connection_time")
                 connTrace.start()
+                var traceStopped = false
                 
                 Log.i(TAG, "Starting Shadowsocks daemon: $binaryPath on $serverHost")
                 
@@ -89,15 +90,34 @@ class ShadowsocksManager @Inject constructor(
                 
                 processRef.set(process)
 
-                process.inputStream.bufferedReader().use { reader ->
-                    while (isActive) {
-                        val line = reader.readLine() ?: break
-                        Log.d(TAG, "SS-LOG: $line")
-                        
-                        // "listening at" indicates the local SOCKS5 server is up and ready
-                        if (line.contains("listening at", ignoreCase = true)) {
-                            connTrace.stop()
+                withTimeoutOrNull(12_000) {
+                    process.inputStream.bufferedReader().use { reader ->
+                        while (isActive) {
+                            val line = reader.readLine() ?: break
+                            Log.d(TAG, "SS-LOG: $line")
+                            
+                            // "listening at" indicates the local SOCKS5 server is up and ready
+                            if (line.contains("listening at", ignoreCase = true) && !traceStopped) {
+                                connTrace.putAttribute("outcome", "success")
+                                connTrace.stop()
+                                traceStopped = true
+                            }
                         }
+                    }
+                }
+
+                // If loop finished or timed out without success
+                if (!traceStopped) {
+                    val outcome = if (process.isAlive) "timeout" else "process_exited"
+                    connTrace.putAttribute("outcome", outcome)
+                    connTrace.stop()
+                    traceStopped = true
+                    
+                    if (outcome == "process_exited") {
+                        val exitCode = try { process.exitValue() } catch(e: Exception) { -1 }
+                        Log.e(TAG, "Proxy process exited early with code $exitCode")
+                    } else {
+                        Log.w(TAG, "Proxy connection timed out (no 'listening at' log found)")
                     }
                 }
 
