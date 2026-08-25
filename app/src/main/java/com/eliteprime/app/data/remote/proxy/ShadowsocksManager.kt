@@ -88,12 +88,16 @@ class ShadowsocksManager @Inject constructor(
                     .start()
                 
                 processRef.set(process)
-                connTrace.stop()
 
                 process.inputStream.bufferedReader().use { reader ->
                     while (isActive) {
                         val line = reader.readLine() ?: break
                         Log.d(TAG, "SS-LOG: $line")
+                        
+                        // "listening at" indicates the local SOCKS5 server is up and ready
+                        if (line.contains("listening at", ignoreCase = true)) {
+                            connTrace.stop()
+                        }
                     }
                 }
 
