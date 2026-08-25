@@ -13,6 +13,8 @@ import com.eliteprime.app.domain.model.StreamType
 import com.eliteprime.app.player.GlobalPlayerState
 import com.eliteprime.app.player.PlayerEngine
 import com.eliteprime.app.player.PlayerViewMode
+import com.google.firebase.perf.FirebasePerformance
+import com.google.firebase.perf.metrics.Trace
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
@@ -161,6 +163,10 @@ class LiveViewModel @Inject constructor(
         combine(_isReorderMode, _reorderCategories, _isChannelReorderMode, _reorderChannels) { a, b, c, d -> Quad(a, b, c, d) },
         liveBox.query().build().flow()
     ) { allCategories, selectedId, channels, quad, allStreams ->
+        if (channels.isNotEmpty() && browsingTrace != null) {
+            browsingTrace?.stop()
+            browsingTrace = null
+        }
         val (reorderMode, reorderList, channelReorderMode, channelReorderList) = quad
         
         val categories = if (reorderMode) reorderList else allCategories
@@ -211,8 +217,13 @@ class LiveViewModel @Inject constructor(
     .flowOn(Dispatchers.Default)
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private var browsingTrace: Trace? = null
+
     fun selectCategory(category: Category) {
         if (_selectedCategoryId.value != category.id) {
+            browsingTrace = FirebasePerformance.getInstance().newTrace("live_category_load_time")
+            browsingTrace?.start()
+            
             _page.value = 0
             _selectedCategoryId.value = category.id
         }

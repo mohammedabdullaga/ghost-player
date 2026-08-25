@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eliteprime.app.R
 import com.eliteprime.app.pairing.ProviderQrPairingState
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.ArenaLiveLogo
 import com.eliteprime.app.util.isTelevisionDevice
@@ -59,6 +60,7 @@ fun LoginScreen(
     
     LaunchedEffect(state) {
         if (state is LoginState.Success) {
+            FirebaseCrashlytics.getInstance().log("Login success - navigating to home/hub")
             onLoginSuccess()
         }
     }

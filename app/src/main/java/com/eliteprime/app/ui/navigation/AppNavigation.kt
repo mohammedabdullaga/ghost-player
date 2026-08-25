@@ -47,6 +47,7 @@ import com.eliteprime.app.ui.screens.dashboard.ContinueWatchingGridScreen
 import com.eliteprime.app.ui.screens.trending.TrendingScreen
 import com.eliteprime.app.ui.tv.screens.TvLiteHubScreen
 import com.eliteprime.app.util.DeviceRenderProfile
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 
 @Composable
 fun AppNavigation(
@@ -61,6 +62,7 @@ fun AppNavigation(
     val defaultLanding = if (isLite && isTv) "hub" else "home"
 
     val navigateFromHubToLeaf = { leafRoute: String ->
+        FirebaseCrashlytics.getInstance().log("Nav: Hub -> $leafRoute")
         globalPlayerState.hide()
         playerEngine.stop()
         navController.navigate(leafRoute) {
@@ -70,6 +72,7 @@ fun AppNavigation(
     }
 
     val stopPlayerAndNavigate = { route: String ->
+        FirebaseCrashlytics.getInstance().log("Nav: StopPlayer -> $route")
         globalPlayerState.hide()
         playerEngine.stop()
         navController.navigate(route) {
@@ -80,6 +83,7 @@ fun AppNavigation(
     }
 
     val navigateToHome = {
+        FirebaseCrashlytics.getInstance().log("Nav: Home/Hub")
         globalPlayerState.hide()
         playerEngine.stop()
         navController.navigate(defaultLanding) {

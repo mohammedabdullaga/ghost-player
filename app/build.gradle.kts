@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.objectbox)
     alias(libs.plugins.google.services)
     alias(libs.plugins.firebase.crashlytics)
+    alias(libs.plugins.firebase.perf)
     id("org.jetbrains.kotlin.plugin.serialization") version "2.1.0"
 }
 
@@ -67,6 +68,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.analytics)
+    implementation(libs.firebase.perf)
 
     // Core
     implementation(libs.androidx.core.ktx)

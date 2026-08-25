@@ -16,6 +16,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.InputStream
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.google.firebase.perf.FirebasePerformance
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -110,16 +111,40 @@ class XtreamRepository @Inject constructor(
         onMovieProgress: (Int) -> Unit,
         onSeriesProgress: (Int) -> Unit
     ) = withContext(Dispatchers.IO) {
-        val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
-        
-        coroutineScope {
-            launch { syncStreamType(account, "get_live_streams") { inputStream -> parser.parseLiveStreams(inputStream, null, onLiveProgress) } }
-            launch { syncStreamType(account, "get_vod_streams") { inputStream -> parser.parseMovies(inputStream, null, onMovieProgress) } }
-            launch { syncStreamType(account, "get_series") { inputStream -> parser.parseSeries(inputStream, null, onSeriesProgress) } }
-        }
+        val syncTrace = FirebasePerformance.getInstance().newTrace("full_catalog_sync")
+        syncTrace.start()
+        try {
+            val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
+            
+            coroutineScope {
+                launch { 
+                    try {
+                        syncStreamType(account, "get_live_streams") { inputStream -> parser.parseLiveStreams(inputStream, null, onLiveProgress) } 
+                    } catch (e: Exception) {
+                        FirebaseCrashlytics.getInstance().recordException(e)
+                    }
+                }
+                launch { 
+                    try {
+                        syncStreamType(account, "get_vod_streams") { inputStream -> parser.parseMovies(inputStream, null, onMovieProgress) } 
+                    } catch (e: Exception) {
+                        FirebaseCrashlytics.getInstance().recordException(e)
+                    }
+                }
+                launch { 
+                    try {
+                        syncStreamType(account, "get_series") { inputStream -> parser.parseSeries(inputStream, null, onSeriesProgress) } 
+                    } catch (e: Exception) {
+                        FirebaseCrashlytics.getInstance().recordException(e)
+                    }
+                }
+            }
 
-        // Cleanup: Remove orphaned data for channels that no longer exist
-        cleanupOrphanedData()
+            // Cleanup: Remove orphaned data for channels that no longer exist
+            cleanupOrphanedData()
+        } finally {
+            syncTrace.stop()
+        }
     }
 
     private fun cleanupOrphanedData() {

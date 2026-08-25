@@ -177,8 +177,12 @@ fun TvLiteHubScreen(
                                     .weight(1f)
                                     .fillMaxHeight(),
                                 onClick = {
-                                    FirebaseCrashlytics.getInstance().log("Hub -> Live TV")
-                                    onNavigateToLive()
+                                    try {
+                                        FirebaseCrashlytics.getInstance().log("Hub -> Live TV")
+                                        onNavigateToLive()
+                                    } catch (e: Exception) {
+                                        FirebaseCrashlytics.getInstance().recordException(e)
+                                    }
                                 }
                             )
                             HubPrimaryTile(
@@ -191,8 +195,12 @@ fun TvLiteHubScreen(
                                     .weight(1f)
                                     .fillMaxHeight(),
                                 onClick = {
-                                    FirebaseCrashlytics.getInstance().log("Hub -> Movies")
-                                    onNavigateToMovies()
+                                    try {
+                                        FirebaseCrashlytics.getInstance().log("Hub -> Movies")
+                                        onNavigateToMovies()
+                                    } catch (e: Exception) {
+                                        FirebaseCrashlytics.getInstance().recordException(e)
+                                    }
                                 }
                             )
                         }
@@ -212,8 +220,12 @@ fun TvLiteHubScreen(
                                     .weight(1f)
                                     .fillMaxHeight(),
                                 onClick = {
-                                    FirebaseCrashlytics.getInstance().log("Hub -> Series")
-                                    onNavigateToSeries()
+                                    try {
+                                        FirebaseCrashlytics.getInstance().log("Hub -> Series")
+                                        onNavigateToSeries()
+                                    } catch (e: Exception) {
+                                        FirebaseCrashlytics.getInstance().recordException(e)
+                                    }
                                 }
                             )
                             HubPrimaryTile(
@@ -226,8 +238,12 @@ fun TvLiteHubScreen(
                                     .weight(1f)
                                     .fillMaxHeight(),
                                 onClick = {
-                                    FirebaseCrashlytics.getInstance().log("Hub -> Search")
-                                    onNavigateToSearch()
+                                    try {
+                                        FirebaseCrashlytics.getInstance().log("Hub -> Search")
+                                        onNavigateToSearch()
+                                    } catch (e: Exception) {
+                                        FirebaseCrashlytics.getInstance().recordException(e)
+                                    }
                                 }
                             )
                         }
@@ -245,8 +261,12 @@ fun TvLiteHubScreen(
                             isTv = isTv,
                             modifier = Modifier.weight(1f),
                             onClick = {
-                                FirebaseCrashlytics.getInstance().log("Hub -> Settings")
-                                onNavigateToSettings()
+                                try {
+                                    FirebaseCrashlytics.getInstance().log("Hub -> Settings")
+                                    onNavigateToSettings()
+                                } catch (e: Exception) {
+                                    FirebaseCrashlytics.getInstance().recordException(e)
+                                }
                             }
                         )
                         HubSecondaryActionRow(
@@ -297,22 +317,38 @@ fun TvLiteHubScreen(
                     // Primary Tiles in a 2x2 grid (or just rows)
                     Row(modifier = Modifier.fillMaxWidth().height(140.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         HubPrimaryTile(stringResource(R.string.nav_live_tv), Icons.Default.LiveTv, HubBrand.Tile, null, false, Modifier.weight(1f), {
-                            FirebaseCrashlytics.getInstance().log("Mobile Hub -> Live TV")
-                            onNavigateToLive()
+                            try {
+                                FirebaseCrashlytics.getInstance().log("Mobile Hub -> Live TV")
+                                onNavigateToLive()
+                            } catch (e: Exception) {
+                                FirebaseCrashlytics.getInstance().recordException(e)
+                            }
                         })
                         HubPrimaryTile(stringResource(R.string.nav_movies), Icons.Default.Movie, HubBrand.Tile, null, false, Modifier.weight(1f), {
-                            FirebaseCrashlytics.getInstance().log("Mobile Hub -> Movies")
-                            onNavigateToMovies()
+                            try {
+                                FirebaseCrashlytics.getInstance().log("Mobile Hub -> Movies")
+                                onNavigateToMovies()
+                            } catch (e: Exception) {
+                                FirebaseCrashlytics.getInstance().recordException(e)
+                            }
                         })
                     }
                     Row(modifier = Modifier.fillMaxWidth().height(140.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         HubPrimaryTile(stringResource(R.string.nav_series), Icons.Default.VideoLibrary, HubBrand.Tile, null, false, Modifier.weight(1f), {
-                            FirebaseCrashlytics.getInstance().log("Mobile Hub -> Series")
-                            onNavigateToSeries()
+                            try {
+                                FirebaseCrashlytics.getInstance().log("Mobile Hub -> Series")
+                                onNavigateToSeries()
+                            } catch (e: Exception) {
+                                FirebaseCrashlytics.getInstance().recordException(e)
+                            }
                         })
                         HubPrimaryTile(stringResource(R.string.nav_search), Icons.Default.Search, HubBrand.Tile, null, false, Modifier.weight(1f), {
-                            FirebaseCrashlytics.getInstance().log("Mobile Hub -> Search")
-                            onNavigateToSearch()
+                            try {
+                                FirebaseCrashlytics.getInstance().log("Mobile Hub -> Search")
+                                onNavigateToSearch()
+                            } catch (e: Exception) {
+                                FirebaseCrashlytics.getInstance().recordException(e)
+                            }
                         })
                     }
                     
@@ -320,8 +356,12 @@ fun TvLiteHubScreen(
                     
                     // Secondary Actions as vertical rows
                     HubSecondaryActionRow(stringResource(R.string.nav_settings), Icons.Default.Settings, false, modifier = Modifier.height(60.dp), onClick = {
-                        FirebaseCrashlytics.getInstance().log("Mobile Hub -> Settings")
-                        onNavigateToSettings()
+                        try {
+                            FirebaseCrashlytics.getInstance().log("Mobile Hub -> Settings")
+                            onNavigateToSettings()
+                        } catch (e: Exception) {
+                            FirebaseCrashlytics.getInstance().recordException(e)
+                        }
                     })
                     HubSecondaryActionRow(
                         title = if (uiState.isSyncing) stringResource(R.string.hub_syncing) else stringResource(R.string.hub_reload),

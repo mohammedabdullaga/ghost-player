@@ -3,6 +3,7 @@ package com.eliteprime.app.data.remote.proxy
 import android.content.Context
 import android.util.Log
 import com.eliteprime.app.data.config.ConfigRepository
+import com.google.firebase.perf.FirebasePerformance
 import kotlinx.coroutines.*
 import java.io.File
 import java.io.InterruptedIOException
@@ -66,6 +67,9 @@ class ShadowsocksManager @Inject constructor(
             }
 
             try {
+                val connTrace = FirebasePerformance.getInstance().newTrace("proxy_connection_time")
+                connTrace.start()
+                
                 Log.i(TAG, "Starting Shadowsocks daemon: $binaryPath on $serverHost")
                 
                 val cmd = listOf(
@@ -84,6 +88,7 @@ class ShadowsocksManager @Inject constructor(
                     .start()
                 
                 processRef.set(process)
+                connTrace.stop()
 
                 process.inputStream.bufferedReader().use { reader ->
                     while (isActive) {

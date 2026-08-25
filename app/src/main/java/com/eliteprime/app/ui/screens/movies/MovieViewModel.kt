@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
+import com.google.firebase.perf.FirebasePerformance
+import com.google.firebase.perf.metrics.Trace
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
 import io.objectbox.kotlin.flow
@@ -40,6 +42,8 @@ class MovieViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     private val _page = MutableStateFlow(0)
     private val PAGE_SIZE = 60
+
+    private var browsingTrace: Trace? = null
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val categoriesFlow = categoryBox.query()
@@ -125,6 +129,11 @@ class MovieViewModel @Inject constructor(
         movieBox.query().build().flow()
     ) { allCategories, selectedId, filteredMovies, allMovies ->
         
+        if (filteredMovies.isNotEmpty() && browsingTrace != null) {
+            browsingTrace?.stop()
+            browsingTrace = null
+        }
+
         val currentId = selectedId ?: CAT_ID_RECENTLY_ADDED
         val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull()
 
@@ -153,6 +162,9 @@ class MovieViewModel @Inject constructor(
 
     fun selectCategory(category: Category) {
         if (_selectedCategoryId.value != category.id) {
+            browsingTrace = FirebasePerformance.getInstance().newTrace("movie_category_load_time")
+            browsingTrace?.start()
+            
             _page.value = 0
             _selectedCategoryId.value = category.id
         }
