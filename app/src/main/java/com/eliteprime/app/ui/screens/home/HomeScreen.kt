@@ -231,18 +231,6 @@ fun HomeScreen(
                 }
             }
         }
-
-        Button(
-            onClick = { 
-                Log.e("HomeScreen", "CRASH BUTTON CLICKED")
-                throw RuntimeException("Manual Home Crash") 
-            },
-            modifier = Modifier.align(Alignment.Center).size(200.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.8f)),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 50.dp)
-        ) {
-            Text("FORCE CRASH", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-        }
     }
 }
 

@@ -416,6 +416,17 @@ private fun MobileLoginLayout(
                 Spacer(modifier = Modifier.height(16.dp))
                 ErrorBanner(state.message)
             }
+
+            // --- CRASH TEST BUTTON (MOBILE) ---
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(
+                onClick = { throw RuntimeException("Firebase Manual Crash - Login Screen") },
+                modifier = Modifier.width(160.dp).height(38.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red.copy(alpha = 0.7f))
+            ) {
+                Text("TEST CRASH", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
             
             Spacer(modifier = Modifier.height(40.dp))
         }
