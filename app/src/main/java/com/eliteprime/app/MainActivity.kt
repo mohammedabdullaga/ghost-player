@@ -58,7 +58,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         
         FirebaseCrashlytics.getInstance().log("MainActivity onCreate started")
-        Log.e("MainActivity", "Firebase Crashlytics check: ${FirebaseCrashlytics.getInstance().didCrashOnPreviousExecution()}")
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val permission = "android.permission.POST_NOTIFICATIONS"

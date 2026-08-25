@@ -118,7 +118,6 @@ fun HomeScreen(
 
     LaunchedEffect(Unit) {
         FirebaseCrashlytics.getInstance().log("Entering Full Home Screen (isTv=$isTv)")
-        Log.e("HomeScreen", "CRASH_CHECK_LOG: Home screen visible")
         while (true) {
             currentTime.value = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
             delay(60000)
