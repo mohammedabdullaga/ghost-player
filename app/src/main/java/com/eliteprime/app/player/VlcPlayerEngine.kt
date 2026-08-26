@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import org.videolan.libvlc.LibVLC
 import org.videolan.libvlc.Media
 import org.videolan.libvlc.MediaPlayer
@@ -225,7 +226,16 @@ class VlcPlayerEngine @Inject constructor(
     override fun play() { mediaPlayer?.play() }
     override fun pause() { mediaPlayer?.pause() }
     override fun stop() {
-        mediaPlayer?.stop()
+        val player = mediaPlayer
+        if (player != null) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    player.stop()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error stopping VLC player in background", e)
+                }
+            }
+        }
         _playbackState.value = PlaybackState.IDLE
         _isPlaying.value = false
         pendingUrl = null
@@ -265,12 +275,23 @@ class VlcPlayerEngine @Inject constructor(
 
     override fun release() {
         Log.d(TAG, "Releasing engine resources")
-        mediaPlayer?.stop()
-        detachVlcViews()
-        mediaPlayer?.release()
-        libVLC?.release()
+        val player = mediaPlayer
+        val lib = libVLC
+        
         mediaPlayer = null
         libVLC = null
+        
+        scope.launch(Dispatchers.IO) {
+            try {
+                player?.stop()
+                player?.release()
+                lib?.release()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error releasing VLC resources in background", e)
+            }
+        }
+        
+        detachVlcViews()
         videoLayout = null
         isSurfaceAttached = false
         attachedLayout = null

@@ -5,7 +5,7 @@ import com.eliteprime.app.data.local.entity.LiveStream
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
 import com.google.gson.Gson
-import com.google.gson.GsonBuilder
+import com.google.gson.JsonParser
 import com.google.gson.JsonSyntaxException
 import com.google.gson.TypeAdapter
 import com.google.gson.stream.JsonReader
@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import java.io.BufferedInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -32,12 +33,13 @@ class XtreamStreamParser @Inject constructor(
     private val gson: Gson
 ) {
     private val TAG = "XtreamStreamParser"
-    private val BATCH_SIZE = 1000
+    private val BATCH_SIZE = 2000
 
     suspend fun parseLiveStreams(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) = coroutineScope {
         val trace = FirebasePerformance.getInstance().newTrace("parse_live_streams")
         trace.start()
-        val reader = JsonReader(InputStreamReader(inputStream, "UTF-8"))
+        val reader = JsonReader(InputStreamReader(BufferedInputStream(inputStream, 1024 * 128), "UTF-8"))
+        reader.setLenient(true)
         val liveBox: Box<LiveStream> = boxStore.boxFor(LiveStream::class.java)
         var count = 0
         val writeChannel = Channel<List<LiveStream>>(capacity = 10)
@@ -50,15 +52,26 @@ class XtreamStreamParser @Inject constructor(
         
         try {
             val batch = mutableListOf<LiveStream>()
-            reader.beginArray()
+            if (reader.peek() == JsonToken.BEGIN_ARRAY) {
+                reader.beginArray()
+            }
             while (reader.hasNext()) {
+                val element = try {
+                    JsonParser.parseReader(reader)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Syntax error parsing live stream at count $count: ${e.message}")
+                    break
+                }
+
                 try {
-                    val live: LiveStream = gson.fromJson(reader, LiveStream::class.java)
-                    live.order = count
-                    if (categoryId == null || live.remoteCategoryId == categoryId) {
-                        batch.add(live)
+                    val live: LiveStream? = gson.fromJson(element, LiveStream::class.java)
+                    if (live != null) {
+                        live.order = count
+                        if (categoryId == null || live.remoteCategoryId == categoryId) {
+                            batch.add(live)
+                        }
+                        count++
                     }
-                    count++
                     
                     if (batch.size >= BATCH_SIZE) {
                         writeChannel.send(batch.toList())
@@ -68,18 +81,13 @@ class XtreamStreamParser @Inject constructor(
                         onProgress(count)
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing live stream at count $count: ${e.message}")
+                    Log.e(TAG, "Mapping error for live stream at count $count: ${e.message}")
                     FirebaseCrashlytics.getInstance().recordException(e)
-                    if (e is IOException || e is JsonSyntaxException) {
-                        // Connection reset or bad JSON - stop here but save what we have
-                        break
-                    }
                 }
             }
             if (batch.isNotEmpty()) {
                 writeChannel.send(batch)
             }
-            reader.endArray()
             trace.putAttribute("count", count.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Critical error in parseLiveStreams: ${e.message}")
@@ -96,7 +104,8 @@ class XtreamStreamParser @Inject constructor(
     suspend fun parseMovies(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) = coroutineScope {
         val trace = FirebasePerformance.getInstance().newTrace("parse_movies")
         trace.start()
-        val reader = JsonReader(InputStreamReader(inputStream, "UTF-8"))
+        val reader = JsonReader(InputStreamReader(BufferedInputStream(inputStream, 1024 * 128), "UTF-8"))
+        reader.setLenient(true)
         val movieBox: Box<Movie> = boxStore.boxFor(Movie::class.java)
         var count = 0
         val writeChannel = Channel<List<Movie>>(capacity = 10)
@@ -109,15 +118,26 @@ class XtreamStreamParser @Inject constructor(
         
         try {
             val batch = mutableListOf<Movie>()
-            reader.beginArray()
+            if (reader.peek() == JsonToken.BEGIN_ARRAY) {
+                reader.beginArray()
+            }
             while (reader.hasNext()) {
+                val element = try {
+                    JsonParser.parseReader(reader)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Syntax error parsing movie at count $count: ${e.message}")
+                    break
+                }
+
                 try {
-                    val movie: Movie = gson.fromJson(reader, Movie::class.java)
-                    movie.order = count
-                    if (categoryId == null || movie.remoteCategoryId == categoryId) {
-                        batch.add(movie)
+                    val movie: Movie? = gson.fromJson(element, Movie::class.java)
+                    if (movie != null) {
+                        movie.order = count
+                        if (categoryId == null || movie.remoteCategoryId == categoryId) {
+                            batch.add(movie)
+                        }
+                        count++
                     }
-                    count++
                     
                     if (batch.size >= BATCH_SIZE) {
                         writeChannel.send(batch.toList())
@@ -127,17 +147,13 @@ class XtreamStreamParser @Inject constructor(
                         onProgress(count)
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing movie at count $count: ${e.message}")
+                    Log.e(TAG, "Mapping error for movie at count $count: ${e.message}")
                     FirebaseCrashlytics.getInstance().recordException(e)
-                    if (e is IOException || e is JsonSyntaxException) {
-                        break
-                    }
                 }
             }
             if (batch.isNotEmpty()) {
                 writeChannel.send(batch)
             }
-            reader.endArray()
             trace.putAttribute("count", count.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Critical error in parseMovies: ${e.message}")
@@ -154,7 +170,8 @@ class XtreamStreamParser @Inject constructor(
     suspend fun parseSeries(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) = coroutineScope {
         val trace = FirebasePerformance.getInstance().newTrace("parse_series")
         trace.start()
-        val reader = JsonReader(InputStreamReader(inputStream, "UTF-8"))
+        val reader = JsonReader(InputStreamReader(BufferedInputStream(inputStream, 1024 * 128), "UTF-8"))
+        reader.setLenient(true)
         val seriesBox: Box<Series> = boxStore.boxFor(Series::class.java)
         var count = 0
         val writeChannel = Channel<List<Series>>(capacity = 10)
@@ -167,15 +184,26 @@ class XtreamStreamParser @Inject constructor(
         
         try {
             val batch = mutableListOf<Series>()
-            reader.beginArray()
+            if (reader.peek() == JsonToken.BEGIN_ARRAY) {
+                reader.beginArray()
+            }
             while (reader.hasNext()) {
+                val element = try {
+                    JsonParser.parseReader(reader)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Syntax error parsing series at count $count: ${e.message}")
+                    break
+                }
+
                 try {
-                    val series: Series = gson.fromJson(reader, Series::class.java)
-                    series.order = count
-                    if (categoryId == null || series.remoteCategoryId == categoryId) {
-                        batch.add(series)
+                    val series: Series? = gson.fromJson(element, Series::class.java)
+                    if (series != null) {
+                        series.order = count
+                        if (categoryId == null || series.remoteCategoryId == categoryId) {
+                            batch.add(series)
+                        }
+                        count++
                     }
-                    count++
                     
                     if (batch.size >= BATCH_SIZE) {
                         writeChannel.send(batch.toList())
@@ -185,17 +213,13 @@ class XtreamStreamParser @Inject constructor(
                         onProgress(count)
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error parsing series at count $count: ${e.message}")
+                    Log.e(TAG, "Mapping error for series at count $count: ${e.message}")
                     FirebaseCrashlytics.getInstance().recordException(e)
-                    if (e is IOException || e is JsonSyntaxException) {
-                        break
-                    }
                 }
             }
             if (batch.isNotEmpty()) {
                 writeChannel.send(batch)
             }
-            reader.endArray()
             trace.putAttribute("count", count.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Critical error in parseSeries: ${e.message}")

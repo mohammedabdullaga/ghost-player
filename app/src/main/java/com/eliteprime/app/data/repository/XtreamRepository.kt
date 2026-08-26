@@ -12,11 +12,13 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.CacheControl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.InputStream
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.perf.FirebasePerformance
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -152,28 +154,21 @@ class XtreamRepository @Inject constructor(
         try {
             val account = getActiveAccountOrRefresh() ?: return@withContext
             
-            coroutineScope {
-                launch { 
-                    try {
-                        syncStreamType(account, "get_live_streams") { inputStream -> parser.parseLiveStreams(inputStream, null, onLiveProgress) } 
-                    } catch (e: Exception) {
-                        FirebaseCrashlytics.getInstance().recordException(e)
-                    }
-                }
-                launch { 
-                    try {
-                        syncStreamType(account, "get_vod_streams") { inputStream -> parser.parseMovies(inputStream, null, onMovieProgress) } 
-                    } catch (e: Exception) {
-                        FirebaseCrashlytics.getInstance().recordException(e)
-                    }
-                }
-                launch { 
-                    try {
-                        syncStreamType(account, "get_series") { inputStream -> parser.parseSeries(inputStream, null, onSeriesProgress) } 
-                    } catch (e: Exception) {
-                        FirebaseCrashlytics.getInstance().recordException(e)
-                    }
-                }
+            // Proactively clear stale proxy connections before starting a massive sync
+            okHttpClient.connectionPool.evictAll()
+            
+            // Sequential Sync: Requesting these massive files one-by-one is much more stable
+            // than parallel requests when using a VPN/Proxy, preventing socket aborts.
+            syncStreamType(account, "get_live_streams") { inputStream -> 
+                parser.parseLiveStreams(inputStream, null, onLiveProgress) 
+            }
+            
+            syncStreamType(account, "get_vod_streams") { inputStream -> 
+                parser.parseMovies(inputStream, null, onMovieProgress) 
+            }
+            
+            syncStreamType(account, "get_series") { inputStream -> 
+                parser.parseSeries(inputStream, null, onSeriesProgress) 
             }
 
             // Cleanup: Remove orphaned data for channels that no longer exist
@@ -216,12 +211,35 @@ class XtreamRepository @Inject constructor(
 
     private suspend fun syncStreamType(account: XtreamAccount, action: String, parseAction: suspend (InputStream) -> Unit) {
         val url = "${account.serverUrl}player_api.php?username=${account.username}&password=${account.password}&action=$action"
-        val request = Request.Builder().url(url).build()
+        val request = Request.Builder()
+            .url(url)
+            .cacheControl(CacheControl.Builder().noCache().noStore().build())
+            .build()
         
-        withContext(Dispatchers.IO) {
-            okHttpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext
-                response.body?.byteStream()?.let { parseAction(it) }
+        var attempts = 0
+        val maxAttempts = 3
+        while (attempts < maxAttempts) {
+            try {
+                withContext(Dispatchers.IO) {
+                    okHttpClient.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful) {
+                            Log.w(TAG, "syncStreamType ($action) returned HTTP ${response.code}")
+                            return@use
+                        }
+                        response.body?.byteStream()?.let { parseAction(it) }
+                    }
+                }
+                return // Success
+            } catch (e: Exception) {
+                attempts++
+                Log.w(TAG, "syncStreamType ($action) attempt $attempts failed: ${e.message}")
+                if (attempts >= maxAttempts) {
+                    // Only record to Crashlytics after all retries are exhausted
+                    FirebaseCrashlytics.getInstance().log("syncStreamType exhausted retries for $action on host ${account.serverUrl}")
+                    FirebaseCrashlytics.getInstance().recordException(e)
+                } else {
+                    delay(1000L * attempts)
+                }
             }
         }
     }

@@ -9,7 +9,9 @@ import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.util.Log
 import androidx.documentfile.provider.DocumentFile
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.remote.XtreamUrlFactory
@@ -265,11 +267,18 @@ class DownloadManagerImpl @Inject constructor(
     }
 
     private fun startService() {
-        val intent = Intent(context, DownloadService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
+        try {
+            val intent = Intent(context, DownloadService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        } catch (e: Exception) {
+            // Catches ForegroundServiceStartNotAllowedException on Android 12+ (API 31+)
+            // when app is in background, as well as IllegalStateException on Android 8+
+            Log.w("DownloadManagerImpl", "Could not start DownloadService (app likely in background): ${e.message}")
+            FirebaseCrashlytics.getInstance().log("DownloadService start suppressed: ${e.message}")
         }
     }
 

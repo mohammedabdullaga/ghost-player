@@ -1,5 +1,7 @@
 package com.eliteprime.app.data.local.entity
 
+import com.eliteprime.app.data.remote.util.FlexibleStringAdapter
+import com.google.gson.annotations.JsonAdapter
 import com.google.gson.annotations.SerializedName
 import io.objectbox.annotation.Entity
 import io.objectbox.annotation.Id
@@ -11,10 +13,10 @@ import io.objectbox.relation.ToOne
 data class Movie(
     @Id(assignable = true) @SerializedName("stream_id") var id: Long = 0,
     @Index @SerializedName("name") var name: String = "",
-    @SerializedName("stream_type") var streamType: String = "",
+    @SerializedName("stream_type") @JsonAdapter(FlexibleStringAdapter::class) var streamType: String = "",
     @SerializedName("stream_icon") var streamIcon: String? = null,
     @SerializedName("added") var added: String? = null,
-    @Index @SerializedName("category_id") var remoteCategoryId: String? = null,
+    @Index @SerializedName("category_id") @JsonAdapter(FlexibleStringAdapter::class) var remoteCategoryId: String? = null,
     @SerializedName("container_extension") var containerExtension: String? = null,
     @SerializedName("custom_sid") var customSid: String? = null,
     @SerializedName("direct_source") var directSource: String? = null,
@@ -28,10 +30,10 @@ data class Movie(
     
     // Persistent fields (fetched on demand)
     var rating: Double = 0.0,
-    var plot: String? = null,
-    var cast: String? = null,
-    var director: String? = null,
-    var genre: String? = null,
+    @JsonAdapter(FlexibleStringAdapter::class) var plot: String? = null,
+    @JsonAdapter(FlexibleStringAdapter::class) var cast: String? = null,
+    @JsonAdapter(FlexibleStringAdapter::class) var director: String? = null,
+    @JsonAdapter(FlexibleStringAdapter::class) var genre: String? = null,
     var duration: String? = null,
 
     @Index var isFavorite: Boolean = false,
