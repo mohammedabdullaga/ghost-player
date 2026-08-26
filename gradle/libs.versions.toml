@@ -1,5 +1,5 @@
 [versions]
-agp = "9.5.0-alpha01"
+agp = "9.5.0-alpha02"
 kotlin = "2.2.0"
 ksp = "2.2.0-2.0.2"
 objectbox = "4.0.3"

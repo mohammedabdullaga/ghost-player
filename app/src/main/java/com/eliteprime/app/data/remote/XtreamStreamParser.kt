@@ -21,6 +21,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.google.firebase.perf.FirebasePerformance
 
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,6 +35,8 @@ class XtreamStreamParser @Inject constructor(
     private val BATCH_SIZE = 1000
 
     suspend fun parseLiveStreams(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) = coroutineScope {
+        val trace = FirebasePerformance.getInstance().newTrace("parse_live_streams")
+        trace.start()
         val reader = JsonReader(InputStreamReader(inputStream, "UTF-8"))
         val liveBox: Box<LiveStream> = boxStore.boxFor(LiveStream::class.java)
         var count = 0
@@ -77,6 +80,7 @@ class XtreamStreamParser @Inject constructor(
                 writeChannel.send(batch)
             }
             reader.endArray()
+            trace.putAttribute("count", count.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Critical error in parseLiveStreams: ${e.message}")
             FirebaseCrashlytics.getInstance().recordException(e)
@@ -85,10 +89,13 @@ class XtreamStreamParser @Inject constructor(
             writerJob.join()
             onProgress(count)
             try { reader.close() } catch (_: Exception) {}
+            trace.stop()
         }
     }
 
     suspend fun parseMovies(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) = coroutineScope {
+        val trace = FirebasePerformance.getInstance().newTrace("parse_movies")
+        trace.start()
         val reader = JsonReader(InputStreamReader(inputStream, "UTF-8"))
         val movieBox: Box<Movie> = boxStore.boxFor(Movie::class.java)
         var count = 0
@@ -131,6 +138,7 @@ class XtreamStreamParser @Inject constructor(
                 writeChannel.send(batch)
             }
             reader.endArray()
+            trace.putAttribute("count", count.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Critical error in parseMovies: ${e.message}")
             FirebaseCrashlytics.getInstance().recordException(e)
@@ -139,10 +147,13 @@ class XtreamStreamParser @Inject constructor(
             writerJob.join()
             onProgress(count)
             try { reader.close() } catch (_: Exception) {}
+            trace.stop()
         }
     }
 
     suspend fun parseSeries(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) = coroutineScope {
+        val trace = FirebasePerformance.getInstance().newTrace("parse_series")
+        trace.start()
         val reader = JsonReader(InputStreamReader(inputStream, "UTF-8"))
         val seriesBox: Box<Series> = boxStore.boxFor(Series::class.java)
         var count = 0
@@ -185,6 +196,7 @@ class XtreamStreamParser @Inject constructor(
                 writeChannel.send(batch)
             }
             reader.endArray()
+            trace.putAttribute("count", count.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Critical error in parseSeries: ${e.message}")
             FirebaseCrashlytics.getInstance().recordException(e)
@@ -193,6 +205,7 @@ class XtreamStreamParser @Inject constructor(
             writerJob.join()
             onProgress(count)
             try { reader.close() } catch (_: Exception) {}
+            trace.stop()
         }
     }
 }

@@ -37,13 +37,12 @@ class XtreamRepository @Inject constructor(
     private val epgBox = boxStore.boxFor(EPGProgram::class.java)
 
     suspend fun login(user: String, pass: String): Boolean = withContext(Dispatchers.IO) {
-        val hosts = configRepository.getActiveHosts()
-        if (hosts.isEmpty()) {
-            Log.d(TAG, "Hosts list empty, fetching config...")
-            configRepository.fetchConfig()
-        }
+        // ALWAYS fetch fresh config for login to ensure 100% reliance on latest remote config
+        Log.d(TAG, "Forcing fresh config fetch for login...")
+        configRepository.fetchConfig()
+        
         val activeHosts = configRepository.getActiveHosts()
-        Log.d(TAG, "Attempting login with ${activeHosts.size} hosts")
+        Log.d(TAG, "Attempting login with ${activeHosts.size} hosts from remote config")
         
         for (host in activeHosts) {
             try {
@@ -71,18 +70,53 @@ class XtreamRepository @Inject constructor(
                     return@withContext true
                 } else if (response.userInfo?.status != null) {
                     Log.w(TAG, "Account status not active: ${response.userInfo.status}")
+                    FirebaseCrashlytics.getInstance().log("Login: Account status is ${response.userInfo.status} for host ${host.url}")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Login failed for host ${host.url}: ${e.message}")
+                FirebaseCrashlytics.getInstance().setCustomKey("last_failed_host", host.url)
                 FirebaseCrashlytics.getInstance().recordException(e)
             }
         }
         false
     }
 
+    suspend fun getAccount(): XtreamAccount? {
+        val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return null
+        
+        // 100% Reliance on Remote Config: Always ensure we have a fresh host for this session.
+        // If config hasn't been fetched yet this session, fetch it now.
+        var activeHosts = configRepository.getActiveHosts()
+        if (activeHosts.isEmpty()) {
+            Log.d(TAG, "No session hosts available, forcing fresh config fetch...")
+            configRepository.fetchConfig()
+            activeHosts = configRepository.getActiveHosts()
+        }
+
+        // Always prioritize the host from Remote Config over what's stored in DB.
+        // This ensures mirrors can be swapped remotely without user intervention.
+        if (activeHosts.isNotEmpty()) {
+            val bestHost = activeHosts.first().url
+            val normalizedHost = if (bestHost.endsWith("/")) bestHost else "$bestHost/"
+            
+            if (account.serverUrl != normalizedHost) {
+                Log.i(TAG, "Session Host Update: Redirecting to $normalizedHost")
+                account.serverUrl = normalizedHost
+                // We update the DB so that other components (ViewModels) also see the new host.
+                accountBox.put(account)
+            }
+        }
+        
+        return account
+    }
+
+    private suspend fun getActiveAccountOrRefresh(): XtreamAccount? = getAccount()
+
     suspend fun syncCategories() = withContext(Dispatchers.IO) {
-        val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
+        val account = getActiveAccountOrRefresh() ?: return@withContext
         val fullUrl = "${account.serverUrl}player_api.php"
+        val trace = FirebasePerformance.getInstance().newTrace("sync_categories")
+        trace.start()
         try {
             coroutineScope {
                 val liveCatsDeferred = async { xtreamApi.getCategories(fullUrl, account.username, account.password, "get_live_categories") }
@@ -101,8 +135,10 @@ class XtreamRepository @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "syncCategories failed: ${e.message}")
             FirebaseCrashlytics.getInstance().recordException(e)
+        } finally {
+            trace.stop()
         }
     }
 
@@ -114,7 +150,7 @@ class XtreamRepository @Inject constructor(
         val syncTrace = FirebasePerformance.getInstance().newTrace("full_catalog_sync")
         syncTrace.start()
         try {
-            val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
+            val account = getActiveAccountOrRefresh() ?: return@withContext
             
             coroutineScope {
                 launch { 
@@ -194,7 +230,7 @@ class XtreamRepository @Inject constructor(
         // EPG fetching disabled as per user request
         return@withContext
 
-        val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
+        val account = getActiveAccountOrRefresh() ?: return@withContext
         val fullUrl = "${account.serverUrl}player_api.php"
         try {
             // 1. First, cleanup OLD EPG data for ALL channels to keep DB size small
@@ -232,8 +268,10 @@ class XtreamRepository @Inject constructor(
     }
 
     suspend fun fetchSeriesDetails(series: Series) = withContext(Dispatchers.IO) {
-        val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
+        val account = getActiveAccountOrRefresh() ?: return@withContext
         val fullUrl = "${account.serverUrl}player_api.php"
+        val trace = FirebasePerformance.getInstance().newTrace("fetch_series_details")
+        trace.start()
         try {
             val response = xtreamApi.getSeriesInfo(fullUrl, account.username, account.password, seriesId = series.id)
             
@@ -304,14 +342,18 @@ class XtreamRepository @Inject constructor(
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "fetchSeriesDetails failed: ${e.message}")
             FirebaseCrashlytics.getInstance().recordException(e)
+        } finally {
+            trace.stop()
         }
     }
 
     suspend fun fetchMovieDetails(movie: Movie) = withContext(Dispatchers.IO) {
-        val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@withContext
+        val account = getActiveAccountOrRefresh() ?: return@withContext
         val fullUrl = "${account.serverUrl}player_api.php"
+        val trace = FirebasePerformance.getInstance().newTrace("fetch_movie_details")
+        trace.start()
         try {
             val response = xtreamApi.getMovieInfo(fullUrl, account.username, account.password, streamId = movie.id)
             response.info?.let { info ->
@@ -325,8 +367,10 @@ class XtreamRepository @Inject constructor(
                 movieBox.put(movie)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e(TAG, "fetchMovieDetails failed: ${e.message}")
             FirebaseCrashlytics.getInstance().recordException(e)
+        } finally {
+            trace.stop()
         }
     }
 }

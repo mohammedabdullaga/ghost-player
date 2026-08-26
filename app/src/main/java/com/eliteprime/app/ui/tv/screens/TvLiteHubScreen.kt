@@ -287,6 +287,8 @@ fun TvLiteHubScreen(
                                 }
                             }
                         )
+                        // Pro mode button hidden from main UI for now
+                        /*
                         HubSecondaryActionRow(
                             title = stringResource(R.string.mode_standard_title),
                             icon = Icons.Default.Dashboard,
@@ -294,6 +296,7 @@ fun TvLiteHubScreen(
                             modifier = Modifier.weight(1f),
                             onClick = { showSwitchModeDialog = true }
                         )
+                        */
                         HubSecondaryActionRow(
                             title = stringResource(R.string.hub_exit),
                             icon = Icons.AutoMirrored.Filled.ExitToApp,
@@ -377,7 +380,8 @@ fun TvLiteHubScreen(
                             }
                         }
                     )
-                    HubSecondaryActionRow(stringResource(R.string.mode_standard_title), Icons.Default.Dashboard, false, modifier = Modifier.height(60.dp), onClick = { showSwitchModeDialog = true })
+                    // Pro mode button hidden from main UI for now
+                    // HubSecondaryActionRow(stringResource(R.string.mode_standard_title), Icons.Default.Dashboard, false, modifier = Modifier.height(60.dp), onClick = { showSwitchModeDialog = true })
                     HubSecondaryActionRow(stringResource(R.string.hub_exit), Icons.AutoMirrored.Filled.ExitToApp, false, accentColor = Color(0xFFEF5350), modifier = Modifier.height(60.dp), onClick = { showExitDialog = true })
                 }
             }

@@ -78,7 +78,13 @@ class LoginViewModel @Inject constructor(
                 if (success) {
                     startSync()
                 } else {
-                    _loginState.value = LoginState.Error(application.getString(R.string.login_error_invalid))
+                    val activeHosts = configRepository.getActiveHosts()
+                    val errorMsg = if (activeHosts.isEmpty()) {
+                        "Service initialization failed. Please check your internet connection."
+                    } else {
+                        application.getString(R.string.login_error_invalid)
+                    }
+                    _loginState.value = LoginState.Error(errorMsg)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Login crash: ${e.message}", e)

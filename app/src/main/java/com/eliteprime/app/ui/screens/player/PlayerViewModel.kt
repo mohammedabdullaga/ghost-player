@@ -10,6 +10,7 @@ import com.eliteprime.app.MainActivity
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.data.remote.XtreamUrlFactory
 import com.eliteprime.app.data.repository.PreferenceRepository
+import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.data.repository.TvContinuationRepository
 import com.eliteprime.app.domain.model.StreamInfo
 import com.eliteprime.app.domain.model.StreamType
@@ -36,6 +37,7 @@ class PlayerViewModel @Inject constructor(
     private val tvContinuationRepository: TvContinuationRepository,
     private val playbackHistoryRepository: PlaybackHistoryRepository,
     private val downloadManager: DownloadManager,
+    private val xtreamRepository: XtreamRepository,
     private val preferenceRepository: PreferenceRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -317,7 +319,7 @@ class PlayerViewModel @Inject constructor(
 
     private fun navigateToEpisode(episode: Episode) {
         viewModelScope.launch {
-            val account = boxStore.boxFor(XtreamAccount::class.java).query().equal(XtreamAccount_.isActive, true).build().findFirst()
+            val account = xtreamRepository.getAccount()
             if (account != null) {
                 val url = XtreamUrlFactory.buildPlaybackUrl(
                     serverUrl = account.serverUrl,
@@ -351,7 +353,7 @@ class PlayerViewModel @Inject constructor(
 
     private fun navigateToLive(channel: LiveStream) {
         viewModelScope.launch {
-            val account = boxStore.boxFor(XtreamAccount::class.java).query().equal(XtreamAccount_.isActive, true).build().findFirst()
+            val account = xtreamRepository.getAccount()
             if (account != null) {
                 val url = XtreamUrlFactory.buildPlaybackUrl(
                     serverUrl = account.serverUrl,
@@ -371,7 +373,7 @@ class PlayerViewModel @Inject constructor(
 
     private fun resolveAndPlay(targetStreamId: Long, targetTitle: String, resumeAt: Long? = null) {
         viewModelScope.launch {
-            val account = boxStore.boxFor(XtreamAccount::class.java).query().equal(XtreamAccount_.isActive, true).build().findFirst()
+            val account = xtreamRepository.getAccount()
             if (account != null) {
                 activeProviderId = account.id
                 var extension: String? = null

@@ -16,6 +16,7 @@ import coil3.request.crossfade
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.remote.proxy.NetworkManager
 import com.eliteprime.app.data.repository.PreferenceRepository
+import com.eliteprime.app.data.sync.CatalogSyncWorker
 import com.eliteprime.app.util.DeviceRenderProfile
 import com.eliteprime.app.util.RenderTier
 import dagger.hilt.android.HiltAndroidApp
@@ -52,7 +53,7 @@ class ElitePrimeApp : Application(), SingletonImageLoader.Factory {
             .diskCache {
                 DiskCache.Builder()
                     .directory(context.cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(100 * 1024 * 1024L) // 100MB limit
+                    .maxSizeBytes(32 * 1024 * 1024L) // 32MB limit as requested
                     .build()
             }
             .diskCachePolicy(CachePolicy.ENABLED)
@@ -76,10 +77,11 @@ class ElitePrimeApp : Application(), SingletonImageLoader.Factory {
         DeviceRenderProfile.initialize(this, liteMode = isLite)
         preferenceRepository.applySavedLocale()
         
-        // Fetch config directly, then initialize network/proxy
+        // Fetch config directly, then initialize network/proxy & background daily sync
         appScope.launch {
             configRepository.fetchConfig()
             networkManager.init()
+            CatalogSyncWorker.schedulePeriodicSync(this@ElitePrimeApp)
         }
     }
 }

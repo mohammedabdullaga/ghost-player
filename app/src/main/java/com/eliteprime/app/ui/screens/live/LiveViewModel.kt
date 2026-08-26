@@ -47,7 +47,6 @@ class LiveViewModel @Inject constructor(
     private val categoryBox = boxStore.boxFor(Category::class.java)
     private val liveBox = boxStore.boxFor(LiveStream::class.java)
     private val epgBox = boxStore.boxFor(EPGProgram::class.java)
-    private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
     private val customGroupBox = boxStore.boxFor(CustomGroup::class.java)
     private val groupMembershipBox = boxStore.boxFor(GroupMembership::class.java)
 
@@ -160,9 +159,8 @@ class LiveViewModel @Inject constructor(
         categoriesFlow,
         _selectedCategoryId,
         filteredChannelsFlow,
-        combine(_isReorderMode, _reorderCategories, _isChannelReorderMode, _reorderChannels) { a, b, c, d -> Quad(a, b, c, d) },
-        liveBox.query().build().flow()
-    ) { allCategories, selectedId, channels, quad, allStreams ->
+        combine(_isReorderMode, _reorderCategories, _isChannelReorderMode, _reorderChannels) { a, b, c, d -> Quad(a, b, c, d) }
+    ) { allCategories, selectedId, channels, quad ->
         if (channels.isNotEmpty() && browsingTrace != null) {
             browsingTrace?.stop()
             browsingTrace = null
@@ -177,24 +175,9 @@ class LiveViewModel @Inject constructor(
             
         val currentSelected = categories.find { it.id == currentId } ?: categories.firstOrNull()
 
-        // Calculate counts
-        val remoteToCount = allStreams.groupBy { it.remoteCategoryId }.mapValues { it.value.size }
-        val countsMap = allCategories.associate { cat ->
-            val count = when {
-                cat.id == CAT_ID_FAVORITES -> allStreams.count { it.isFavorite }
-                cat.id == CAT_ID_RECENT -> allStreams.count { it.lastWatchedAt > 0 }
-                cat.id >= 1000000 -> {
-                    val realGroupId = cat.id - 1000000
-                    groupMembershipBox.query().equal(GroupMembership_.groupId, realGroupId).build().count().toInt()
-                }
-                else -> remoteToCount[cat.categoryId] ?: 0
-            }
-            cat.id to count
-        }
-
         LiveUiState(
             categories = categories,
-            categoryCounts = countsMap,
+            categoryCounts = emptyMap(),
             selectedCategory = currentSelected,
             filteredChannels = if (channelReorderMode) channelReorderList else (if (reorderMode) emptyList() else channels),
             isLoading = false,
@@ -270,7 +253,7 @@ class LiveViewModel @Inject constructor(
 
         viewModelScope.launch {
             xtreamRepository.fetchEpgForChannel(channel)
-            val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst()
+            val account = xtreamRepository.getAccount()
             if (account != null) {
                 val url = XtreamUrlFactory.buildPlaybackUrl(
                     serverUrl = account.serverUrl,

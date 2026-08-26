@@ -52,12 +52,12 @@ class DashboardViewModel @Inject constructor(
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
 
     init {
-        // If in Lite Mode, skip all background TMDB fetches, cache queries, and observers completely
+        // Always observe core data (account, stats, history) regardless of mode
+        observeData()
+
         if (DeviceRenderProfile.isLiteMode()) {
             _uiState.update { it.copy(isTrendingLoading = false) }
         } else {
-            observeData()
-            
             // Initial load from cache to show instantly
             loadTrendingFromCache()
             
@@ -95,7 +95,7 @@ class DashboardViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeData() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             combine(
                 accountBox.query().equal(XtreamAccount_.isActive, true).build().flow(),
                 playbackHistoryRepository.getRecentlyWatched(50).map { history ->
@@ -107,26 +107,38 @@ class DashboardViewModel @Inject constructor(
                 val latestDownload = downloads.filter { it.status == DownloadStatus.COMPLETED }
                     .maxByOrNull { it.completedAt ?: 0L }
                 
+                DashboardUiState(
+                    isLoading = false,
+                    liveCount = liveBox.count().toInt(),
+                    movieCount = movieBox.count().toInt(),
+                    seriesCount = seriesBox.count().toInt(),
+                    downloadsCount = downloads.size,
+                    completedDownloadsCount = downloads.count { it.status == DownloadStatus.COMPLETED },
+                    latestDownloadPoster = latestDownload?.posterUrl,
+                    providerHealth = DashboardProviderHealth(
+                        expirationDate = activeAccount?.expiryDate,
+                        status = activeAccount?.status ?: "",
+                        maxConnections = activeAccount?.maxConnections ?: 0
+                    ),
+                    continueWatching = history
+                )
+            }
+            .flowOn(Dispatchers.IO)
+            .collect { newState ->
                 _uiState.update { current ->
                     current.copy(
                         isLoading = false,
-                        liveCount = liveBox.count().toInt(),
-                        movieCount = movieBox.count().toInt(),
-                        seriesCount = seriesBox.count().toInt(),
-                        downloadsCount = downloads.size,
-                        completedDownloadsCount = downloads.count { it.status == DownloadStatus.COMPLETED },
-                        latestDownloadPoster = latestDownload?.posterUrl,
-                        providerHealth = DashboardProviderHealth(
-                            expirationDate = activeAccount?.expiryDate,
-                            status = activeAccount?.status ?: "",
-                            maxConnections = activeAccount?.maxConnections ?: 0
-                        ),
-                        continueWatching = history
+                        liveCount = newState.liveCount,
+                        movieCount = newState.movieCount,
+                        seriesCount = newState.seriesCount,
+                        downloadsCount = newState.downloadsCount,
+                        completedDownloadsCount = newState.completedDownloadsCount,
+                        latestDownloadPoster = newState.latestDownloadPoster,
+                        providerHealth = newState.providerHealth,
+                        continueWatching = newState.continueWatching
                     )
                 }
             }
-            .flowOn(Dispatchers.Default)
-            .collect()
         }
     }
 

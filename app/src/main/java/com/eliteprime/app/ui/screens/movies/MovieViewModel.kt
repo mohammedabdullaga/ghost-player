@@ -125,9 +125,8 @@ class MovieViewModel @Inject constructor(
     val uiState: StateFlow<MovieUiState> = combine(
         categoriesFlow,
         _selectedCategoryId,
-        filteredMoviesFlow,
-        movieBox.query().build().flow()
-    ) { allCategories, selectedId, filteredMovies, allMovies ->
+        filteredMoviesFlow
+    ) { allCategories, selectedId, filteredMovies ->
         
         if (filteredMovies.isNotEmpty() && browsingTrace != null) {
             browsingTrace?.stop()
@@ -137,21 +136,9 @@ class MovieViewModel @Inject constructor(
         val currentId = selectedId ?: CAT_ID_RECENTLY_ADDED
         val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull()
 
-        // Calculate counts
-        val remoteToCount = allMovies.groupBy { it.remoteCategoryId }.mapValues { it.value.size }
-        val countsMap = allCategories.associate { cat ->
-            val count = when (cat.id) {
-                CAT_ID_RECENTLY_ADDED -> allMovies.count { it.added != null } // Simplified for recently added
-                CAT_ID_FAVORITES -> allMovies.count { it.isFavorite }
-                CAT_ID_CONTINUE -> 0 // Placeholder, could be mapped from history
-                else -> remoteToCount[cat.categoryId] ?: 0
-            }
-            cat.id to count
-        }
-
         MovieUiState(
             categories = allCategories,
-            categoryCounts = countsMap,
+            categoryCounts = emptyMap(),
             selectedCategory = currentSelected,
             filteredMovies = filteredMovies,
             isLoading = false
