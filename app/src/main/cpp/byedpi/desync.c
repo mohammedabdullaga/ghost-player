@@ -535,11 +535,11 @@ ssize_t desync(struct poolhd *pool,
         init_proto_info(buffer, *np, &info);
 
         if (info.host_pos) {
-            LOG(LOG_S, "host: %.*s (%d)\n",
-                info.host_len, buffer + info.host_pos, info.host_pos);
+            // LOG(LOG_S, "host: %.*s (%d)\n",
+            //    info.host_len, buffer + info.host_pos, info.host_pos);
         } else {
-            INIT_HEX_STR(buffer, (*np > 16 ? 16 : *np));
-            LOG(LOG_S, "bytes: %s (%zd)\n", HEX_STR, *np);
+            // INIT_HEX_STR(buffer, (*np > 16 ? 16 : *np));
+            // LOG(LOG_S, "bytes: %s (%zd)\n", HEX_STR, *np);
         }
     }
     if (!skip) {
@@ -629,7 +629,7 @@ ssize_t desync(struct poolhd *pool,
                 s = send(sfd, buffer + lp, pos - lp, 0);
                 break;
         }
-        LOG(LOG_S, "split: pos=%ld-%ld (%zd), m: %s\n", lp, pos, s, demode_str[part.m]);
+        // LOG(LOG_S, "split: pos=%ld-%ld (%zd), m: %s\n", lp, pos, s, demode_str[part.m]);
         }
         val->pair->part_sent = curr_part;
 
@@ -652,7 +652,7 @@ ssize_t desync(struct poolhd *pool,
         if (sock_has_notsent(sfd)
                 || (params.wait_send
                     && curr_part > part_skip)) {
-            LOG(LOG_S, "sock_has_notsent\n");
+            // LOG(LOG_S, "sock_has_notsent\n");
             set_timer(pool, val, params.await_int);
             *wait = true;
             return pos - offset;

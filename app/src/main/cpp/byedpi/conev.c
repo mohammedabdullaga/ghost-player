@@ -329,7 +329,8 @@ void loop_event(struct poolhd *pool)
             uniperror("(e)poll");
             break;
         }
-        LOG(LOG_L, "new event: fd: %d, type: %d\n", val->fd, etype);
+        // Silence high-frequency loop logs for production
+        // LOG(LOG_L, "new event: fd: %d, type: %d\n", val->fd, etype);
 
         int ret = (*val->cb)(pool, val, etype);
         if (ret < 0) {
