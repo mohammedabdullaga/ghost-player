@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil3.SingletonImageLoader
+import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.player.PlayerSubtitleStyle
 import com.eliteprime.app.data.repository.PreferenceRepository
@@ -39,6 +40,7 @@ data class SettingsUiState(
     val language: String = "en",
     val storageConfig: DownloadStorageConfig = DownloadStorageConfig(),
     val isSecureConnectionEnabled: Boolean = false,
+    val isByeDpiAvailable: Boolean = true,
     val isSpeedTesting: Boolean = false,
     val speedTestResult: InternetSpeedTestSnapshot? = null,
     val speedTestError: String? = null,
@@ -61,6 +63,7 @@ class SettingsViewModel @Inject constructor(
     private val boxStore: BoxStore,
     private val xtreamRepository: XtreamRepository,
     private val preferenceRepository: PreferenceRepository,
+    private val configRepository: ConfigRepository,
     private val downloadManager: DownloadManager,
     private val speedTestRunner: InternetSpeedTestRunner,
     private val okHttpClient: OkHttpClient,
@@ -101,6 +104,7 @@ class SettingsViewModel @Inject constructor(
         preferenceRepository.language,
         downloadManager.observeStorageState(),
         preferenceRepository.isSecureConnectionEnabled,
+        configRepository.isByeDpiAvailable,
         _isSpeedTesting,
         _speedTestSnapshot,
         _speedTestError,
@@ -127,21 +131,22 @@ class SettingsViewModel @Inject constructor(
             language = params[6] as String,
             storageConfig = params[7] as DownloadStorageConfig,
             isSecureConnectionEnabled = params[8] as Boolean,
-            isSpeedTesting = params[9] as Boolean,
-            speedTestResult = params[10] as? InternetSpeedTestSnapshot,
-            speedTestError = params[11] as? String,
-            subtitleStyle = params[12] as PlayerSubtitleStyle,
-            autoPlayNextEpisode = params[13] as Boolean,
-            zapAutoRevert = params[14] as Boolean,
-            preventStandby = params[15] as Boolean,
-            isLiteModeEnabled = params[16] as Boolean,
-            liveBufferSize = params[17] as Int,
-            decoderMode = params[18] as String,
-            playerEngineMode = params[19] as String,
-            isCheckingForUpdates = params[20] as Boolean,
-            latestVersion = params[21] as? String,
-            updateStatus = params[22] as String,
-            lastUpdateCheckTimestamp = params[23] as Long
+            isByeDpiAvailable = params[9] as Boolean,
+            isSpeedTesting = params[10] as Boolean,
+            speedTestResult = params[11] as? InternetSpeedTestSnapshot,
+            speedTestError = params[12] as? String,
+            subtitleStyle = params[13] as PlayerSubtitleStyle,
+            autoPlayNextEpisode = params[14] as Boolean,
+            zapAutoRevert = params[15] as Boolean,
+            preventStandby = params[16] as Boolean,
+            isLiteModeEnabled = params[17] as Boolean,
+            liveBufferSize = params[18] as Int,
+            decoderMode = params[19] as String,
+            playerEngineMode = params[20] as String,
+            isCheckingForUpdates = params[21] as Boolean,
+            latestVersion = params[22] as? String,
+            updateStatus = params[23] as String,
+            lastUpdateCheckTimestamp = params[24] as Long
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 

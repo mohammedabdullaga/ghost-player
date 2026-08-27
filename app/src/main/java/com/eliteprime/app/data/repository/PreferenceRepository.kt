@@ -9,7 +9,6 @@ import com.eliteprime.app.util.DeviceRenderProfile
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,7 +24,7 @@ class PreferenceRepository @Inject constructor(
     private val _downloadTreeUri = MutableStateFlow(prefs.getString("download_tree_uri", null))
     val downloadTreeUri: StateFlow<String?> = _downloadTreeUri
 
-    private val _isSecureConnectionEnabled = MutableStateFlow(prefs.getBoolean("secure_connection_enabled", false))
+    private val _isSecureConnectionEnabled = MutableStateFlow(prefs.getBoolean("byedpi_user_enabled", prefs.getBoolean("secure_connection_enabled", false)))
     val isSecureConnectionEnabled: StateFlow<Boolean> = _isSecureConnectionEnabled
 
     private val _autoPlayNextEpisode = MutableStateFlow(prefs.getBoolean("auto_play_next_episode", true))
@@ -81,9 +80,10 @@ class PreferenceRepository @Inject constructor(
     private fun getCurrentLanguage(): String {
         val locales = AppCompatDelegate.getApplicationLocales()
         if (!locales.isEmpty) {
-            return locales.get(0)?.language ?: "en"
+            return locales.get(0)?.language ?: "ar"
         }
-        return Locale.getDefault().language.let { if (it == "ar") "ar" else "en" }
+        // Force Arabic as default for ElitePrime app
+        return "ar"
     }
 
     fun setLanguage(lang: String) {
@@ -98,7 +98,10 @@ class PreferenceRepository @Inject constructor(
     }
 
     fun setSecureConnectionEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean("secure_connection_enabled", enabled).apply()
+        prefs.edit()
+            .putBoolean("byedpi_user_enabled", enabled)
+            .putBoolean("secure_connection_enabled", enabled)
+            .apply()
         _isSecureConnectionEnabled.value = enabled
     }
 
@@ -151,6 +154,12 @@ class PreferenceRepository @Inject constructor(
     }
 
     fun applySavedLocale() {
-        _language.value = getCurrentLanguage()
+        val currentLang = getCurrentLanguage()
+        _language.value = currentLang
+        
+        // If app-specific locale is not yet set, apply Arabic as default
+        if (AppCompatDelegate.getApplicationLocales().isEmpty) {
+            setLanguage("ar")
+        }
     }
 }

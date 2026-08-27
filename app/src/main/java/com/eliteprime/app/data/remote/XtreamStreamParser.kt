@@ -33,24 +33,29 @@ class XtreamStreamParser @Inject constructor(
     private val gson: Gson
 ) {
     private val TAG = "XtreamStreamParser"
-    private val BATCH_SIZE = 2000
+    private val BATCH_SIZE = 5000 // Increased batch size for performance
 
     suspend fun parseLiveStreams(inputStream: InputStream, categoryId: String?, onProgress: (Int) -> Unit) = coroutineScope {
         val trace = FirebasePerformance.getInstance().newTrace("parse_live_streams")
         trace.start()
-        val reader = JsonReader(InputStreamReader(BufferedInputStream(inputStream, 1024 * 128), "UTF-8"))
+        val reader = JsonReader(InputStreamReader(BufferedInputStream(inputStream, 1024 * 256), "UTF-8"))
         reader.setLenient(true)
         val liveBox: Box<LiveStream> = boxStore.boxFor(LiveStream::class.java)
         var count = 0
-        val writeChannel = Channel<List<LiveStream>>(capacity = 10)
+        val writeChannel = Channel<List<LiveStream>>(capacity = 50) // More headroom for writes
         
         val writerJob = launch(Dispatchers.IO) {
             for (batch in writeChannel) {
-                liveBox.put(batch)
+                try {
+                    liveBox.put(batch)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error putting batch of live streams: ${e.message}")
+                }
             }
         }
         
         try {
+            val seenIds = mutableSetOf<Long>()
             val batch = mutableListOf<LiveStream>()
             if (reader.peek() == JsonToken.BEGIN_ARRAY) {
                 reader.beginArray()
@@ -59,35 +64,45 @@ class XtreamStreamParser @Inject constructor(
                 val element = try {
                     JsonParser.parseReader(reader)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Syntax error parsing live stream at count $count: ${e.message}")
+                    Log.e(TAG, "Syntax error in live stream array at count $count. Error: ${e.message}")
+                    FirebaseCrashlytics.getInstance().recordException(e)
                     break
                 }
 
                 try {
-                    val live: LiveStream? = gson.fromJson(element, LiveStream::class.java)
-                    if (live != null) {
-                        live.order = count
-                        if (categoryId == null || live.remoteCategoryId == categoryId) {
-                            batch.add(live)
+                    if (element.isJsonObject) {
+                        val live: LiveStream? = gson.fromJson(element, LiveStream::class.java)
+                        if (live != null && live.id != 0L) {
+                            if (seenIds.contains(live.id)) {
+                                if (count % 1000 == 0) Log.w(TAG, "Duplicate live stream ID: ${live.id}")
+                            } else {
+                                seenIds.add(live.id)
+                                live.order = count
+                                if (categoryId == null || live.remoteCategoryId == categoryId) {
+                                    batch.add(live)
+                                }
+                                count++
+                            }
                         }
-                        count++
+                    } else if (element.isJsonPrimitive) {
+                        // Some providers send weird primitives in the middle of the array
+                        Log.w(TAG, "Skipping non-object element at count $count: $element")
                     }
                     
                     if (batch.size >= BATCH_SIZE) {
                         writeChannel.send(batch.toList())
                         batch.clear()
                         onProgress(count)
-                    } else if (count % 500 == 0) {
-                        onProgress(count)
+                        if (count % 5000 == 0) Log.i(TAG, "Live Streams Progress: Captured $count channels so far...")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Mapping error for live stream at count $count: ${e.message}")
-                    FirebaseCrashlytics.getInstance().recordException(e)
                 }
             }
             if (batch.isNotEmpty()) {
                 writeChannel.send(batch)
             }
+            Log.i(TAG, "Finished parsing live streams. Total count: $count")
             trace.putAttribute("count", count.toString())
         } catch (e: Exception) {
             Log.e(TAG, "Critical error in parseLiveStreams: ${e.message}")
@@ -108,11 +123,15 @@ class XtreamStreamParser @Inject constructor(
         reader.setLenient(true)
         val movieBox: Box<Movie> = boxStore.boxFor(Movie::class.java)
         var count = 0
-        val writeChannel = Channel<List<Movie>>(capacity = 10)
+        val writeChannel = Channel<List<Movie>>(capacity = 50)
         
         val writerJob = launch(Dispatchers.IO) {
             for (batch in writeChannel) {
-                movieBox.put(batch)
+                try {
+                    movieBox.put(batch)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error putting batch of movies: ${e.message}")
+                }
             }
         }
         
@@ -125,30 +144,31 @@ class XtreamStreamParser @Inject constructor(
                 val element = try {
                     JsonParser.parseReader(reader)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Syntax error parsing movie at count $count: ${e.message}")
+                    Log.e(TAG, "Syntax error in movie array at count $count. Error: ${e.message}")
+                    FirebaseCrashlytics.getInstance().recordException(e)
                     break
                 }
 
                 try {
-                    val movie: Movie? = gson.fromJson(element, Movie::class.java)
-                    if (movie != null) {
-                        movie.order = count
-                        if (categoryId == null || movie.remoteCategoryId == categoryId) {
-                            batch.add(movie)
+                    if (element.isJsonObject) {
+                        val movie: Movie? = gson.fromJson(element, Movie::class.java)
+                        if (movie != null && movie.id != 0L) {
+                            movie.order = count
+                            if (categoryId == null || movie.remoteCategoryId == categoryId) {
+                                batch.add(movie)
+                            }
+                            count++
                         }
-                        count++
                     }
                     
                     if (batch.size >= BATCH_SIZE) {
                         writeChannel.send(batch.toList())
                         batch.clear()
                         onProgress(count)
-                    } else if (count % 500 == 0) {
-                        onProgress(count)
+                        if (count % 5000 == 0) Log.i(TAG, "Live Streams Progress: Captured $count channels so far...")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Mapping error for movie at count $count: ${e.message}")
-                    FirebaseCrashlytics.getInstance().recordException(e)
                 }
             }
             if (batch.isNotEmpty()) {
@@ -174,11 +194,15 @@ class XtreamStreamParser @Inject constructor(
         reader.setLenient(true)
         val seriesBox: Box<Series> = boxStore.boxFor(Series::class.java)
         var count = 0
-        val writeChannel = Channel<List<Series>>(capacity = 10)
+        val writeChannel = Channel<List<Series>>(capacity = 50)
         
         val writerJob = launch(Dispatchers.IO) {
             for (batch in writeChannel) {
-                seriesBox.put(batch)
+                try {
+                    seriesBox.put(batch)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error putting batch of series: ${e.message}")
+                }
             }
         }
         
@@ -191,30 +215,31 @@ class XtreamStreamParser @Inject constructor(
                 val element = try {
                     JsonParser.parseReader(reader)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Syntax error parsing series at count $count: ${e.message}")
+                    Log.e(TAG, "Syntax error in series array at count $count. Error: ${e.message}")
+                    FirebaseCrashlytics.getInstance().recordException(e)
                     break
                 }
 
                 try {
-                    val series: Series? = gson.fromJson(element, Series::class.java)
-                    if (series != null) {
-                        series.order = count
-                        if (categoryId == null || series.remoteCategoryId == categoryId) {
-                            batch.add(series)
+                    if (element.isJsonObject) {
+                        val series: Series? = gson.fromJson(element, Series::class.java)
+                        if (series != null && series.id != 0L) {
+                            series.order = count
+                            if (categoryId == null || series.remoteCategoryId == categoryId) {
+                                batch.add(series)
+                            }
+                            count++
                         }
-                        count++
                     }
                     
                     if (batch.size >= BATCH_SIZE) {
                         writeChannel.send(batch.toList())
                         batch.clear()
                         onProgress(count)
-                    } else if (count % 500 == 0) {
-                        onProgress(count)
+                        if (count % 5000 == 0) Log.i(TAG, "Live Streams Progress: Captured $count channels so far...")
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Mapping error for series at count $count: ${e.message}")
-                    FirebaseCrashlytics.getInstance().recordException(e)
                 }
             }
             if (batch.isNotEmpty()) {

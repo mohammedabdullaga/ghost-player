@@ -21,8 +21,8 @@
     <string name="settings_playback">Playback</string>
     <string name="settings_about">About</string>
     <string name="settings_language">Language / اللغة</string>
-    <string name="settings_secure_connection">Secure HTTPS Connection (VPN)</string>
-    <string name="settings_secure_connection_desc">Enable this if you are in a country with strict ISP blocking. Uses Shadowsocks tunnel.</string>
+    <string name="settings_secure_connection">Secure Streaming (Fast VPN)</string>
+    <string name="settings_secure_connection_desc">Enable this mode if you experience any connection blocks or slow streaming performance.</string>
     <string name="settings_refresh_data">Refresh Data</string>
     <string name="settings_edit_account">Edit Account</string>
     <string name="settings_logout_confirm_title">Log Out</string>

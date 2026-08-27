@@ -36,6 +36,9 @@ class LoginViewModel @Inject constructor(
     val isSecureConnectionEnabled = preferenceRepository.isSecureConnectionEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val isByeDpiAvailable = configRepository.isByeDpiAvailable
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
     val pairingState: StateFlow<ProviderQrPairingState> = pairingManager.state
 
     init {

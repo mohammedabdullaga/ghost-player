@@ -99,12 +99,11 @@ object NetworkModule {
                     return listOf(Proxy.NO_PROXY)
                 }
 
-                if (ProxyConfig.USE_SHADOWSOCKS) {
-                    // Routing through local Shadowsocks SOCKS5 daemon
+                if (ProxyConfig.isEnabled) {
+                    // Routing through local Secure Streaming SOCKS5 daemon
                     return listOf(Proxy(Proxy.Type.SOCKS, InetSocketAddress("127.0.0.1", 1080)))
                 } else {
-                    // Routing through Secure Tunnel Engine HTTP proxy
-                    return listOf(Proxy(Proxy.Type.HTTP, InetSocketAddress("127.0.0.1", 8080)))
+                    return listOf(Proxy.NO_PROXY)
                 }
             }
 
@@ -143,10 +142,10 @@ object NetworkModule {
             .retryOnConnectionFailure(true)
             .followRedirects(true)
             .followSslRedirects(true)
-            .connectionPool(ConnectionPool(32, 5, TimeUnit.MINUTES))
+            .connectionPool(ConnectionPool(64, 10, TimeUnit.MINUTES))
             .dispatcher(Dispatcher().apply {
-                maxRequests = 64
-                maxRequestsPerHost = 20
+                maxRequests = 128
+                maxRequestsPerHost = 32
             })
             .addInterceptor { chain ->
                 val request = chain.request()
@@ -188,6 +187,6 @@ object NetworkModule {
 
 object NetworkTimeoutConfig {
     const val CONNECT_TIMEOUT_SECONDS = 60L
-    const val READ_TIMEOUT_SECONDS = 180L
+    const val READ_TIMEOUT_SECONDS = 600L // Increased to 10 minutes for massive lists
     const val WRITE_TIMEOUT_SECONDS = 60L
 }

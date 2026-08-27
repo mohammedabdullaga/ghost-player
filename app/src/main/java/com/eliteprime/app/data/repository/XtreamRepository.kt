@@ -154,25 +154,29 @@ class XtreamRepository @Inject constructor(
         try {
             val account = getActiveAccountOrRefresh() ?: return@withContext
             
+            Log.i(TAG, "Starting full catalog sync. Initial counts: Live=${liveBox.count()}, Movie=${movieBox.count()}, Series=${seriesBox.count()}")
+            
             // Proactively clear stale proxy connections before starting a massive sync
             okHttpClient.connectionPool.evictAll()
             
-            // Sequential Sync: Requesting these massive files one-by-one is much more stable
-            // than parallel requests when using a VPN/Proxy, preventing socket aborts.
             syncStreamType(account, "get_live_streams") { inputStream -> 
                 parser.parseLiveStreams(inputStream, null, onLiveProgress) 
             }
+            Log.i(TAG, "Live streams sync complete. New Live count: ${liveBox.count()}")
             
             syncStreamType(account, "get_vod_streams") { inputStream -> 
                 parser.parseMovies(inputStream, null, onMovieProgress) 
             }
+            Log.i(TAG, "VOD sync complete. New Movie count: ${movieBox.count()}")
             
             syncStreamType(account, "get_series") { inputStream -> 
                 parser.parseSeries(inputStream, null, onSeriesProgress) 
             }
+            Log.i(TAG, "Series sync complete. New Series count: ${seriesBox.count()}")
 
             // Cleanup: Remove orphaned data for channels that no longer exist
             cleanupOrphanedData()
+            Log.i(TAG, "Catalog sync finished. Final Live count: ${liveBox.count()}")
         } finally {
             syncTrace.stop()
         }
@@ -226,6 +230,8 @@ class XtreamRepository @Inject constructor(
                             Log.w(TAG, "syncStreamType ($action) returned HTTP ${response.code}")
                             return@use
                         }
+                        val contentLength = response.header("Content-Length")
+                        Log.i(TAG, "Syncing $action: Content-Length=$contentLength")
                         response.body?.byteStream()?.let { parseAction(it) }
                     }
                 }

@@ -19,6 +19,7 @@ object DatabaseModule {
     fun provideBoxStore(@ApplicationContext context: Context): BoxStore {
         return MyObjectBox.builder()
             .androidContext(context)
+            .maxSizeInKByte(4 * 1024 * 1024) // 4GB max database size for massive catalogs
             .build()
     }
 }

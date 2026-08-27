@@ -1,6 +1,8 @@
 package com.eliteprime.app
 
+import android.app.Activity
 import android.app.Application
+import android.os.Bundle
 import android.util.Log
 import com.google.firebase.FirebaseApp
 import com.google.firebase.crashlytics.FirebaseCrashlytics
@@ -76,11 +78,30 @@ class ElitePrimeApp : Application(), SingletonImageLoader.Factory {
         val isLite = preferenceRepository.isLiteModeEnabled.value
         DeviceRenderProfile.initialize(this, liteMode = isLite)
         preferenceRepository.applySavedLocale()
+
+        Log.i("ElitePrimeApp", "Initializing Network and Config...")
+        // Explicitly trigger remote config refresh on app start
+        configRepository.refreshRemoteConfig()
         
-        // Fetch config directly, then initialize network/proxy & background daily sync
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            override fun onActivityResumed(activity: Activity) {
+                Log.d("ElitePrimeApp", "Activity Resumed: ${activity.localClassName}, refreshing remote config")
+                configRepository.refreshRemoteConfig()
+            }
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+            override fun onActivityStarted(activity: Activity) {}
+            override fun onActivityPaused(activity: Activity) {}
+            override fun onActivityStopped(activity: Activity) {}
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+            override fun onActivityDestroyed(activity: Activity) {}
+        })
+
+        // Initialize network/proxy immediately so it can react to local state
+        networkManager.init()
+
+        // Fetch config & background daily sync
         appScope.launch {
             configRepository.fetchConfig()
-            networkManager.init()
             CatalogSyncWorker.schedulePeriodicSync(this@ElitePrimeApp)
         }
     }

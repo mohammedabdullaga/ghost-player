@@ -240,6 +240,7 @@ fun SettingsScreen(
                         SettingCategory.NETWORK -> {
                             NetworkSettingsContent(
                                 isEnabled = uiState.isSecureConnectionEnabled,
+                                isAvailable = uiState.isByeDpiAvailable,
                                 onToggle = { viewModel.setSecureConnectionEnabled(it) },
                                 isTestingSpeed = uiState.isSpeedTesting,
                                 speedResult = uiState.speedTestResult,
@@ -309,6 +310,7 @@ fun SettingsScreen(
 @Composable
 private fun NetworkSettingsContent(
     isEnabled: Boolean,
+    isAvailable: Boolean,
     onToggle: (Boolean) -> Unit,
     isTestingSpeed: Boolean,
     speedResult: InternetSpeedTestSnapshot?,
@@ -324,7 +326,7 @@ private fun NetworkSettingsContent(
         item {
             Column(verticalArrangement = Arrangement.spacedBy(STSpacing.sm)) {
                 Text(
-                    text = "SECURE CONNECTION",
+                    text = "SECURE STREAMING",
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Black,
@@ -332,10 +334,11 @@ private fun NetworkSettingsContent(
                 )
 
                 Surface(
-                    onClick = { onToggle(!isEnabled) },
+                    onClick = { if (isAvailable) onToggle(!isEnabled) },
                     color = Color.White.copy(alpha = 0.05f),
                     shape = RoundedCornerShape(STRadius.lg),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f)),
+                    modifier = Modifier.alpha(if (isAvailable) 1f else 0.5f)
                 ) {
                     Row(
                         modifier = Modifier.padding(STSpacing.md),
@@ -345,13 +348,13 @@ private fun NetworkSettingsContent(
                         Box(
                             modifier = Modifier
                                 .size(44.dp)
-                                .background(if (isEnabled) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f), CircleShape),
+                                .background(if (isEnabled && isAvailable) AppColors.ArenaOrange.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                if (isEnabled) Icons.Default.Shield else Icons.Default.ShieldMoon,
+                                if (isEnabled && isAvailable) Icons.Default.Shield else Icons.Default.ShieldMoon,
                                 null,
-                                tint = if (isEnabled) AppColors.ArenaOrange else Color.White.copy(alpha = 0.4f),
+                                tint = if (isEnabled && isAvailable) AppColors.ArenaOrange else Color.White.copy(alpha = 0.4f),
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -364,7 +367,7 @@ private fun NetworkSettingsContent(
                                 fontSize = 14.sp
                             )
                             Text(
-                                text = stringResource(R.string.settings_secure_connection_desc),
+                                text = if (isAvailable) stringResource(R.string.settings_secure_connection_desc) else "Currently unavailable",
                                 color = Color.White.copy(alpha = 0.5f),
                                 fontSize = 11.sp,
                                 lineHeight = 15.sp
@@ -372,13 +375,16 @@ private fun NetworkSettingsContent(
                         }
 
                         Switch(
-                            checked = isEnabled,
+                            checked = isEnabled && isAvailable,
                             onCheckedChange = null,
+                            enabled = isAvailable,
                             colors = SwitchDefaults.colors(
                                 checkedThumbColor = Color.White,
                                 checkedTrackColor = AppColors.ArenaOrange,
                                 uncheckedThumbColor = Color.White.copy(alpha = 0.4f),
-                                uncheckedTrackColor = Color.White.copy(alpha = 0.1f)
+                                uncheckedTrackColor = Color.White.copy(alpha = 0.1f),
+                                disabledCheckedTrackColor = AppColors.ArenaOrange.copy(alpha = 0.5f),
+                                disabledUncheckedTrackColor = Color.White.copy(alpha = 0.05f)
                             )
                         )
                     }

@@ -2,6 +2,7 @@ package com.eliteprime.app.data.config
 
 import android.content.Context
 import android.util.Log
+import com.eliteprime.app.BuildConfig
 import com.eliteprime.app.domain.model.ConfigResponse
 import com.eliteprime.app.domain.model.HostEntry
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -15,6 +16,12 @@ import okhttp3.Request
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import com.google.firebase.remoteconfig.FirebaseRemoteConfig
+import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.tasks.await
+
 @Singleton
 class ConfigRepository @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -25,13 +32,51 @@ class ConfigRepository @Inject constructor(
     private var cachedConfig: ConfigResponse? = null
     private val CONFIG_ENDPOINT = "https://api.dropremax.site/api/config"
 
+    private val remoteConfig: FirebaseRemoteConfig = FirebaseRemoteConfig.getInstance()
+    private val _isByeDpiAvailable = MutableStateFlow(true)
+    val isByeDpiAvailable = _isByeDpiAvailable.asStateFlow()
+
     init {
-        // Session-based configuration: We do NOT load from disk on startup
-        // to ensure the app fetches fresh hosts every time it is opened.
         Log.d(TAG, "ConfigRepository initialized (session-only)")
+        setupRemoteConfig()
+    }
+
+    private fun setupRemoteConfig() {
+        val configSettings = FirebaseRemoteConfigSettings.Builder()
+            .setMinimumFetchIntervalInSeconds(if (BuildConfig.DEBUG) 0 else 3600)
+            .build()
+        remoteConfig.setConfigSettingsAsync(configSettings)
+        remoteConfig.setDefaultsAsync(mapOf("byedpi_available" to true))
+        
+        // Immediately activate last known values from disk
+        remoteConfig.activate().addOnCompleteListener { 
+            val available = remoteConfig.getBoolean("byedpi_available")
+            Log.i(TAG, "Remote Config activated (cached values). byedpi_available=$available")
+            _isByeDpiAvailable.value = available
+        }
+
+        Log.d(TAG, "Firebase Remote Config initialized with default byedpi_available=true")
+        refreshRemoteConfig()
+    }
+
+    fun refreshRemoteConfig() {
+        Log.d(TAG, "refreshRemoteConfig() called")
+        remoteConfig.fetchAndActivate()
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val updated = task.result
+                    val available = remoteConfig.getBoolean("byedpi_available")
+                    Log.i(TAG, "Remote config fetch success. Updated: $updated, byedpi_available: $available")
+                    _isByeDpiAvailable.value = available
+                } else {
+                    val exception = task.exception
+                    Log.e(TAG, "Remote config fetch failed: ${exception?.message}", exception)
+                }
+            }
     }
 
     suspend fun fetchConfig(): ConfigResponse? = withContext(Dispatchers.IO) {
+        Log.d(TAG, "fetchConfig() - Current remote byedpi_available state: ${remoteConfig.getBoolean("byedpi_available")}")
         var attempts = 0
         val maxAttempts = 3
         

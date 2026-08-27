@@ -54,6 +54,7 @@ fun LoginScreen(
     val syncProgress by viewModel.syncProgress.collectAsState()
     val pairingState by viewModel.pairingState.collectAsState()
     val isSecureEnabled by viewModel.isSecureConnectionEnabled.collectAsState()
+    val isByeDpiAvailable by viewModel.isByeDpiAvailable.collectAsState()
 
     val context = LocalContext.current
     val isTv = context.isTelevisionDevice()
@@ -94,6 +95,7 @@ fun LoginScreen(
                         passwordVisible = passwordVisible,
                         onTogglePasswordVisible = { passwordVisible = !passwordVisible },
                         isSecureEnabled = isSecureEnabled,
+                        isByeDpiAvailable = isByeDpiAvailable,
                         onSecureToggle = { viewModel.setSecureConnectionEnabled(it) },
                         onSubmit = { viewModel.login(user, pass) }
                     )
@@ -108,6 +110,7 @@ fun LoginScreen(
                         passwordVisible = passwordVisible,
                         onTogglePasswordVisible = { passwordVisible = !passwordVisible },
                         isSecureEnabled = isSecureEnabled,
+                        isByeDpiAvailable = isByeDpiAvailable,
                         onSecureToggle = { viewModel.setSecureConnectionEnabled(it) },
                         onSubmit = { viewModel.login(user, pass) }
                     )
@@ -129,6 +132,7 @@ private fun TvLoginLayout(
     passwordVisible: Boolean,
     onTogglePasswordVisible: () -> Unit,
     isSecureEnabled: Boolean,
+    isByeDpiAvailable: Boolean,
     onSecureToggle: (Boolean) -> Unit,
     onSubmit: () -> Unit
 ) {
@@ -264,6 +268,7 @@ private fun MobileLoginLayout(
     passwordVisible: Boolean,
     onTogglePasswordVisible: () -> Unit,
     isSecureEnabled: Boolean,
+    isByeDpiAvailable: Boolean,
     onSecureToggle: (Boolean) -> Unit,
     onSubmit: () -> Unit
 ) {
@@ -374,11 +379,11 @@ private fun MobileLoginLayout(
                             }
 
                             Surface(
-                                onClick = { onSecureToggle(!isSecureEnabled) },
+                                onClick = { if (isByeDpiAvailable) onSecureToggle(!isSecureEnabled) },
                                 color = Color.White.copy(alpha = 0.05f),
                                 shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.weight(0.55f).height(44.dp),
-                                border = BorderStroke(1.dp, if (isSecureEnabled) ArenaOrange else Color.White.copy(alpha = 0.1f))
+                                modifier = Modifier.weight(0.55f).height(44.dp).alpha(if (isByeDpiAvailable) 1f else 0.5f),
+                                border = BorderStroke(1.dp, if (isSecureEnabled && isByeDpiAvailable) ArenaOrange else Color.White.copy(alpha = 0.1f))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 10.dp),
@@ -386,25 +391,28 @@ private fun MobileLoginLayout(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     Icon(
-                                        if (isSecureEnabled) Icons.Default.Shield else Icons.Default.ShieldMoon,
+                                        if (isSecureEnabled && isByeDpiAvailable) Icons.Default.Shield else Icons.Default.ShieldMoon,
                                         null,
-                                        tint = if (isSecureEnabled) ArenaOrange else Color.White.copy(alpha = 0.4f),
+                                        tint = if (isSecureEnabled && isByeDpiAvailable) ArenaOrange else Color.White.copy(alpha = 0.4f),
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        text = "VPN",
+                                        text = if (isByeDpiAvailable) "FAST VPN" else "OFF",
                                         color = Color.White,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
+                                        fontSize = 9.sp, // Slightly smaller to fit "FAST VPN"
+                                        fontWeight = FontWeight.Black
                                     )
                                     Spacer(Modifier.weight(1f))
                                     Switch(
-                                        checked = isSecureEnabled,
+                                        checked = isSecureEnabled && isByeDpiAvailable,
                                         onCheckedChange = null,
+                                        enabled = isByeDpiAvailable,
                                         modifier = Modifier.scale(0.6f),
                                         colors = SwitchDefaults.colors(
                                             checkedThumbColor = Color.White,
-                                            checkedTrackColor = ArenaOrange
+                                            checkedTrackColor = ArenaOrange,
+                                            disabledCheckedTrackColor = ArenaOrange.copy(alpha = 0.5f),
+                                            disabledUncheckedTrackColor = Color.White.copy(alpha = 0.05f)
                                         )
                                     )
                                 }
