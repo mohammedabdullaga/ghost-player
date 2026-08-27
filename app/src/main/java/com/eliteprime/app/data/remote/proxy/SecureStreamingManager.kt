@@ -30,25 +30,29 @@ class SecureStreamingManager @Inject constructor() {
             return
         }
 
-        // IPTV Optimized Arguments:
+        // Working KSA Optimized Arguments:
         // -i 127.0.0.1 -p 1080 (Local listener)
-        // -b 65536 (64KB buffer for high bitrate streams)
-        // -d1 (Disorder at pos 1)
-        // -s1 (Split at pos 1)
-        // -Kh,t,u (Desync HTTP, HTTPS, and UDP)
+        // -b 524288 (512KB buffer for high bitrate streams)
+        // -o 1 (Out-of-band desync at pos 1)
+        // -e a (OOB data char 'a')
+        // -Kh,u (Apply to HTTP and UDP, skip HTTPS/TLS)
+        // -a 1 (Number of fake UDP packets: 1)
+        // -g 0 (Default TTL: 0)
         // --dns 8.8.8.8,1.1.1.1
-        // -An (Auto none - just apply the desync)
+        // -An (Auto none)
         val args = arrayOf(
             "securestreaming",
             "-i", "127.0.0.1",
             "-p", "1080",
-            "-b", "524288", // Increased to 512KB for massive catalog transfers
-            "-d1",
-            "-s1",
-            "-Kh,t,u",
+            "-b", "524288",
+            "-o", "1",
+            "-e", "a",
+            "-Kh,u",
+            "-a", "1",
+            "-g", "0",
             "--dns", "8.8.8.8,1.1.1.1",
             "-An",
-            "-x", "0" // Silence verbose logs to improve performance
+            "-x", "0"
         )
 
         proxyJob = scope.launch {

@@ -201,6 +201,9 @@ int main(int argc, char **argv)
             case 'K': if (strstr(optarg, "t")) dp->proto |= IS_TCP | IS_HTTPS; if (strstr(optarg, "h")) dp->proto |= IS_TCP | IS_HTTP; if (strstr(optarg, "u")) dp->proto |= IS_UDP; break;
             case 's': { struct part *p = add((void*)&dp->parts, &dp->parts_n, sizeof(struct part)); parse_offset(p, optarg); p->m = DESYNC_SPLIT; break; }
             case 'd': { struct part *p = add((void*)&dp->parts, &dp->parts_n, sizeof(struct part)); parse_offset(p, optarg); p->m = DESYNC_DISORDER; break; }
+            case 'o': { struct part *p = add((void*)&dp->parts, &dp->parts_n, sizeof(struct part)); parse_offset(p, optarg); p->m = DESYNC_OOB; break; }
+            case 'e': dp->oob_char[0] = optarg[0]; dp->oob_char[1] = 1; break;
+            case 'a': dp->udp_fake_count = atoi(optarg); break;
             case 'g': params.def_ttl = atoi(optarg); params.custom_ttl = 1; break;
             case 'W': params.await_int = atoi(optarg); break;
             case 'D': break; // Ignore --dns for now
