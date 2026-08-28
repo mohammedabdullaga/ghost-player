@@ -288,7 +288,8 @@ fun TvMovieScreen(
                                     if (it.type == KeyEventType.KeyDown) {
                                         val isEnterGrid = if (isRtl) it.key == Key.DirectionLeft else it.key == Key.DirectionRight
                                         if (isEnterGrid) {
-                                            enterGridFullScreen(category)
+                                            // Just hide sidebar for full-screen grid view — do NOT change category
+                                            enterGridFullScreen(null)
                                             return@onPreviewKeyEvent true
                                         }
                                     }
@@ -303,15 +304,6 @@ fun TvMovieScreen(
             // --- PANE 2: CONTENT GRID ---
             val columns = if (isSidebarHidden) 6 else 4
             Column(modifier = Modifier.weight(gridWeight + 0.001f).fillMaxHeight().padding(top = 24.dp, bottom = 24.dp, start = if (isSidebarHidden) 24.dp else 12.dp, end = 24.dp)) {
-                Text(
-                    text = uiState.selectedCategory?.categoryName?.replace("🕒 ", "") ?: "Movies",
-                    color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp, start = 8.dp)
-                )
 
                 LazyVerticalGrid(
                     state = gridState,
