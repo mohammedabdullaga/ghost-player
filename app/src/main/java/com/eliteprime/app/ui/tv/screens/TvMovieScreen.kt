@@ -97,14 +97,19 @@ fun TvMovieScreen(
     var lastSidebarFocusKey by remember { mutableStateOf<Long?>(MovieViewModel.CAT_ID_RECENTLY_ADDED) }
 
     // Initial focus on Recently Added
+    var hasInitiallyFocused by remember { mutableStateOf(false) }
     LaunchedEffect(uiState.categories) {
-        if (uiState.categories.isNotEmpty() && !isGridFocused) {
+        if (uiState.categories.isNotEmpty() && !hasInitiallyFocused) {
             delay(400)
             try {
                 val recentlyAddedCat = uiState.categories.find { it.id == MovieViewModel.CAT_ID_RECENTLY_ADDED }
-                if (recentlyAddedCat != null) {
-                    categoryFocusRequesters.getOrPut(recentlyAddedCat.id) { FocusRequester() }.requestFocus()
+                val targetRequester = if (recentlyAddedCat != null) {
+                    categoryFocusRequesters.getOrPut(recentlyAddedCat.id) { FocusRequester() }
+                } else {
+                    firstCategoryRequester
                 }
+                targetRequester.requestFocus()
+                hasInitiallyFocused = true
             } catch (e: Exception) {}
         }
     }
@@ -135,7 +140,7 @@ fun TvMovieScreen(
         isGridFocused = true
         scope.launch {
             gridState.scrollToItem(0)
-            delay(150)
+            delay(SIDEBAR_ANIM_MS + 50L) 
             try { firstMovieRequester.requestFocus() } catch (e: Exception) {}
         }
     }
@@ -165,27 +170,27 @@ fun TvMovieScreen(
     val isRtl = layoutDirection == LayoutDirection.Rtl
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        // --- 1. DYNAMIC THEATER BACKDROP (Disabled in Lite Mode for instant rendering) ---
+        // --- 1. DYNAMIC THEATER BACKDROP (MATCHING OLD GIT LOGIC) ---
         val tier = LocalRenderTier.current
         val isReducedTier = tier == RenderTier.REDUCED
         val isLite = DeviceRenderProfile.isLiteMode()
 
-        val displayBackdrop = focusedMovie?.let { it.backdropUrl ?: it.streamIcon }
-            ?: uiState.filteredMovies.firstOrNull()?.let { it.backdropUrl ?: it.streamIcon }
+        // logic: Focused movie backdrop -> first item backdrop fallback
+        val currentBackdropMovie = focusedMovie ?: uiState.filteredMovies.firstOrNull()
 
         Box(modifier = Modifier.fillMaxSize()) {
             if (isReducedTier || isLite) {
                 AsyncImage(
-                    model = displayBackdrop,
+                    model = currentBackdropMovie?.backdropUrl ?: currentBackdropMovie?.streamIcon,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                     alpha = 0.45f
                 )
             } else {
-                Crossfade(targetState = displayBackdrop, animationSpec = tween(600), label = "movieBg") { backdrop ->
+                Crossfade(targetState = currentBackdropMovie, animationSpec = tween(600), label = "movieBg") { movie ->
                     AsyncImage(
-                        model = backdrop,
+                        model = movie?.backdropUrl ?: movie?.streamIcon,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
@@ -216,7 +221,7 @@ fun TvMovieScreen(
                 modifier = Modifier
                     .weight(sidebarWeight + 0.001f)
                     .fillMaxHeight()
-                    .background(Color.Black.copy(alpha = 0.4f))
+                    .background(Color.Black.copy(alpha = 0.7f))
                     .padding(top = 24.dp, bottom = 24.dp)
                     .alpha(if (isSidebarHidden) 0f else 1f)
             ) {
@@ -237,7 +242,6 @@ fun TvMovieScreen(
                     itemsIndexed(uiState.categories) { index, category ->
                         val requester = categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
                         
-                        // Smart divider between virtual items and provider items
                         if (index > 0) {
                             val prev = uiState.categories[index - 1]
                             if (prev.isVirtual && !category.isVirtual) {
@@ -262,9 +266,7 @@ fun TvMovieScreen(
                             icon = icon,
                             modifier = Modifier
                                 .focusRequester(requester)
-                                .onFocusChanged { if (it.isFocused) {
-                                    isGridFocused = false
-                                    isSidebarHidden = false
+                                .onFocusChanged { if (it.isFocused && !isGridFocused) {
                                     lastSidebarFocusKey = category.id
                                 }}
                                 .onPreviewKeyEvent {
@@ -301,8 +303,8 @@ fun TvMovieScreen(
                     columns = GridCells.Fixed(columns),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 32.dp),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     itemsIndexed(uiState.filteredMovies, key = { _, m -> m.id }) { index, movie ->
                         val requester = if (index == 0) firstMovieRequester else movieFocusRequesters.getOrPut(movie.id) { FocusRequester() }

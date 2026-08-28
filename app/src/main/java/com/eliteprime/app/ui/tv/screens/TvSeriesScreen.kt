@@ -96,15 +96,20 @@ fun TvSeriesScreen(
     var isSidebarHidden by remember { mutableStateOf(false) }
     var lastSidebarFocusKey by remember { mutableStateOf<Long?>(SeriesViewModel.CAT_ID_RECENTLY_ADDED) }
 
-    // Initial focus on Recently Added
+    // Initial focus logic
+    var hasInitiallyFocused by remember { mutableStateOf(false) }
     LaunchedEffect(uiState.categories) {
-        if (uiState.categories.isNotEmpty() && !isGridFocused) {
+        if (uiState.categories.isNotEmpty() && !hasInitiallyFocused) {
             delay(400)
             try {
                 val recentlyAddedCat = uiState.categories.find { it.id == SeriesViewModel.CAT_ID_RECENTLY_ADDED }
-                if (recentlyAddedCat != null) {
-                    categoryFocusRequesters.getOrPut(recentlyAddedCat.id) { FocusRequester() }.requestFocus()
+                val targetRequester = if (recentlyAddedCat != null) {
+                    categoryFocusRequesters.getOrPut(recentlyAddedCat.id) { FocusRequester() }
+                } else {
+                    firstCategoryRequester
                 }
+                targetRequester.requestFocus()
+                hasInitiallyFocused = true
             } catch (e: Exception) {}
         }
     }
@@ -135,7 +140,7 @@ fun TvSeriesScreen(
         isGridFocused = true
         scope.launch {
             gridState.scrollToItem(0)
-            delay(150)
+            delay(SIDEBAR_ANIM_MS + 50L) 
             try { firstSeriesRequester.requestFocus() } catch (e: Exception) {}
         }
     }
@@ -165,27 +170,26 @@ fun TvSeriesScreen(
     val isRtl = layoutDirection == LayoutDirection.Rtl
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        // --- 1. DYNAMIC THEATER BACKDROP (Disabled in Lite Mode for instant rendering) ---
+        // --- 1. DYNAMIC THEATER BACKDROP ---
         val tier = LocalRenderTier.current
         val isReducedTier = tier == RenderTier.REDUCED
         val isLite = DeviceRenderProfile.isLiteMode()
 
-        val displayBackdrop = focusedSeries?.let { it.backdropUrl ?: it.cover }
-            ?: uiState.filteredSeries.firstOrNull()?.let { it.backdropUrl ?: it.cover }
+        val currentBackdropSeries = focusedSeries ?: uiState.filteredSeries.firstOrNull()
 
         Box(modifier = Modifier.fillMaxSize()) {
             if (isReducedTier || isLite) {
                 AsyncImage(
-                    model = displayBackdrop,
+                    model = currentBackdropSeries?.backdropUrl ?: currentBackdropSeries?.cover,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                     alpha = 0.45f
                 )
             } else {
-                Crossfade(targetState = displayBackdrop, animationSpec = tween(600), label = "seriesBg") { backdrop ->
+                Crossfade(targetState = currentBackdropSeries, animationSpec = tween(600), label = "seriesBg") { series ->
                     AsyncImage(
-                        model = backdrop,
+                        model = series?.backdropUrl ?: series?.cover,
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
@@ -216,7 +220,7 @@ fun TvSeriesScreen(
                 modifier = Modifier
                     .weight(sidebarWeight + 0.001f)
                     .fillMaxHeight()
-                    .background(Color.Black.copy(alpha = 0.4f))
+                    .background(Color.Black.copy(alpha = 0.7f))
                     .padding(top = 24.dp, bottom = 24.dp)
                     .alpha(if (isSidebarHidden) 0f else 1f)
             ) {
@@ -261,9 +265,7 @@ fun TvSeriesScreen(
                             icon = icon,
                             modifier = Modifier
                                 .focusRequester(requester)
-                                .onFocusChanged { if (it.isFocused) {
-                                    isGridFocused = false
-                                    isSidebarHidden = false
+                                .onFocusChanged { if (it.isFocused && !isGridFocused) {
                                     lastSidebarFocusKey = category.id
                                 }}
                                 .onPreviewKeyEvent {
@@ -300,8 +302,8 @@ fun TvSeriesScreen(
                     columns = GridCells.Fixed(columns),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 32.dp),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
                     itemsIndexed(uiState.filteredSeries, key = { _, s -> s.id }) { index, series ->
                         val requester = if (index == 0) firstSeriesRequester else seriesFocusRequesters.getOrPut(series.id) { FocusRequester() }
@@ -350,6 +352,7 @@ private fun TvCategoryItem(
     count: Int?,
     isSelected: Boolean,
     icon: ImageVector? = null,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -357,6 +360,7 @@ private fun TvCategoryItem(
 
     TvSurface(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
             .height(52.dp)

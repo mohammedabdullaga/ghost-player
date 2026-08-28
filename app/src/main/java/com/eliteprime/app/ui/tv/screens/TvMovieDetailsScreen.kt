@@ -30,6 +30,13 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.ClickableSurfaceDefaults
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
+import coil3.size.Precision
+import coil3.size.Size
+import androidx.compose.foundation.Image
+import androidx.compose.ui.platform.LocalContext
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.ui.components.AppBackground

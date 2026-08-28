@@ -46,6 +46,9 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
+import androidx.compose.foundation.Image
 import coil3.request.ImageRequest
 import coil3.request.bitmapConfig
 import coil3.request.crossfade
@@ -346,7 +349,7 @@ fun VodPosterCard(
                 .fillMaxWidth()
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = if (isLite) 1.0f else 1.04f),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = Color.Transparent,
                 focusedContainerColor = Color.Transparent,
@@ -363,7 +366,7 @@ fun VodPosterCard(
         Column(
             modifier = modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() })
                 }
@@ -391,7 +394,7 @@ fun SeriesPosterCard(
                 .fillMaxWidth()
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = if (isLite) 1.0f else 1.04f),
-            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             colors = ClickableSurfaceDefaults.colors(
                 containerColor = Color.Transparent,
                 focusedContainerColor = Color.Transparent,
@@ -408,7 +411,7 @@ fun SeriesPosterCard(
         Column(
             modifier = modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = { onClick() }, onLongPress = { onLongClick() })
                 }
@@ -429,22 +432,26 @@ private fun VodPosterCardContent(
     isFocused: Boolean
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
+    val isLite = DeviceRenderProfile.isLiteMode()
+
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF121212))
+            .border(
+                width = if (isFocused) 2.dp else 0.dp,
+                color = if (isFocused) Color.White else Color.Transparent,
+                shape = RoundedCornerShape(12.dp)
+            ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // 1. Poster Image Area
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
-                .clip(RoundedCornerShape(18.dp))
-                .border(
-                    width = if (isFocused) 3.dp else 0.dp,
-                    color = if (isFocused) Color.White else Color.Transparent,
-                    shape = RoundedCornerShape(18.dp)
-                )
         ) {
-            val isLite = DeviceRenderProfile.isLiteMode()
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(posterUrl)
@@ -459,17 +466,17 @@ private fun VodPosterCardContent(
 
             if (rating > 0) {
                 Surface(
-                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
-                    color = Color.Black.copy(alpha = 0.6f),
-                    shape = RoundedCornerShape(6.dp)
+                    modifier = Modifier.align(Alignment.TopEnd).padding(6.dp),
+                    color = Color.Black.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(4.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Icon(Icons.Default.Star, contentDescription = null, tint = AppColors.ArenaOrange, modifier = Modifier.size(10.dp))
-                        Text("%.1f".format(rating), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("%.1f".format(rating), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -488,25 +495,27 @@ private fun VodPosterCardContent(
             }
         }
         
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            text = name.cleanVodName(),
-            color = if (isFocused) Color.White else Color.White.copy(alpha = 0.7f),
-            fontSize = 10.sp,
-            fontWeight = if (isFocused) FontWeight.Black else FontWeight.Bold,
-            textAlign = TextAlign.Start,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
-        )
+        // 2. Grey Title Card Area
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF222222)) // Slightly lighter grey card for title
+                .padding(vertical = 6.dp, horizontal = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = name,
+                color = if (isFocused) Color.White else Color.White.copy(alpha = 0.9f),
+                fontSize = 8.5.sp, // Tighter text size for perfect fit in the card
+                fontWeight = if (isFocused) FontWeight.Black else FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                minLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                lineHeight = 10.sp
+            )
+        }
     }
-}
-
-private fun String.cleanVodName(): String {
-    val endYearRegex = Regex("\\s*[(\\[\\-]?\\d{4}[)\\]]?\\s*$")
-    val startYearRegex = Regex("^\\s*[(\\[]?\\d{4}[)\\]]?\\s*[-]?\\s*")
-    return this.replace(endYearRegex, "").replace(startYearRegex, "").trim()
 }
 
 @Composable

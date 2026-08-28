@@ -3,6 +3,7 @@ package com.eliteprime.app.data.repository
 import android.util.Log
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.local.entity.*
+import com.eliteprime.app.data.remote.TmdbApiService
 import com.eliteprime.app.data.remote.XtreamApi
 import com.eliteprime.app.data.remote.XtreamSeasonResponse
 import com.eliteprime.app.data.remote.XtreamStreamParser
@@ -28,9 +29,11 @@ class XtreamRepository @Inject constructor(
     private val boxStore: BoxStore,
     private val okHttpClient: OkHttpClient,
     private val configRepository: ConfigRepository,
-    private val parser: XtreamStreamParser
+    private val parser: XtreamStreamParser,
+    private val tmdbApi: TmdbApiService
 ) {
     private val TAG = "XtreamRepository"
+    private val TMDB_API_KEY = "77db3c693088e47469e0df1feebb4a4c"
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
     private val categoryBox = boxStore.boxFor(Category::class.java)
     private val liveBox = boxStore.boxFor(LiveStream::class.java)
@@ -113,6 +116,20 @@ class XtreamRepository @Inject constructor(
     }
 
     private suspend fun getActiveAccountOrRefresh(): XtreamAccount? = getAccount()
+
+    private suspend fun isUrlWorking(url: String?): Boolean {
+        if (url.isNullOrBlank()) return false
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = Request.Builder().url(url).head().build()
+                okHttpClient.newCall(request).execute().use { response ->
+                    response.isSuccessful
+                }
+            } catch (e: Exception) {
+                false
+            }
+        }
+    }
 
     suspend fun syncCategories() = withContext(Dispatchers.IO) {
         val account = getActiveAccountOrRefresh() ?: return@withContext
@@ -309,6 +326,23 @@ class XtreamRepository @Inject constructor(
                 series.director = info.director
                 series.genre = info.genre
                 series.releaseDate = info.releaseDate
+                
+                // --- SMART Poster Enrichment logic ---
+                val providerIcon = info.cover ?: info.movieImage ?: series.cover
+                if (!isUrlWorking(providerIcon)) {
+                    try {
+                        val search = tmdbApi.searchTv(TMDB_API_KEY, series.name)
+                        search.results.firstOrNull()?.let { result ->
+                            series.cover = result.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" }
+                            series.backdropUrl = result.backdrop_path?.let { "https://image.tmdb.org/t/p/original$it" }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "TMDB search failed for series ${series.name}")
+                    }
+                } else if (series.cover == null) {
+                    series.cover = providerIcon
+                }
+
                 info.rating?.toDoubleOrNull()?.let { if (it > 0) series.rating = it }
                 series.backdropUrl = info.backdropPath?.firstOrNull() ?: info.movieImage ?: info.cover
                 seriesBox.put(series)
@@ -387,6 +421,26 @@ class XtreamRepository @Inject constructor(
                 movie.genre = info.genre
                 movie.duration = info.duration
                 movie.backdropUrl = info.backdropUrl?.firstOrNull() ?: info.movieImage
+
+                // --- Poster Enrichment logic ---
+                // Only fallback to TMDB if the provider icon is missing or returns 404
+                val providerIcon = info.movieImage ?: movie.streamIcon
+                if (!isUrlWorking(providerIcon)) {
+                    try {
+                        val search = tmdbApi.searchMovie(TMDB_API_KEY, movie.name)
+                        search.results.firstOrNull()?.let { result ->
+                            movie.streamIcon = result.poster_path?.let { "https://image.tmdb.org/t/p/w500$it" }
+                            if (movie.backdropUrl.isNullOrBlank() || !isUrlWorking(movie.backdropUrl)) {
+                                movie.backdropUrl = result.backdrop_path?.let { "https://image.tmdb.org/t/p/original$it" }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "TMDB search failed for movie ${movie.name}")
+                    }
+                } else if (movie.streamIcon == null) {
+                    movie.streamIcon = info.movieImage
+                }
+
                 info.rating?.toDoubleOrNull()?.let { if (it > 0) movie.rating = it }
                 movieBox.put(movie)
             }

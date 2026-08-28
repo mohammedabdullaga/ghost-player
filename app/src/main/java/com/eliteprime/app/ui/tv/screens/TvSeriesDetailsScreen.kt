@@ -41,6 +41,9 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
+import coil3.compose.rememberAsyncImagePainter
+import androidx.compose.foundation.Image
 import coil3.request.ImageRequest
 import coil3.size.Precision
 import coil3.size.Size

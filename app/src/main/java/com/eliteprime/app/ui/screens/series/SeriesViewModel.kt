@@ -52,10 +52,13 @@ class SeriesViewModel @Inject constructor(
         .map { providerCats ->
             val virtualCats = listOf(
                 Category(id = CAT_ID_RECENTLY_ADDED, categoryName = getApplication<Application>().getString(R.string.nav_recently_added), isVirtual = true, order = -100),
-                Category(id = CAT_ID_CONTINUE, categoryName = "Continue Watching", isVirtual = true, order = -99),
+                Category(id = CAT_ID_CONTINUE, categoryName = getApplication<Application>().getString(R.string.home_continue_watching), isVirtual = true, order = -99),
                 Category(id = CAT_ID_FAVORITES, categoryName = getApplication<Application>().getString(R.string.nav_favorites), isVirtual = true, order = -98)
             )
-            (virtualCats + providerCats.filter { !it.isHidden }).sortedBy { it.order }
+            val filteredProvider = providerCats.filter { 
+                !it.isHidden && it.id > 0 && it.categoryName.lowercase() != "favorites" && it.categoryName.lowercase() != "recently added"
+            }
+            (virtualCats + filteredProvider).sortedBy { it.order }
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
