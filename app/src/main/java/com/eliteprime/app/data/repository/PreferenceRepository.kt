@@ -78,17 +78,29 @@ class PreferenceRepository @Inject constructor(
     }
 
     private fun getCurrentLanguage(): String {
+        // 1. Check SharedPreferences first (Our manual persistence)
+        val saved = prefs.getString("app_language", null)
+        if (saved != null) return saved
+
+        // 2. Check AppCompatDelegate locales
         val locales = AppCompatDelegate.getApplicationLocales()
         if (!locales.isEmpty) {
             return locales.get(0)?.language ?: "ar"
         }
-        // Force Arabic as default for ElitePrime app
+
+        // 3. Fallback to Arabic as default for this specific app
         return "ar"
     }
 
     fun setLanguage(lang: String) {
+        // Save manually to SharedPreferences
+        prefs.edit().putString("app_language", lang).apply()
+        
+        // Update System/AppCompat
         val appLocale: LocaleListCompat = LocaleListCompat.forLanguageTags(lang)
         AppCompatDelegate.setApplicationLocales(appLocale)
+        
+        // Update StateFlow
         _language.value = lang
     }
 
@@ -157,9 +169,11 @@ class PreferenceRepository @Inject constructor(
         val currentLang = getCurrentLanguage()
         _language.value = currentLang
         
-        // If app-specific locale is not yet set, apply Arabic as default
-        if (AppCompatDelegate.getApplicationLocales().isEmpty) {
-            setLanguage("ar")
+        // Sync AppCompatDelegate with our manual preference if they differ or if system is empty
+        val systemLocales = AppCompatDelegate.getApplicationLocales()
+        if (systemLocales.isEmpty || systemLocales.get(0)?.language != currentLang) {
+            val appLocale: LocaleListCompat = LocaleListCompat.forLanguageTags(currentLang)
+            AppCompatDelegate.setApplicationLocales(appLocale)
         }
     }
 }

@@ -52,9 +52,9 @@ class MovieViewModel @Inject constructor(
         .flow()
         .map { providerCats ->
             val virtualCats = listOf(
-                Category(id = CAT_ID_RECENTLY_ADDED, categoryName = getApplication<Application>().getString(R.string.nav_recently_added), isVirtual = true),
-                Category(id = CAT_ID_FAVORITES, categoryName = getApplication<Application>().getString(R.string.nav_favorites), isVirtual = true),
-                Category(id = CAT_ID_CONTINUE, categoryName = "🕒 Continue Watching", isVirtual = true)
+                Category(id = CAT_ID_RECENTLY_ADDED, categoryName = getApplication<Application>().getString(R.string.nav_recently_added), isVirtual = true, order = -100),
+                Category(id = CAT_ID_CONTINUE, categoryName = "Continue Watching", isVirtual = true, order = -99),
+                Category(id = CAT_ID_FAVORITES, categoryName = getApplication<Application>().getString(R.string.nav_favorites), isVirtual = true, order = -98)
             )
             (virtualCats + providerCats.filter { !it.isHidden }).sortedBy { it.order }
         }
