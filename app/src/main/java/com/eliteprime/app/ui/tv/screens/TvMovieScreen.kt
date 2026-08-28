@@ -270,7 +270,7 @@ fun TvMovieScreen(
                         }
 
                         TvCategoryItem(
-                            label = category.categoryName.replace("🕒 ", ""),
+                            label = category.categoryName.replace("🕒 ", "").replace("★ ", ""),
                             count = uiState.categoryCounts[category.id],
                             isSelected = category.id == uiState.selectedCategory?.id,
                             icon = icon,
@@ -377,13 +377,13 @@ private fun TvCategoryItem(
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected && !isFocused) Color.White else Color.Transparent,
+            containerColor = Color.Transparent,
             focusedContainerColor = Color.Transparent,
             pressedContainerColor = Color.White.copy(alpha = 0.1f)
         ),
         border = ClickableSurfaceDefaults.border(
             border = Border.None,
-            focusedBorder = Border(BorderStroke(1.5.dp, Color.Red))
+            focusedBorder = Border(BorderStroke(1.5.dp, AppColors.ArenaOrange))
         )
     ) {
         Row(
@@ -394,7 +394,7 @@ private fun TvCategoryItem(
                 modifier = Modifier
                     .fillMaxHeight(0.6f)
                     .width(3.dp)
-                    .background(if (isSelected && !isFocused) Color.Red else Color.Transparent, RoundedCornerShape(2.dp))
+                    .background(if (isSelected) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(2.dp))
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -403,7 +403,7 @@ private fun TvCategoryItem(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (isSelected && !isFocused) Color.Black else if (isFocused) Color.White else Color.White.copy(alpha = 0.8f),
+                    tint = if (isFocused) Color.White else Color.White.copy(alpha = 0.8f),
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -411,9 +411,9 @@ private fun TvCategoryItem(
 
             Text(
                 text = label,
-                color = if (isSelected && !isFocused) Color.Black else Color.White,
+                color = Color.White,
                 fontSize = 15.sp,
-                fontWeight = if (isSelected || isFocused) FontWeight.Black else FontWeight.Bold,
+                fontWeight = if (isFocused) FontWeight.Black else FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f)
@@ -422,7 +422,7 @@ private fun TvCategoryItem(
             if (count != null) {
                 Text(
                     text = count.toString(),
-                    color = if (isSelected && !isFocused) Color.Black.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.45f),
+                    color = Color.White.copy(alpha = 0.45f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 12.dp)
