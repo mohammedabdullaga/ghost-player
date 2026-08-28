@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
@@ -91,6 +92,7 @@ fun TvSeriesScreen(
     val firstCategoryRequester = remember { FocusRequester() }
     val seriesFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
     val firstSeriesRequester = remember { FocusRequester() }
+    val sidebarListState = rememberLazyListState()
 
     var isGridFocused by remember { mutableStateOf(false) }
     var isSidebarHidden by remember { mutableStateOf(false) }
@@ -149,12 +151,19 @@ fun TvSeriesScreen(
         isGridFocused = false
         isSidebarHidden = false
         scope.launch {
+            val key = lastSidebarFocusKey
+            val index = uiState.categories.indexOfFirst { it.id == key }
+            if (index >= 0) {
+                try { sidebarListState.scrollToItem(index) } catch (_: Exception) {}
+            }
             delay(RETURN_FOCUS_DELAY_MS)
+            val requester = categoryFocusRequesters[key] ?: firstCategoryRequester
             try {
-                val key = lastSidebarFocusKey
-                val requester = if (key != null) categoryFocusRequesters[key] ?: firstCategoryRequester else firstCategoryRequester
                 requester.requestFocus()
-            } catch (e: Exception) {}
+            } catch (_: Exception) {
+                delay(100)
+                try { requester.requestFocus() } catch (_: Exception) {}
+            }
         }
     }
 
@@ -234,6 +243,7 @@ fun TvSeriesScreen(
                 )
 
                 LazyColumn(
+                    state = sidebarListState,
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp)
