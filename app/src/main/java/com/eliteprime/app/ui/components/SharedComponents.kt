@@ -495,24 +495,23 @@ private fun VodPosterCardContent(
             }
         }
         
-        // 2. Grey Title Card Area
+        // 2. Title Card Area
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF222222)) // Slightly lighter grey card for title
+                .background(Color(0xFF222222))
                 .padding(vertical = 6.dp, horizontal = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = name,
                 color = if (isFocused) Color.White else Color.White.copy(alpha = 0.9f),
-                fontSize = 8.5.sp, // Tighter text size for perfect fit in the card
+                fontSize = 10.sp,
                 fontWeight = if (isFocused) FontWeight.Black else FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 minLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 10.sp
+                overflow = TextOverflow.Ellipsis
             )
         }
     }

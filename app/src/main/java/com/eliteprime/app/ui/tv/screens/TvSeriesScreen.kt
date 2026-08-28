@@ -57,7 +57,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-private const val SIDEBAR_WEIGHT_OPEN = 0.28f
+private const val SIDEBAR_WEIGHT_OPEN = 0.34f
 private const val SIDEBAR_WEIGHT_CLOSED = 0f
 private const val SIDEBAR_ANIM_MS = 220
 private const val RETURN_FOCUS_DELAY_MS = SIDEBAR_ANIM_MS + 80L
@@ -250,6 +250,11 @@ fun TvSeriesScreen(
                 ) {
                     itemsIndexed(uiState.categories) { index, category ->
                         val requester = categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
+
+                        // Lazy: trigger count load only when this category scrolls into view
+                        LaunchedEffect(category.id) {
+                            viewModel.loadCategoryCount(category)
+                        }
                         
                         if (index > 0) {
                             val prev = uiState.categories[index - 1]
@@ -296,7 +301,7 @@ fun TvSeriesScreen(
 
             // --- PANE 2: CONTENT GRID ---
             val columns = if (isSidebarHidden) 6 else 4
-            Column(modifier = Modifier.weight(gridWeight + 0.001f).fillMaxHeight().padding(top = 24.dp, bottom = 24.dp, start = if (isSidebarHidden) 24.dp else 0.dp, end = 24.dp)) {
+            Column(modifier = Modifier.weight(gridWeight + 0.001f).fillMaxHeight().padding(top = 24.dp, bottom = 24.dp, start = if (isSidebarHidden) 24.dp else 12.dp, end = 24.dp)) {
                 Text(
                     text = uiState.selectedCategory?.categoryName?.replace("🕒 ", "")?.replace("★ ", "") ?: "Series",
                     color = Color.White,
@@ -312,8 +317,8 @@ fun TvSeriesScreen(
                     columns = GridCells.Fixed(columns),
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 32.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     itemsIndexed(uiState.filteredSeries, key = { _, s -> s.id }) { index, series ->
                         val requester = if (index == 0) firstSeriesRequester else seriesFocusRequesters.getOrPut(series.id) { FocusRequester() }

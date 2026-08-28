@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -44,6 +45,10 @@ class SeriesViewModel @Inject constructor(
 
     private var browsingTrace: Trace? = null
 
+    // True lazy: counts are loaded per-category only when item scrolls into view
+    private val _categoryCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
+    private val loadedCountIds = mutableSetOf<Long>()
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private val categoriesFlow = categoryBox.query()
         .equal(Category_.type, "series", StringOrder.CASE_INSENSITIVE)
@@ -63,7 +68,6 @@ class SeriesViewModel @Inject constructor(
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
 
-    // Debounce only non-empty queries; empty (initial/default) emits immediately
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     private val debouncedSearchQuery = _searchQuery
         .flatMapLatest { query ->
@@ -93,7 +97,6 @@ class SeriesViewModel @Inject constructor(
         } else {
             when (currentId) {
                 CAT_ID_RECENTLY_ADDED -> {
-                    // Find latest added series, capped to 30 items
                     seriesBox.query()
                         .order(Series_.lastModified, QueryBuilder.DESCENDING)
                         .order(Series_.id, QueryBuilder.DESCENDING)
@@ -107,7 +110,6 @@ class SeriesViewModel @Inject constructor(
                 CAT_ID_CONTINUE -> {
                     val seriesIds = history.filter { it.type == "series" || it.type == "series_episode" }
                         .mapNotNull { it.seriesId }
-                    
                     val seriesData = seriesBox.get(seriesIds.toLongArray()).filterNotNull()
                     val seriesMap = seriesData.associateBy { it.id }
                     seriesIds.distinct().mapNotNull { seriesMap[it] }
@@ -127,8 +129,9 @@ class SeriesViewModel @Inject constructor(
     val uiState: StateFlow<SeriesUiState> = combine(
         categoriesFlow,
         _selectedCategoryId,
-        filteredSeriesFlow
-    ) { allCategories, selectedId, filteredSeries ->
+        filteredSeriesFlow,
+        _categoryCounts
+    ) { allCategories, selectedId, filteredSeries, counts ->
         
         if (filteredSeries.isNotEmpty() && browsingTrace != null) {
             browsingTrace?.stop()
@@ -140,7 +143,7 @@ class SeriesViewModel @Inject constructor(
 
         SeriesUiState(
             categories = allCategories,
-            categoryCounts = emptyMap(),
+            categoryCounts = counts,
             selectedCategory = currentSelected,
             filteredSeries = filteredSeries,
             isLoading = false
@@ -149,11 +152,33 @@ class SeriesViewModel @Inject constructor(
     .flowOn(Dispatchers.Default)
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SeriesUiState(isLoading = true))
 
+    /** Lazy: call this from the compose item — runs count() only for this category, one-shot */
+    fun loadCategoryCount(category: Category) {
+        if (!loadedCountIds.add(category.id)) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val count = when (category.id) {
+                CAT_ID_RECENTLY_ADDED -> minOf(
+                    seriesBox.query().order(Series_.lastModified, QueryBuilder.DESCENDING).build().count(),
+                    RECENTLY_ADDED_LIMIT
+                ).toInt()
+                CAT_ID_FAVORITES -> seriesBox.query()
+                    .equal(Series_.isFavorite, true).build().count().toInt()
+                CAT_ID_CONTINUE -> playbackHistoryRepository.getRecentlyWatched(50)
+                    .first().count { it.type == "series" || it.type == "series_episode" }
+                else -> seriesBox.query()
+                    .equal(Series_.remoteCategoryId, category.categoryId, StringOrder.CASE_INSENSITIVE)
+                    .build().count().toInt()
+            }
+            if (count > 0) {
+                _categoryCounts.update { it + (category.id to count) }
+            }
+        }
+    }
+
     fun selectCategory(category: Category) {
         if (_selectedCategoryId.value != category.id) {
             browsingTrace = FirebasePerformance.getInstance().newTrace("series_category_load_time")
             browsingTrace?.start()
-            
             _page.value = 0
             _selectedCategoryId.value = category.id
         }

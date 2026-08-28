@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -45,6 +46,10 @@ class MovieViewModel @Inject constructor(
 
     private var browsingTrace: Trace? = null
 
+    // True lazy: counts are loaded per-category only when item scrolls into view
+    private val _categoryCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
+    private val loadedCountIds = mutableSetOf<Long>()
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private val categoriesFlow = categoryBox.query()
         .equal(Category_.type, "movie", StringOrder.CASE_INSENSITIVE)
@@ -56,7 +61,6 @@ class MovieViewModel @Inject constructor(
                 Category(id = CAT_ID_CONTINUE, categoryName = getApplication<Application>().getString(R.string.home_continue_watching), isVirtual = true, order = -99),
                 Category(id = CAT_ID_FAVORITES, categoryName = getApplication<Application>().getString(R.string.nav_favorites), isVirtual = true, order = -98)
             )
-            // Filter out any provider categories that might conflict with our virtual ones
             val filteredProvider = providerCats.filter { 
                 !it.isHidden && it.id > 0 && it.categoryName.lowercase() != "favorites" && it.categoryName.lowercase() != "recently added"
             }
@@ -65,7 +69,6 @@ class MovieViewModel @Inject constructor(
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
 
-    // Debounce only non-empty queries; empty (initial/default) emits immediately
     @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
     private val debouncedSearchQuery = _searchQuery
         .flatMapLatest { query ->
@@ -95,7 +98,6 @@ class MovieViewModel @Inject constructor(
         } else {
             when (currentId) {
                 CAT_ID_RECENTLY_ADDED -> {
-                    // Find latest added movies, capped to 30 items
                     movieBox.query()
                         .order(Movie_.added, QueryBuilder.DESCENDING)
                         .order(Movie_.id, QueryBuilder.DESCENDING)
@@ -109,7 +111,6 @@ class MovieViewModel @Inject constructor(
                 CAT_ID_CONTINUE -> {
                     val movieIds = history.filter { it.type == "movie" }
                         .map { it.streamId }
-                    
                     val moviesList = movieBox.get(movieIds.toLongArray()).filterNotNull()
                     val movieMap = moviesList.associateBy { it.id }
                     movieIds.distinct().mapNotNull { movieMap[it] }
@@ -129,8 +130,9 @@ class MovieViewModel @Inject constructor(
     val uiState: StateFlow<MovieUiState> = combine(
         categoriesFlow,
         _selectedCategoryId,
-        filteredMoviesFlow
-    ) { allCategories, selectedId, filteredMovies ->
+        filteredMoviesFlow,
+        _categoryCounts
+    ) { allCategories, selectedId, filteredMovies, counts ->
         
         if (filteredMovies.isNotEmpty() && browsingTrace != null) {
             browsingTrace?.stop()
@@ -142,7 +144,7 @@ class MovieViewModel @Inject constructor(
 
         MovieUiState(
             categories = allCategories,
-            categoryCounts = emptyMap(),
+            categoryCounts = counts,
             selectedCategory = currentSelected,
             filteredMovies = filteredMovies,
             isLoading = false
@@ -151,11 +153,33 @@ class MovieViewModel @Inject constructor(
     .flowOn(Dispatchers.Default)
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), MovieUiState(isLoading = true))
 
+    /** Lazy: call this from the compose item — runs count() only for this category, one-shot */
+    fun loadCategoryCount(category: Category) {
+        if (!loadedCountIds.add(category.id)) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val count = when (category.id) {
+                CAT_ID_RECENTLY_ADDED -> minOf(
+                    movieBox.query().order(Movie_.added, QueryBuilder.DESCENDING).build().count(),
+                    RECENTLY_ADDED_LIMIT
+                ).toInt()
+                CAT_ID_FAVORITES -> movieBox.query()
+                    .equal(Movie_.isFavorite, true).build().count().toInt()
+                CAT_ID_CONTINUE -> playbackHistoryRepository.getRecentlyWatched(50)
+                    .first().count { it.type == "movie" }
+                else -> movieBox.query()
+                    .equal(Movie_.remoteCategoryId, category.categoryId, StringOrder.CASE_INSENSITIVE)
+                    .build().count().toInt()
+            }
+            if (count > 0) {
+                _categoryCounts.update { it + (category.id to count) }
+            }
+        }
+    }
+
     fun selectCategory(category: Category) {
         if (_selectedCategoryId.value != category.id) {
             browsingTrace = FirebasePerformance.getInstance().newTrace("movie_category_load_time")
             browsingTrace?.start()
-            
             _page.value = 0
             _selectedCategoryId.value = category.id
         }
@@ -169,7 +193,7 @@ class MovieViewModel @Inject constructor(
     }
 
     fun loadMore() {
-        Log.i("MovieVM", "Loading more items, current page: \${_page.value}")
+        Log.i("MovieVM", "Loading more items, current page: ${_page.value}")
         _page.value++
     }
 
