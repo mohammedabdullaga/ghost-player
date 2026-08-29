@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -74,7 +75,6 @@ fun TvSeriesScreen(
     val gridState = rememberLazyGridState()
     var focusedSeries by remember { mutableStateOf<Series?>(null) }
 
-    // Pagination trigger
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo }
             .map { visibleItems ->
@@ -83,9 +83,7 @@ fun TvSeriesScreen(
             }
             .distinctUntilChanged()
             .filter { it }
-            .collect {
-                viewModel.loadMore()
-            }
+            .collect { viewModel.loadMore() }
     }
 
     val categoryFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
@@ -94,11 +92,14 @@ fun TvSeriesScreen(
     val firstSeriesRequester = remember { FocusRequester() }
     val sidebarListState = rememberLazyListState()
 
-    var isGridFocused by remember { mutableStateOf(false) }
-    var isSidebarHidden by remember { mutableStateOf(false) }
+    // ViewModel-backed state: survives navigation back from details
+    val isSidebarHidden by viewModel.isSidebarHidden.collectAsState()
+    val isGridFocused by viewModel.isGridFocused.collectAsState()
     var lastSidebarFocusKey by remember { mutableStateOf<Long?>(SeriesViewModel.CAT_ID_RECENTLY_ADDED) }
+    var searchText by remember { mutableStateOf("") }
 
-    // Initial focus logic
+    LaunchedEffect(searchText) { delay(300); viewModel.setSearchQuery(searchText) }
+
     var hasInitiallyFocused by remember { mutableStateOf(false) }
     LaunchedEffect(uiState.categories) {
         if (uiState.categories.isNotEmpty() && !hasInitiallyFocused) {
@@ -107,49 +108,37 @@ fun TvSeriesScreen(
                 val recentlyAddedCat = uiState.categories.find { it.id == SeriesViewModel.CAT_ID_RECENTLY_ADDED }
                 val targetRequester = if (recentlyAddedCat != null) {
                     categoryFocusRequesters.getOrPut(recentlyAddedCat.id) { FocusRequester() }
-                } else {
-                    firstCategoryRequester
-                }
+                } else firstCategoryRequester
                 targetRequester.requestFocus()
                 hasInitiallyFocused = true
-            } catch (e: Exception) {}
+            } catch (_: Exception) {}
         }
     }
 
     val sidebarWeight by animateFloatAsState(
         targetValue = if (isSidebarHidden) SIDEBAR_WEIGHT_CLOSED else SIDEBAR_WEIGHT_OPEN,
-        animationSpec = tween(SIDEBAR_ANIM_MS),
-        label = "sidebarWeight"
+        animationSpec = tween(SIDEBAR_ANIM_MS), label = "sidebarWeight"
     )
     val gridWeight = 1f - sidebarWeight
 
-    // "Fast View": Updates grid content but keeps focus on category.
     val selectCategoryOnly: (Category?) -> Unit = { category ->
-        if (category != null) {
-            viewModel.selectCategory(category)
-        }
-        isSidebarHidden = false
-        isGridFocused = false
+        if (category != null) viewModel.selectCategory(category)
+        viewModel.showSidebar()
         scope.launch { gridState.scrollToItem(0) }
     }
 
-    // "Full Screen": Updates content, hides sidebar, and moves focus to grid.
     val enterGridFullScreen: (Category?) -> Unit = { category ->
-        if (category != null) {
-            viewModel.selectCategory(category)
-        }
-        isSidebarHidden = true
-        isGridFocused = true
+        if (category != null) viewModel.selectCategory(category)
+        viewModel.enterFullScreen()
         scope.launch {
             gridState.scrollToItem(0)
-            delay(SIDEBAR_ANIM_MS + 50L) 
-            try { firstSeriesRequester.requestFocus() } catch (e: Exception) {}
+            delay(SIDEBAR_ANIM_MS + 50L)
+            try { firstSeriesRequester.requestFocus() } catch (_: Exception) {}
         }
     }
 
     val returnFocusToSidebar: () -> Unit = {
-        isGridFocused = false
-        isSidebarHidden = false
+        viewModel.showSidebar()
         scope.launch {
             val key = lastSidebarFocusKey
             val index = uiState.categories.indexOfFirst { it.id == key }
@@ -158,111 +147,92 @@ fun TvSeriesScreen(
             }
             delay(RETURN_FOCUS_DELAY_MS)
             val requester = categoryFocusRequesters[key] ?: firstCategoryRequester
-            try {
-                requester.requestFocus()
-            } catch (_: Exception) {
-                delay(100)
-                try { requester.requestFocus() } catch (_: Exception) {}
-            }
+            try { requester.requestFocus() }
+            catch (_: Exception) { delay(100); try { requester.requestFocus() } catch (_: Exception) {} }
         }
     }
 
-    BackHandler {
-        if (isGridFocused) {
-            returnFocusToSidebar()
-        } else {
-            onBack()
-        }
-    }
+    BackHandler { if (isSidebarHidden) returnFocusToSidebar() else onBack() }
 
     val layoutDirection = LocalLayoutDirection.current
     val isRtl = layoutDirection == LayoutDirection.Rtl
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        // --- 1. DYNAMIC THEATER BACKDROP ---
         val tier = LocalRenderTier.current
         val isReducedTier = tier == RenderTier.REDUCED
         val isLite = DeviceRenderProfile.isLiteMode()
-
         val currentBackdropSeries = focusedSeries ?: uiState.filteredSeries.firstOrNull()
 
         Box(modifier = Modifier.fillMaxSize()) {
             if (isReducedTier || isLite) {
-                AsyncImage(
-                    model = currentBackdropSeries?.backdropUrl ?: currentBackdropSeries?.cover,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.45f
-                )
+                AsyncImage(model = currentBackdropSeries?.backdropUrl ?: currentBackdropSeries?.cover,
+                    contentDescription = null, modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop, alpha = 0.45f)
             } else {
                 Crossfade(targetState = currentBackdropSeries, animationSpec = tween(600), label = "seriesBg") { series ->
-                    AsyncImage(
-                        model = series?.backdropUrl ?: series?.cover,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        alpha = 0.45f
-                    )
+                    AsyncImage(model = series?.backdropUrl ?: series?.cover,
+                        contentDescription = null, modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop, alpha = 0.45f)
                 }
             }
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        remember {
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)),
-                                startY = 400f
-                            )
-                        }
-                    )
-            )
+            Box(modifier = Modifier.fillMaxSize().background(remember {
+                Brush.verticalGradient(colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f)), startY = 400f)
+            }))
         }
 
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            horizontalArrangement = Arrangement.Start
-        ) {
-            // --- PANE 1: CATEGORIES ---
+        Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Start) {
+            // PANE 1: CATEGORIES + SEARCH
             Column(
-                modifier = Modifier
-                    .weight(sidebarWeight + 0.001f)
-                    .fillMaxHeight()
+                modifier = Modifier.weight(sidebarWeight + 0.001f).fillMaxHeight()
                     .background(Color.Black.copy(alpha = 0.7f))
                     .padding(top = 24.dp, bottom = 24.dp)
                     .alpha(if (isSidebarHidden) 0f else 1f)
             ) {
-                Text(
-                    text = "CATEGORIES",
-                    color = Color.White.copy(alpha = 0.4f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 1.sp,
-                    modifier = Modifier.padding(start = 24.dp, bottom = 16.dp)
-                )
+                // Search bar
+                val searchRequester = remember { FocusRequester() }
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 20.dp, bottom = 16.dp)
+                        .height(40.dp)
+                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                        .focusRequester(searchRequester)
+                        .onKeyEvent { event ->
+                            if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                            when {
+                                event.key == Key.Backspace -> { if (searchText.isNotEmpty()) searchText = searchText.dropLast(1); true }
+                                event.utf16CodePoint in 32..126 -> { searchText += event.utf16CodePoint.toChar(); true }
+                                else -> false
+                            }
+                        }
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = searchText.ifEmpty { "Search series..." },
+                            color = if (searchText.isEmpty()) Color.White.copy(alpha = 0.35f) else Color.White,
+                            fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(Icons.Default.Search, contentDescription = "Search",
+                            tint = AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
+                    }
+                }
 
-                LazyColumn(
-                    state = sidebarListState,
-                    modifier = Modifier.fillMaxSize(),
+                LazyColumn(state = sidebarListState, modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp)
                 ) {
                     itemsIndexed(uiState.categories) { index, category ->
                         val requester = categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
 
-                        // Lazy: trigger count load only when this category scrolls into view
-                        LaunchedEffect(category.id) {
-                            viewModel.loadCategoryCount(category)
-                        }
+                        LaunchedEffect(category.id) { viewModel.loadCategoryCount(category) }
                         
                         if (index > 0) {
                             val prev = uiState.categories[index - 1]
                             if (prev.isVirtual && !category.isVirtual) {
                                 HorizontalDivider(
                                     modifier = Modifier.padding(vertical = 12.dp, horizontal = 12.dp),
-                                    color = Color.White.copy(alpha = 0.15f)
-                                )
+                                    color = Color.White.copy(alpha = 0.15f))
                             }
                         }
 
@@ -274,23 +244,17 @@ fun TvSeriesScreen(
                         }
 
                         TvCategoryItem(
-                            label = category.categoryName.replace("🕒 ", ""),
+                            label = category.categoryName.replace("\uD83D\uDD52 ", ""),
                             count = uiState.categoryCounts[category.id],
                             isSelected = category.id == uiState.selectedCategory?.id,
                             icon = icon,
                             modifier = Modifier
                                 .focusRequester(requester)
-                                .onFocusChanged { if (it.isFocused && !isGridFocused) {
-                                    lastSidebarFocusKey = category.id
-                                }}
+                                .onFocusChanged { if (it.isFocused && !isGridFocused) { lastSidebarFocusKey = category.id } }
                                 .onPreviewKeyEvent {
                                     if (it.type == KeyEventType.KeyDown) {
                                         val isEnterGrid = if (isRtl) it.key == Key.DirectionLeft else it.key == Key.DirectionRight
-                                        if (isEnterGrid) {
-                                            // Just hide sidebar for full-screen grid view — do NOT change category
-                                            enterGridFullScreen(null)
-                                            return@onPreviewKeyEvent true
-                                        }
+                                        if (isEnterGrid) { enterGridFullScreen(null); return@onPreviewKeyEvent true }
                                     }
                                     false
                                 },
@@ -300,15 +264,13 @@ fun TvSeriesScreen(
                 }
             }
 
-            // --- PANE 2: CONTENT GRID ---
+            // PANE 2: CONTENT GRID
             val columns = if (isSidebarHidden) 6 else 4
-            Column(modifier = Modifier.weight(gridWeight + 0.001f).fillMaxHeight().padding(top = 24.dp, bottom = 24.dp, start = if (isSidebarHidden) 24.dp else 12.dp, end = 24.dp)) {
-
-                LazyVerticalGrid(
-                    state = gridState,
-                    columns = GridCells.Fixed(columns),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 32.dp),
+            Column(modifier = Modifier.weight(gridWeight + 0.001f).fillMaxHeight()
+                .padding(top = 24.dp, bottom = 24.dp, start = if (isSidebarHidden) 24.dp else 12.dp, end = 24.dp)
+            ) {
+                LazyVerticalGrid(state = gridState, columns = GridCells.Fixed(columns),
+                    modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -318,32 +280,22 @@ fun TvSeriesScreen(
                         val totalSeries = uiState.filteredSeries.size
                         val isLastRow = index >= (totalSeries - (totalSeries % columns).let { if (it == 0) columns else it })
 
-                        SeriesPosterCard(
-                            series = series,
+                        SeriesPosterCard(series = series,
                             modifier = Modifier
-                                    .focusRequester(requester)
-                                    .onFocusChanged {
-                                        if (it.isFocused) {
-                                            focusedSeries = series
-                                            isGridFocused = true
-                                            isSidebarHidden = true 
+                                .focusRequester(requester)
+                                .onFocusChanged {
+                                    if (it.isFocused) { focusedSeries = series; viewModel.enterFullScreen() }
+                                }
+                                .onPreviewKeyEvent {
+                                    if (it.type == KeyEventType.KeyDown) {
+                                        if (isStartColumn) {
+                                            val isExitGrid = if (isRtl) it.key == Key.DirectionRight else it.key == Key.DirectionLeft
+                                            if (isExitGrid) { returnFocusToSidebar(); return@onPreviewKeyEvent true }
                                         }
+                                        if (isLastRow && it.key == Key.DirectionDown) return@onPreviewKeyEvent true
                                     }
-                                    .onPreviewKeyEvent {
-                                        if (it.type == KeyEventType.KeyDown) {
-                                            if (isStartColumn) {
-                                                val isExitGrid = if (isRtl) it.key == Key.DirectionRight else it.key == Key.DirectionLeft
-                                                if (isExitGrid) {
-                                                    returnFocusToSidebar()
-                                                    return@onPreviewKeyEvent true
-                                                }
-                                            }
-                                            if (isLastRow && it.key == Key.DirectionDown) {
-                                                return@onPreviewKeyEvent true
-                                            }
-                                        }
-                                        false
-                                    },
+                                    false
+                                },
                             onClick = { onSeriesClick(series) }
                         )
                     }
@@ -354,77 +306,37 @@ fun TvSeriesScreen(
 }
 
 @Composable
-private fun TvCategoryItem(
-    label: String,
-    count: Int?,
-    isSelected: Boolean,
-    icon: ImageVector? = null,
-    enabled: Boolean = true,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
+private fun TvCategoryItem(label: String, count: Int?, isSelected: Boolean,
+    icon: ImageVector? = null, modifier: Modifier = Modifier, onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
-
-    TvSurface(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(52.dp)
-            .onFocusChanged { isFocused = it.isFocused },
+    TvSurface(onClick = onClick,
+        modifier = modifier.fillMaxWidth().height(52.dp).onFocusChanged { isFocused = it.isFocused },
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            focusedContainerColor = Color.Transparent,
-            pressedContainerColor = Color.White.copy(alpha = 0.1f)
-        ),
+            containerColor = Color.Transparent, focusedContainerColor = Color.Transparent,
+            pressedContainerColor = Color.White.copy(alpha = 0.1f)),
         border = ClickableSurfaceDefaults.border(
-            border = Border.None,
-            focusedBorder = Border(BorderStroke(1.5.dp, AppColors.ArenaOrange))
-        )
+            border = Border.None, focusedBorder = Border(BorderStroke(1.5.dp, AppColors.ArenaOrange)))
     ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight(0.6f)
-                    .width(3.dp)
-                    .background(if (isSelected) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(2.dp))
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
+        Row(modifier = Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.fillMaxHeight(0.6f).width(3.dp)
+                .background(if (isSelected) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(2.dp)))
+            Spacer(Modifier.width(12.dp))
             if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
+                Icon(icon, contentDescription = null,
                     tint = if (isFocused) Color.White else Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
+                    modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
             }
-
-            Text(
-                text = label,
-                color = Color.White,
-                fontSize = 15.sp,
+            Text(label, color = Color.White, fontSize = 15.sp,
                 fontWeight = if (isFocused) FontWeight.Black else FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (count != null) {
-                Text(
-                    text = count.toString(),
-                    color = Color.White.copy(alpha = 0.45f),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
+                Text(count.toString(), color = Color.White.copy(alpha = 0.45f),
+                    fontSize = 13.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 12.dp))
             }
         }
     }

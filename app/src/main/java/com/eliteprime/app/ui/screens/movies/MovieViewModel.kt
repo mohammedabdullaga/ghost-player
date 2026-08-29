@@ -44,6 +44,12 @@ class MovieViewModel @Inject constructor(
     private val _page = MutableStateFlow(0)
     private val PAGE_SIZE = 60
 
+    // Survive navigation: sidebar/grid state in ViewModel, not remember
+    private val _isSidebarHidden = MutableStateFlow(false)
+    val isSidebarHidden: StateFlow<Boolean> = _isSidebarHidden
+    private val _isGridFocused = MutableStateFlow(false)
+    val isGridFocused: StateFlow<Boolean> = _isGridFocused
+
     private var browsingTrace: Trace? = null
 
     // True lazy: counts are loaded per-category only when item scrolls into view
@@ -200,6 +206,16 @@ class MovieViewModel @Inject constructor(
     fun toggleFavorite(movie: Movie) {
         movie.isFavorite = !movie.isFavorite
         movieBox.put(movie)
+    }
+
+    fun enterFullScreen() {
+        _isSidebarHidden.value = true
+        _isGridFocused.value = true
+    }
+
+    fun showSidebar() {
+        _isSidebarHidden.value = false
+        _isGridFocused.value = false
     }
 }
 
