@@ -572,38 +572,78 @@ fun TvLiveTvScreen(
     // --- DIALOGS ---
 
     if (showAddGroupDialog) {
-        val firstActionRequester = remember { FocusRequester() }
+        val inputRequester = remember { FocusRequester() }
+        val createButtonRequester = remember { FocusRequester() }
+        
         LaunchedEffect(Unit) {
             delay(300)
-            try { firstActionRequester.requestFocus() } catch (e: Exception) {}
+            try { inputRequester.requestFocus() } catch (_: Exception) {}
         }
 
         TvOverlayDialog(onDismiss = { showAddGroupDialog = false }) {
             Text(stringResource(R.string.group_create_title), style = TvMaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White)
             Spacer(Modifier.height(24.dp))
-            OutlinedTextField(
+            
+            var isInputFocused by remember { mutableStateOf(false) }
+            BasicTextField(
                 value = newGroupName,
                 onValueChange = { newGroupName = it },
-                placeholder = { Text(stringResource(R.string.group_name_label), color = Color.White.copy(alpha = 0.3f)) },
+                textStyle = TextStyle(color = Color.White, fontSize = 16.sp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .focusRequester(inputRequester)
+                    .onFocusChanged { isInputFocused = it.isFocused }
+                    .focusProperties {
+                        down = createButtonRequester
+                    }
+                    .onKeyEvent { 
+                        if (it.key == Key.DirectionDown && it.type == KeyEventType.KeyDown) {
+                            createButtonRequester.requestFocus()
+                            true
+                        } else false
+                    }
+                    .border(
+                        1.dp,
+                        if (isInputFocused) TvColors.Primary else Color.White.copy(alpha = 0.1f),
+                        RoundedCornerShape(12.dp)
+                    ),
+                decorationBox = { innerTextField ->
+                    Box(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (newGroupName.isEmpty()) {
+                            Text(stringResource(R.string.group_name_label), color = Color.White.copy(alpha = 0.3f))
+                        }
+                        innerTextField()
+                    }
+                },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().focusRequester(firstActionRequester),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = TvColors.Primary,
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
-                    focusedTextColor = Color.White
-                ),
-                shape = RoundedCornerShape(12.dp)
+                keyboardOptions = KeyboardOptions(
+                    hintLocales = LocaleList(Locale("ar"), Locale("en"))
+                )
             )
+            
             Spacer(Modifier.height(32.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 var isCreateFocused by remember { mutableStateOf(false) }
                 TvSurfaceCard(
                     onClick = {
-                        viewModel.addCustomGroup(newGroupName)
-                        showAddGroupDialog = false
-                        newGroupName = ""
+                        if (newGroupName.isNotBlank()) {
+                            viewModel.addCustomGroup(newGroupName)
+                            showAddGroupDialog = false
+                            newGroupName = ""
+                        }
                     },
-                    modifier = Modifier.weight(1f).height(52.dp).onFocusChanged { isCreateFocused = it.isFocused },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .focusRequester(createButtonRequester)
+                        .onFocusChanged { isCreateFocused = it.isFocused }
+                        .focusProperties {
+                            up = inputRequester
+                        },
                     colors = ClickableSurfaceDefaults.colors(containerColor = AppColors.ArenaOrange.copy(alpha = 0.25f), focusedContainerColor = Color.White),
                     border = ClickableSurfaceDefaults.border(
                         focusedBorder = Border(BorderStroke(2.dp, Color.White)),
@@ -617,7 +657,13 @@ fun TvLiveTvScreen(
                 var isCancelFocused by remember { mutableStateOf(false) }
                 TvSurfaceCard(
                     onClick = { showAddGroupDialog = false },
-                    modifier = Modifier.weight(1f).height(52.dp).onFocusChanged { isCancelFocused = it.isFocused },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .onFocusChanged { isCancelFocused = it.isFocused }
+                        .focusProperties {
+                            up = inputRequester
+                        },
                     colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -778,12 +824,6 @@ private fun TvOverlayDialog(
             Column(
                 modifier = Modifier
                     .padding(32.dp)
-                    .focusProperties {
-                        up = FocusRequester.Cancel
-                        down = FocusRequester.Cancel
-                        left = FocusRequester.Cancel
-                        right = FocusRequester.Cancel
-                    }
             ) {
                 content()
             }
