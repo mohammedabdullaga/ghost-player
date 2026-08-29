@@ -280,30 +280,41 @@ fun TvLiveTvScreen(
 
                 if (uiState.isCategoryReorderMode) {
                     // NEW PRO REORDER CONTROL PANEL
-                    Column(
-                        modifier = Modifier.weight(0.55f).fillMaxHeight()
-                            .background(Color.Black.copy(alpha = 0.3f))
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                    Box(
+                        modifier = Modifier.weight(0.55f).fillMaxHeight().padding(LiveSpacing.lg),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "${selectedReorderIds.size} " + stringResource(R.string.nav_categories).uppercase() + " SELECTED",
-                            color = TvColors.Primary,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 20.sp,
-                            letterSpacing = 2.sp
-                        )
-                        Spacer(Modifier.height(48.dp))
-                        
-                        TvReorderControlPanel(
-                            onMoveUp = { viewModel.moveSelectedCategoriesUp() },
-                            onMoveDown = { viewModel.moveSelectedCategoriesDown() },
-                            onToTop = { viewModel.moveSelectedCategoriesToTop() },
-                            onToBottom = { viewModel.moveSelectedCategoriesToBottom() },
-                            onSave = { viewModel.saveCategoryOrder() },
-                            onCancel = { viewModel.exitCategoryReorderMode() }
-                        )
+                        TvGlassPane(
+                            modifier = Modifier.width(420.dp).wrapContentHeight(),
+                            backgroundColor = Color.Black.copy(alpha = 0.45f),
+                            borderColor = Color.White.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = "${selectedReorderIds.size} " + stringResource(R.string.nav_categories).uppercase() + " SELECTED",
+                                    color = AppColors.ArenaOrange,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 18.sp,
+                                    letterSpacing = 2.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(Modifier.height(32.dp))
+                                
+                                TvReorderControlPanel(
+                                    onMoveUp = { viewModel.moveSelectedCategoriesUp() },
+                                    onMoveDown = { viewModel.moveSelectedCategoriesDown() },
+                                    onToTop = { viewModel.moveSelectedCategoriesToTop() },
+                                    onToBottom = { viewModel.moveSelectedCategoriesToBottom() },
+                                    onSave = { viewModel.saveCategoryOrder() },
+                                    onCancel = { viewModel.exitCategoryReorderMode() }
+                                )
+                            }
+                        }
                     }
                 } else {
                     Spacer(modifier = Modifier.width(20.dp))
@@ -947,15 +958,15 @@ private fun TvReorderControlPanel(
     onCancel: () -> Unit
 ) {
     Column(
-        modifier = Modifier.width(320.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         ControlActionButton(label = "MOVE UP", icon = Icons.Default.ArrowUpward, onClick = onMoveUp)
         ControlActionButton(label = "MOVE DOWN", icon = Icons.Default.ArrowDownward, onClick = onMoveDown)
         ControlActionButton(label = "MOVE TO TOP", icon = Icons.Default.VerticalAlignTop, onClick = onToTop)
         ControlActionButton(label = "MOVE TO BOTTOM", icon = Icons.Default.VerticalAlignBottom, onClick = onToBottom)
         
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
         
         ControlActionButton(label = "SAVE CHANGES", icon = Icons.Default.Save, color = AppColors.ArenaOrange, onClick = onSave)
         ControlActionButton(label = "CANCEL", icon = Icons.Default.Close, onClick = onCancel)
@@ -972,23 +983,24 @@ private fun ControlActionButton(
     var isFocused by remember { mutableStateOf(false) }
     TvSurfaceCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth().height(56.dp).onFocusChanged { isFocused = it.isFocused },
+        modifier = Modifier.fillMaxWidth().height(52.dp).onFocusChanged { isFocused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (color != Color.White) color.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f),
+            containerColor = if (color != Color.White) color.copy(alpha = 0.15f) else Color.White.copy(alpha = 0.04f),
             focusedContainerColor = Color.White
         ),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-            border = Border(BorderStroke(1.dp, if (color != Color.White) color else Color.White.copy(alpha = 0.1f)))
+            border = Border(BorderStroke(1.dp, if (color != Color.White) color.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.08f)))
         )
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(icon, null, tint = if (isFocused) Color.Black else color, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(16.dp))
-            Text(label, color = if (isFocused) Color.Black else Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
+            Icon(icon, null, tint = if (isFocused) Color.Black else if (color != Color.White) color else Color.White.copy(alpha = 0.7f), modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(14.dp))
+            Text(label, color = if (isFocused) Color.Black else Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, letterSpacing = 0.5.sp)
         }
     }
 }
