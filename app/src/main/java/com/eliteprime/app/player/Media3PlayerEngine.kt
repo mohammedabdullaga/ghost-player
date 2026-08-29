@@ -48,6 +48,7 @@ import com.eliteprime.app.player.timeshift.LiveTimeshiftState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import java.util.concurrent.atomic.AtomicInteger
@@ -591,6 +592,7 @@ class Media3PlayerEngine @Inject constructor(
                 return
             }
 
+            FirebaseCrashlytics.getInstance().recordException(e)
             _error.tryEmit(PlayerError.fromException(e))
         }
         override fun onRenderedFirstFrame() {

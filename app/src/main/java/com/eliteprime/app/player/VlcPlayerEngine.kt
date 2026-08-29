@@ -8,6 +8,7 @@ import com.eliteprime.app.R
 import com.eliteprime.app.domain.model.StreamInfo
 import com.eliteprime.app.domain.model.VideoFormat
 import com.eliteprime.app.player.timeshift.LiveTimeshiftState
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -254,7 +255,9 @@ class VlcPlayerEngine @Inject constructor(
                     }
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            FirebaseCrashlytics.getInstance().recordException(e)
+        }
 
         _videoFormat.value = VideoFormat(
             width = track.width,
