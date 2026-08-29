@@ -314,6 +314,11 @@ class LiveViewModel @Inject constructor(
     fun toggleFavorite(channel: LiveStream) {
         channel.isFavorite = !channel.isFavorite
         liveBox.put(channel)
+        
+        // Ensure preview state updates if it's the same channel
+        if (_previewChannel.value?.id == channel.id) {
+            _previewChannel.value = channel.copy() 
+        }
     }
 
     fun hideChannel(channel: LiveStream) {

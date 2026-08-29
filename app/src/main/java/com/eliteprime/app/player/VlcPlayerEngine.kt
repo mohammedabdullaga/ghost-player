@@ -11,7 +11,10 @@ import com.eliteprime.app.player.timeshift.LiveTimeshiftState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +41,9 @@ class VlcPlayerEngine @Inject constructor(
     @Volatile private var attachedLayout: VLCVideoLayout? = null
     
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var statsPollingJob: Job? = null
+    private var lastDisplayedPictures = 0
+    private var lastStatsTimestamp = 0L
     private val TAG = "VlcPlayerEngine"
 
     override val engineType: StateFlow<PlayerType> = MutableStateFlow(PlayerType.VLC).asStateFlow()
@@ -131,7 +137,6 @@ class VlcPlayerEngine @Inject constructor(
                 "--skip-frames",
                 "--avcodec-skiploopfilter=4",
                 "--avcodec-threads=4",
-                "--no-stats",
                 "--no-osd"
             )
             libVLC = LibVLC(context, args)
@@ -192,6 +197,7 @@ class VlcPlayerEngine @Inject constructor(
 
         mediaPlayer?.play()
         pendingUrl = null
+        startStatsPolling()
     }
 
     private fun updateTracks() {
@@ -207,20 +213,66 @@ class VlcPlayerEngine @Inject constructor(
     }
 
     private fun updateVideoFormat() {
-        val track = mediaPlayer?.currentVideoTrack ?: return
+        val player = mediaPlayer ?: return
+        val track = player.currentVideoTrack ?: return
         if (track.width <= 0 || track.height <= 0) return
-        val fps = if (track.frameRateDen > 0) {
+        
+        var currentFps = if (track.frameRateDen > 0) {
             track.frameRateNum.toFloat() / track.frameRateDen
         } else {
             0f
         }
+        
+        var currentBitrate = track.bitrate
+        try {
+            val media = player.media
+            if (media != null) {
+                val stats = media.stats
+                if (stats != null) {
+                    // 1. Bitrate from Demux
+                    if (stats.demuxBitrate > 0) {
+                        currentBitrate = (stats.demuxBitrate * 8000000).toInt()
+                    }
+                    
+                    // 2. Real-time FPS from displayed pictures
+                    val now = System.currentTimeMillis()
+                    if (lastStatsTimestamp > 0) {
+                        val duration = now - lastStatsTimestamp
+                        if (duration >= 1000) {
+                            val frames = stats.displayedPictures - lastDisplayedPictures
+                            val measuredFps = (frames * 1000f / duration)
+                            Log.d(TAG, "VLC Measured FPS: $measuredFps (Frames: $frames)")
+                            if (measuredFps > 0) {
+                                currentFps = measuredFps
+                            }
+                            lastDisplayedPictures = stats.displayedPictures
+                            lastStatsTimestamp = now
+                        }
+                    } else {
+                        lastDisplayedPictures = stats.displayedPictures
+                        lastStatsTimestamp = now
+                    }
+                }
+            }
+        } catch (_: Exception) {}
+
         _videoFormat.value = VideoFormat(
             width = track.width,
             height = track.height,
-            frameRate = fps,
-            bitrate = track.bitrate,
+            frameRate = currentFps,
+            bitrate = currentBitrate,
             codec = track.codec
         )
+    }
+
+    private fun startStatsPolling() {
+        statsPollingJob?.cancel()
+        statsPollingJob = scope.launch {
+            while (isActive) {
+                updateVideoFormat()
+                delay(1000)
+            }
+        }
     }
 
     override fun play() { mediaPlayer?.play() }
@@ -239,6 +291,7 @@ class VlcPlayerEngine @Inject constructor(
         _playbackState.value = PlaybackState.IDLE
         _isPlaying.value = false
         pendingUrl = null
+        statsPollingJob?.cancel()
     }
 
     override fun seekTo(positionMs: Long) { mediaPlayer?.time = positionMs }

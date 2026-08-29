@@ -187,6 +187,7 @@
     <string name="player_rewind_10">Rewind 10s</string>
     <string name="player_forward_10">Forward 10s</string>
     <string name="player_play_pause">Play/Pause</string>
+    <string name="player_fullscreen">Full Screen</string>
     <string name="player_diagnostics_title">PLAYBACK DIAGNOSTICS</string>
     <string name="diag_resolution">Resolution</string>
     <string name="diag_video_codec">Video Codec</string>

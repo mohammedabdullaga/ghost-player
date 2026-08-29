@@ -55,6 +55,8 @@ import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.EPGProgram
 import com.eliteprime.app.data.local.entity.LiveStream
+import com.eliteprime.app.domain.model.VideoFormat
+import com.eliteprime.app.player.PlayerStats
 import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.TvExitDialog
@@ -83,7 +85,6 @@ private object LiveSpacing {
 private object LiveRadius {
     val row = 16.dp
     val pane = 0.dp
-    val chip = 8.dp
 }
 
 @Composable
@@ -95,6 +96,8 @@ fun TvLiveTvScreen(
     val uiState by viewModel.uiState.collectAsState()
     val previewChannel by viewModel.previewChannel.collectAsState()
     val epgList by viewModel.currentEpg.collectAsState()
+    val videoFormat by viewModel.playerEngine.videoFormat.collectAsState()
+    val playerStats by viewModel.playerEngine.playerStats.collectAsState()
 
     var showAddGroupDialog by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
@@ -113,6 +116,8 @@ fun TvLiveTvScreen(
     val firstCategoryRequester = remember { FocusRequester() }
     val firstChannelRequester = remember { FocusRequester() }
     val addGroupFocusRequester = remember { FocusRequester() }
+    val fsButtonRequester = remember { FocusRequester() }
+    val favButtonRequester = remember { FocusRequester() }
 
     val isAnyPopupOpen = showAddGroupDialog || selectedChannelForOptions != null || selectedCategoryForOptions != null
     val isLiteMode = DeviceRenderProfile.isLiteMode()
@@ -339,7 +344,10 @@ fun TvLiveTvScreen(
                                             .focusRequester(requester)
                                             .onFocusChanged { if (it.isFocused) {
                                                 lastFocusedChannelId = channel.id
-                                            } },
+                                            } }
+                                            .focusProperties {
+                                                right = fsButtonRequester
+                                            },
                                         onClick = {
                                             if (!isAnyPopupOpen) {
                                                 if (previewChannel?.id == channel.id) {
@@ -420,6 +428,26 @@ fun TvLiveTvScreen(
                             } else {
                                 Icon(Icons.Default.PlayCircle, null, modifier = Modifier.align(Alignment.Center).size(48.dp), tint = TvColors.TextTertiary)
                             }
+                        }
+
+                        if (previewChannel != null) {
+                            TvStreamInfoCard(videoFormat, playerStats)
+                            
+                            TvPreviewActionButtons(
+                                isFavorite = previewChannel?.isFavorite == true,
+                                fsFocusRequester = fsButtonRequester,
+                                favFocusRequester = favButtonRequester,
+                                onFullScreen = {
+                                    previewChannel?.let {
+                                        viewModel.confirmChannel(it)
+                                        viewModel.globalPlayerState.enterFullScreen(viewModel.playerEngine)
+                                        onPlayChannel(it)
+                                    }
+                                },
+                                onToggleFavorite = {
+                                    previewChannel?.let { viewModel.toggleFavorite(it) }
+                                }
+                            )
                         }
 
                         if (previewChannel != null && epgList.isNotEmpty()) {
@@ -733,7 +761,6 @@ private fun TvChannelItem(
     onLongClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val layoutDirection = LocalLayoutDirection.current
     val isLite = DeviceRenderProfile.isLiteMode()
 
     TvSurface(
@@ -741,14 +768,7 @@ private fun TvChannelItem(
         onLongClick = onLongClick,
         modifier = modifier
             .height(52.dp)
-            .onFocusChanged { isFocused = it.isFocused }
-            .focusProperties {
-                if (layoutDirection == LayoutDirection.Ltr) {
-                    right = FocusRequester.Cancel
-                } else {
-                    left = FocusRequester.Cancel
-                }
-            },
+            .onFocusChanged { isFocused = it.isFocused },
         scale = ClickableSurfaceDefaults.scale(focusedScale = if (isLite) 1.0f else 1.02f),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
@@ -899,5 +919,166 @@ private fun TvEpgItem(program: EPGProgram) {
         }
         Text(text = time, color = TvColors.Primary, fontSize = 12.sp, fontWeight = FontWeight.Black)
         Text(text = program.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun TvStreamInfoCard(format: VideoFormat, stats: PlayerStats) {
+    Row(
+        modifier = Modifier
+            .padding(vertical = 12.dp)
+            .fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        TechnicalTag(
+            label = "RES", 
+            value = if (format.width > 0) "${format.width}x${format.height}" else "--",
+            icon = Icons.Default.AspectRatio
+        )
+        
+        Spacer(Modifier.width(10.dp))
+        
+        val displayFps = if (format.frameRate > 0) format.frameRate.toInt() else 0
+        TechnicalTag(
+            label = "FPS", 
+            value = if (displayFps > 0) "$displayFps" else "--",
+            icon = Icons.Default.Speed
+        )
+
+        Spacer(Modifier.width(10.dp))
+
+        // Prefer dynamic bitrate from stats if available and high enough to be measured data
+        val displayBitrate = if (stats.videoBitrate > 100_000) stats.videoBitrate else format.bitrate
+        TechnicalTag(
+            label = "BITRATE", 
+            value = if (displayBitrate > 0) "${displayBitrate / 1000} Kb" else "LIVE",
+            icon = Icons.Default.CloudDownload
+        )
+    }
+}
+
+@Composable
+private fun TvPreviewActionButtons(
+    isFavorite: Boolean,
+    fsFocusRequester: FocusRequester,
+    favFocusRequester: FocusRequester,
+    onFullScreen: () -> Unit,
+    onToggleFavorite: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .padding(horizontal = LiveSpacing.lg, vertical = 8.dp)
+            .fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        var isFsFocused by remember { mutableStateOf(false) }
+        TvSurfaceCard(
+            onClick = onFullScreen,
+            modifier = Modifier
+                .focusRequester(fsFocusRequester)
+                .onFocusChanged { isFsFocused = it.isFocused }
+                .focusProperties {
+                    right = favFocusRequester
+                },
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.White.copy(alpha = 0.05f),
+                focusedContainerColor = Color.White
+            )
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Fullscreen, null, tint = if (isFsFocused) Color.Black else Color.White, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    stringResource(R.string.player_fullscreen),
+                    color = if (isFsFocused) Color.Black else Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(Modifier.width(12.dp))
+
+        var isFavFocused by remember { mutableStateOf(false) }
+        TvSurfaceCard(
+            onClick = onToggleFavorite,
+            modifier = Modifier
+                .focusRequester(favFocusRequester)
+                .onFocusChanged { isFavFocused = it.isFocused }
+                .focusProperties {
+                    left = fsFocusRequester
+                },
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+            colors = ClickableSurfaceDefaults.colors(
+                containerColor = Color.White.copy(alpha = 0.05f),
+                focusedContainerColor = Color.White
+            )
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                    null,
+                    tint = if (isFavFocused) Color.Black else if (isFavorite) AppColors.ArenaOrange else Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (isFavorite) stringResource(R.string.fav_remove) else stringResource(R.string.fav_add),
+                    color = if (isFavFocused) Color.Black else Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TechnicalTag(label: String, value: String, icon: ImageVector) {
+    Column(
+        modifier = Modifier
+            .widthIn(min = 85.dp)
+            .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(10.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(10.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .background(TvColors.Primary.copy(alpha = 0.1f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = TvColors.Primary,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = label,
+            color = Color.White.copy(alpha = 0.4f),
+            fontSize = 8.sp,
+            fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 1.sp
+        )
+        Spacer(Modifier.height(1.dp))
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Black
+        )
     }
 }

@@ -187,6 +187,7 @@
     <string name="player_rewind_10">رجوع 10 ثوانٍ</string>
     <string name="player_forward_10">تقدم 10 ثوانٍ</string>
     <string name="player_play_pause">تشغيل/إيقاف</string>
+    <string name="player_fullscreen">شاشة كاملة</string>
     <string name="player_diagnostics_title">تشخيصات التشغيل</string>
     <string name="diag_resolution">الدقة</string>
     <string name="diag_video_codec">ترميز الفيديو</string>

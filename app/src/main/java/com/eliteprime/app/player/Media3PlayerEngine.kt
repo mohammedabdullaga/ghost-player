@@ -16,6 +16,7 @@ import androidx.media3.common.util.ExperimentalApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.DecoderCounters
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -32,6 +33,7 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.FormatHolder
 import androidx.media3.exoplayer.DecoderReuseEvaluation
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -48,6 +50,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
+import java.util.concurrent.atomic.AtomicInteger
 import okio.Buffer
 import okio.BufferedSource
 import okio.ForwardingSource
@@ -69,6 +72,7 @@ class Media3PlayerEngine @Inject constructor(
     private val TAG = "Media3PlayerEngine"
     private var exoPlayer: ExoPlayer? = null
     private var currentTrackSelector: DefaultTrackSelector? = null
+    private var bandwidthMeter: DefaultBandwidthMeter? = null
     private var boundPlayerView: PlayerView? = null
     private var pendingRenderView: PlayerView? = null
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
@@ -84,6 +88,9 @@ class Media3PlayerEngine @Inject constructor(
     private var hasRenderedFirstFrame: Boolean = false
     private var playbackStarted: Boolean = false
     private var videoStallRecoveryAttempt: Int = 0
+    
+    private var framesRenderedSinceLastStats = AtomicInteger(0)
+    private var lastStatsTimestamp = 0L
     
     override val engineType: StateFlow<PlayerType> = MutableStateFlow(PlayerType.EXO).asStateFlow()
 
@@ -149,9 +156,10 @@ class Media3PlayerEngine @Inject constructor(
         
         // MEDIA3 1.11.0: PROVIDE HIGHER INITIAL BITRATE FOR UHD TO AVOID STARTUP FLICKER
         val initialBitrate = if (bufferPolicy.label.contains("uhd")) 15_000_000L else 2_000_000L
-        val bandwidthMeter = DefaultBandwidthMeter.Builder(context)
+        val meter = DefaultBandwidthMeter.Builder(context)
             .setInitialBitrateSupplier { initialBitrate }
             .build()
+        this.bandwidthMeter = meter
 
         val perStreamClient = okHttpClient.newBuilder()
             .connectTimeout(timeoutProfile.connectTimeoutMs, TimeUnit.MILLISECONDS)
@@ -190,7 +198,9 @@ class Media3PlayerEngine @Inject constructor(
             .build()
 
         val httpDataSourceFactory = OkHttpDataSource.Factory(perStreamClient)
+            .setTransferListener(meter)
         val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
+            .setTransferListener(meter)
         mediaSourceFactory = PlayerMediaSourceFactory(context, dataSourceFactory)
 
         val loadControl = DefaultLoadControl.Builder()
@@ -309,15 +319,18 @@ class Media3PlayerEngine @Inject constructor(
         exoPlayer = ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(newTrackSelector)
             .setLoadControl(loadControl)
-            .setBandwidthMeter(bandwidthMeter)
+            .setBandwidthMeter(meter)
             .setLivePlaybackSpeedControl(speedControl)
             .setAudioAttributes(audioAttributes, true) // FIX: Properly handle audio focus and device volume
             .build()
             .apply {
                 addListener(PlayerListener())
+                addAnalyticsListener(AnalyticsListenerImpl())
                 playWhenReady = true
+                
                 setVideoFrameMetadataListener { presentationTimeUs: Long, _: Long, _: Format, _: MediaFormat? ->
                     stallDetector.onVideoFrameRendered(presentationTimeUs / 1000)
+                    framesRenderedSinceLastStats.incrementAndGet()
                 }
                 
                 trackSelectionParameters = trackSelectionParameters.buildUpon()
@@ -508,9 +521,20 @@ class Media3PlayerEngine @Inject constructor(
                     _duration.value = exoPlayer?.duration?.coerceAtLeast(0) ?: 0
                     updateTracks()
                     val f = exoPlayer?.videoFormat
-                    val domainF = VideoFormat(f?.width ?: 0, f?.height ?: 0, f?.frameRate ?: 0f, f?.bitrate ?: 0, f?.sampleMimeType)
+                    val domainF = VideoFormat(
+                        f?.width ?: 0, 
+                        f?.height ?: 0, 
+                        f?.frameRate?.takeIf { it > 0 } ?: 0f, 
+                        f?.bitrate?.takeIf { it > 0 } ?: 0, 
+                        f?.sampleMimeType
+                    )
                     _videoFormat.value = domainF
-                    _playerStats.value = _playerStats.value.copy(width = domainF.width, height = domainF.height, videoCodec = domainF.codec ?: "")
+                    _playerStats.value = _playerStats.value.copy(
+                        width = domainF.width, 
+                        height = domainF.height, 
+                        videoCodec = domainF.codec ?: "",
+                        videoBitrate = if (domainF.bitrate > 0) domainF.bitrate else _playerStats.value.videoBitrate
+                    )
                     
                     globalPlayerState.updateSurfaceTypeForResolution(domainF.width, domainF.height)
                     promoteBufferIfNeeded(domainF)
@@ -576,6 +600,24 @@ class Media3PlayerEngine @Inject constructor(
         }
     }
 
+    private inner class AnalyticsListenerImpl : AnalyticsListener {
+        override fun onVideoInputFormatChanged(
+            eventTime: AnalyticsListener.EventTime,
+            format: Format,
+            decoderReuseEvaluation: DecoderReuseEvaluation?
+        ) {
+            val current = _videoFormat.value
+            Log.d(TAG, "Format changed: ${format.width}x${format.height} @ ${format.frameRate} fps, bitrate=${format.bitrate}")
+            _videoFormat.value = VideoFormat(
+                width = format.width.takeIf { it > 0 } ?: current.width,
+                height = format.height.takeIf { it > 0 } ?: current.height,
+                frameRate = format.frameRate.takeIf { it > 0 } ?: current.frameRate,
+                bitrate = format.bitrate.takeIf { it > 0 } ?: format.peakBitrate.takeIf { it > 0 } ?: current.bitrate,
+                codec = format.sampleMimeType ?: current.codec
+            )
+        }
+    }
+
     private fun updateTracks() {
         val tracks = exoPlayer?.currentTracks ?: return
         _availableAudioTracks.value = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }.flatMap { g ->
@@ -596,8 +638,55 @@ class Media3PlayerEngine @Inject constructor(
         positionUpdateJob?.cancel()
         positionUpdateJob = scope.launch {
             while (isActive) {
-                _currentPosition.value = exoPlayer?.currentPosition ?: 0
-                _playerStats.value = _playerStats.value.copy(bufferedDurationMs = (exoPlayer?.bufferedPosition ?: 0) - _currentPosition.value)
+                val player = exoPlayer
+                if (player != null) {
+                    val currentPos = player.currentPosition
+                    _currentPosition.value = currentPos
+                    val buffered = player.bufferedPosition - currentPos
+                    
+                    // Periodic Format Refresh for LIVE streams
+                    val f = player.videoFormat
+                    if (f != null) {
+                        val currentF = _videoFormat.value
+                        if (f.width != currentF.width || f.height != currentF.height || 
+                            (f.frameRate > 0 && f.frameRate != currentF.frameRate) || 
+                            (f.bitrate > 0 && f.bitrate != currentF.bitrate)) {
+                            
+                            val domainF = VideoFormat(
+                                f.width, f.height, 
+                                f.frameRate.takeIf { it > 0 } ?: currentF.frameRate,
+                                f.bitrate.takeIf { it > 0 } ?: currentF.bitrate,
+                                f.sampleMimeType
+                            )
+                            _videoFormat.value = domainF
+                        }
+                    }
+
+                    val currentMeterBitrate = bandwidthMeter?.bitrateEstimate?.toInt() ?: 0
+                    val playerBitrate = player.videoFormat?.bitrate ?: 0
+                    
+                    val now = System.currentTimeMillis()
+                    if (lastStatsTimestamp > 0) {
+                        val duration = now - lastStatsTimestamp
+                        if (duration >= 1000) {
+                            val frames = framesRenderedSinceLastStats.getAndSet(0)
+                            val fps = (frames * 1000f / duration)
+                            Log.d(TAG, "Measured FPS: $fps (Frames in ${duration}ms: $frames)")
+                            if (fps > 0) {
+                                val currentF = _videoFormat.value
+                                _videoFormat.value = currentF.copy(frameRate = fps)
+                            }
+                            lastStatsTimestamp = now
+                        }
+                    } else {
+                        lastStatsTimestamp = now
+                    }
+
+                    _playerStats.value = _playerStats.value.copy(
+                        bufferedDurationMs = buffered,
+                        videoBitrate = if (currentMeterBitrate > 100_000) currentMeterBitrate else if (playerBitrate > 0) playerBitrate else _playerStats.value.videoBitrate
+                    )
+                }
                 delay(1000)
             }
         }
