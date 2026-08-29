@@ -597,7 +597,7 @@ fun TvLiveTvScreen(
                     .focusProperties {
                         down = createButtonRequester
                     }
-                    .onKeyEvent { 
+                    .onPreviewKeyEvent { 
                         if (it.key == Key.DirectionDown && it.type == KeyEventType.KeyDown) {
                             createButtonRequester.requestFocus()
                             true
