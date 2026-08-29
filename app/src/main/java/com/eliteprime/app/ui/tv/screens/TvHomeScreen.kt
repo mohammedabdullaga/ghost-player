@@ -43,6 +43,7 @@ import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.data.local.entity.PlaybackHistory
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.TvExitDialog
+import com.eliteprime.app.ui.components.TvConfirmDialog
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
 import com.eliteprime.app.ui.screens.dashboard.TrendingItem
 import com.eliteprime.app.ui.theme.AppColors
@@ -100,6 +101,7 @@ fun TvHomeScreen(
     val context = LocalContext.current
     val activity = context as? Activity
     var showExitDialog by remember { mutableStateOf(false) }
+    var historyToRemove by remember { mutableStateOf<PlaybackHistory?>(null) }
 
     BackHandler {
         showExitDialog = true
@@ -109,6 +111,22 @@ fun TvHomeScreen(
         TvExitDialog(
             onConfirm = { activity?.finish() },
             onDismiss = { showExitDialog = false }
+        )
+    }
+
+    if (historyToRemove != null) {
+        val target = historyToRemove!!
+        TvConfirmDialog(
+            title = stringResource(R.string.history_remove_title),
+            message = stringResource(R.string.history_remove_msg, target.name),
+            confirmText = stringResource(R.string.generic_remove),
+            confirmColor = Color(0xFFEF5350),
+            icon = Icons.Default.Delete,
+            onConfirm = {
+                viewModel.removeFromHistory(target)
+                historyToRemove = null
+            },
+            onDismiss = { historyToRemove = null }
         )
     }
 
@@ -135,12 +153,115 @@ fun TvHomeScreen(
     val isReducedTier = tier == RenderTier.REDUCED
     val isLite = DeviceRenderProfile.isLiteMode()
 
+    val content: @Composable () -> Unit = {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 48.dp)
+        ) {
+            // --- HERO METADATA (Upper section) ---
+            item {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 24.dp, top = 64.dp, end = 24.dp, bottom = 32.dp) // INCREASED START PADDING
+                ) {
+                    if (displayHero != null) {
+                        TvHeroMetadataPanel(displayHero)
+                    } else {
+                        Spacer(Modifier.height(160.dp))
+                    }
+                }
+            }
+
+            // --- MAIN CONTENT ROWS ---
+            item {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // 1. TRENDING ROW (with Tabs)
+                    TvHomeRowContainer(
+                        title = stringResource(R.string.home_trending_title),
+                        headerContent = {
+                            Row(
+                                modifier = Modifier.padding(start = 24.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                TvTrendingTab(
+                                    label = stringResource(R.string.filter_movies),
+                                    isSelected = selectedTrendingType == "movie",
+                                    onClick = { selectedTrendingType = "movie" }
+                                )
+                                TvTrendingTab(
+                                    label = stringResource(R.string.filter_series),
+                                    isSelected = selectedTrendingType == "series",
+                                    onClick = { selectedTrendingType = "series" }
+                                )
+                            }
+                        }
+                    ) {
+                        val showLoading = uiState.isTrendingLoading && trendingItems.isEmpty()
+                        
+                        LaunchedEffect(trendingItems.size) {
+                            if (trendingItems.isNotEmpty()) {
+                                Log.e("HOME_TRACE", "UI: Showing TRENDING LIST (" + trendingItems.size + " items) at " + System.currentTimeMillis())
+                            }
+                        }
+
+                        if (showLoading) {
+                            Box(modifier = Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = TvColors.Primary)
+                            }
+                        } else {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                                contentPadding = PaddingValues(horizontal = 24.dp) // INCREASED PADDING FOR FOCUS ROOM
+                            ) {
+                                itemsIndexed(trendingItems) { index, item ->
+                                    val modifier = if (index == 0) Modifier.focusRequester(firstItemRequester) else Modifier
+                                    TvMiniPosterCard(
+                                        item = item,
+                                        modifier = modifier.onFocusChanged { if (it.isFocused) focusedHero = item.toHeroInfo() },
+                                        onClick = {
+                                            if (item.localMatch is Movie) onMovieClick(item.localMatch)
+                                            else if (item.localMatch is Series) onSeriesClick(item.localMatch)
+                                            else onNavigateToTrending()
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (uiState.continueWatching.isNotEmpty()) {
+                        TvHomeRowContainer(title = stringResource(R.string.home_continue_watching)) {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                contentPadding = PaddingValues(horizontal = 24.dp) // INCREASED PADDING FOR FOCUS ROOM
+                            ) {
+                                uiState.continueWatching.take(10).forEach { history ->
+                                    item {
+                                        TvMiniHistoryCard(
+                                            history = history, 
+                                            modifier = Modifier.onFocusChanged { if (it.isFocused) focusedHero = history.toHeroInfo() },
+                                            onClick = { onResumeHistoryItem(history) },
+                                            onLongClick = { historyToRemove = history }
+                                        )
+                                    }
+                                }
+                                item {
+                                    TvViewAllButton(onClick = onNavigateToContinueWatching)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
-        // --- 1. DYNAMIC THEATER BACKDROP (Disabled in Lite Mode for performance) ---
         if (!isLite) {
             Box(modifier = Modifier.fillMaxSize()) {
                 if (isReducedTier) {
-                    // Instant load without Crossfade animations on low-end TV GPU
                     AsyncImage(
                         model = displayHero?.backdropUrl ?: displayHero?.posterUrl,
                         contentDescription = null,
@@ -149,7 +270,7 @@ fun TvHomeScreen(
                         alpha = 0.45f
                     )
                 } else {
-                    Crossfade(targetState = displayHero, animationSpec = tween(600), label = "heroBg") { hero ->
+                    Crossfade(targetState = displayHero, animationSpec = tween(1000), label = "heroBg") { hero ->
                         AsyncImage(
                             model = hero?.backdropUrl ?: hero?.posterUrl,
                             contentDescription = null,
@@ -159,142 +280,13 @@ fun TvHomeScreen(
                         )
                     }
                 }
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            remember {
-                                Brush.verticalGradient(
-                                    colors = listOf(Color.Black.copy(alpha = 0.3f), Color.Transparent, Color.Black.copy(alpha = 0.7f)),
-                                    startY = 0f,
-                                    endY = Float.POSITIVE_INFINITY
-                                )
-                            }
-                        )
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            remember {
-                                Brush.horizontalGradient(
-                                    colors = listOf(Color.Black.copy(alpha = 0.4f), Color.Transparent),
-                                    endX = 800f
-                                )
-                            }
-                        )
-                )
+                Box(modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f)), startY = 400f)))
+                Box(modifier = Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent), endX = 1000f)))
             }
-        }
-
-        // --- 2. STRUCTURED LAYOUT ---
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 48.dp)) {
-            
-            // A. TOP METADATA PANEL (Positioned below Shell's Top Bar)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp, bottom = 0.dp) // Reduced bottom padding
-                    .height(160.dp),
-                contentAlignment = Alignment.TopStart
-            ) {
-                if (displayHero != null) {
-                    TvHeroMetadataPanel(displayHero)
-                }
-            }
-
-            // B. CONTENT ROWS
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.Top // Changed from Center to bring it closer to top
-            ) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp), // Increased slightly for breathing room
-                    contentPadding = PaddingValues(bottom = 48.dp)
-                ) {
-                    // TRENDING ROW WITH TABS
-                    item {
-                        TvHomeRowContainer(
-                            title = stringResource(R.string.home_trending_title),
-                            headerContent = {
-                                Row(
-                                    modifier = Modifier.padding(start = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    TvTrendingTab(
-                                        label = stringResource(R.string.nav_movies),
-                                        isSelected = selectedTrendingType == "movie",
-                                        onClick = { selectedTrendingType = "movie" }
-                                    )
-                                    TvTrendingTab(
-                                        label = stringResource(R.string.nav_series),
-                                        isSelected = selectedTrendingType == "series",
-                                        onClick = { selectedTrendingType = "series" }
-                                    )
-                                }
-                            }
-                        ) {
-                            val showLoading = trendingItems.isEmpty() && uiState.isTrendingLoading
-                            SideEffect {
-                                if (showLoading) {
-                                    Log.e("HOME_TRACE", "UI: Showing TRENDING SPINNER at " + System.currentTimeMillis())
-                                } else if (trendingItems.isNotEmpty()) {
-                                    Log.e("HOME_TRACE", "UI: Showing TRENDING LIST (" + trendingItems.size + " items) at " + System.currentTimeMillis())
-                                }
-                            }
-
-                            if (showLoading) {
-                                Box(modifier = Modifier.fillMaxWidth().height(180.dp), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(color = TvColors.Primary)
-                                }
-                            } else {
-                                LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                                    contentPadding = PaddingValues(horizontal = 24.dp) // INCREASED PADDING FOR FOCUS ROOM
-                                ) {
-                                    itemsIndexed(trendingItems) { index, item ->
-                                        val modifier = if (index == 0) Modifier.focusRequester(firstItemRequester) else Modifier
-                                        TvMiniPosterCard(
-                                            item = item,
-                                            modifier = modifier.onFocusChanged { if (it.isFocused) focusedHero = item.toHeroInfo() },
-                                            onClick = {
-                                                if (item.localMatch is Movie) onMovieClick(item.localMatch)
-                                                else if (item.localMatch is Series) onSeriesClick(item.localMatch)
-                                                else onNavigateToTrending()
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (uiState.continueWatching.isNotEmpty()) {
-                        item {
-                            TvHomeRowContainer(title = stringResource(R.string.home_continue_watching)) {
-                                LazyRow(
-                                    horizontalArrangement = Arrangement.spacedBy(20.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    contentPadding = PaddingValues(horizontal = 24.dp) // INCREASED PADDING FOR FOCUS ROOM
-                                ) {
-                                    uiState.continueWatching.take(10).forEach { history ->
-                                        item {
-                                            TvMiniHistoryCard(
-                                                history = history, 
-                                                modifier = Modifier.onFocusChanged { if (it.isFocused) focusedHero = history.toHeroInfo() },
-                                                onClick = { onResumeHistoryItem(history) }
-                                            )
-                                        }
-                                    }
-                                    item {
-                                        TvViewAllButton(onClick = onNavigateToContinueWatching)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+            content()
+        } else {
+            AppBackground {
+                content()
             }
         }
     }
@@ -421,13 +413,19 @@ private fun TvMiniPosterCard(item: TrendingItem<*>, modifier: Modifier = Modifie
 }
 
 @Composable
-private fun TvMiniHistoryCard(history: PlaybackHistory, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun TvMiniHistoryCard(
+    history: PlaybackHistory, 
+    modifier: Modifier = Modifier, 
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
     val tier = LocalRenderTier.current
     val isReducedTier = tier == RenderTier.REDUCED
     var isFocused by remember { mutableStateOf(false) }
 
     TvSurfaceCard(
         onClick = onClick,
+        onLongClick = onLongClick,
         modifier = modifier.width(195.dp).aspectRatio(16f / 9f).onFocusChanged { isFocused = it.isFocused },
         scale = ClickableSurfaceDefaults.scale(focusedScale = if (isReducedTier) 1.05f else 1.1f),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp))
