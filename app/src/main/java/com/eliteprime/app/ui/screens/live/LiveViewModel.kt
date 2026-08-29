@@ -113,48 +113,55 @@ class LiveViewModel @Inject constructor(
         val currentSelected = allCategories.find { it.id == currentId } ?: allCategories.firstOrNull() ?: return@combine emptyList<LiveStream>()
         val limit = (page + 1) * PAGE_SIZE
 
-        val baseChannels = when (currentId) {
-            CAT_ID_FAVORITES -> {
-                val favs = liveBox.query()
-                    .equal(LiveStream_.isFavorite, true)
-                    .order(LiveStream_.order)
-                    .build().find(0, limit.toLong())
-                if (favs.isEmpty() && selectedId == null) {
-                    val fallback = allCategories.firstOrNull { !it.isVirtual }
-                    if (fallback != null) {
-                        liveBox.query()
-                            .equal(LiveStream_.remoteCategoryId, fallback.categoryId, StringOrder.CASE_INSENSITIVE)
-                            .order(LiveStream_.order)
-                            .build().find(0, limit.toLong())
-                    } else favs
-                } else favs
-            }
-            CAT_ID_RECENT -> {
-                liveBox.query()
-                    .greater(LiveStream_.lastWatchedAt, 0L)
-                    .orderDesc(LiveStream_.lastWatchedAt)
-                    .build()
-                    .find(0, 50)
-            }
-            else -> {
-                if (currentId >= 1000000) {
-                    val realGroupId = currentId - 1000000
-                    val memberships = groupMembershipBox.query()
-                        .equal(GroupMembership_.groupId, realGroupId)
-                        .order(GroupMembership_.order)
-                        .build().find(0, limit.toLong())
-                    val streamIds = memberships.map { it.streamId }
-                    liveBox.get(streamIds).filterNotNull()
-                } else {
-                    liveBox.query()
-                        .equal(LiveStream_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+        if (query.isNotEmpty()) {
+            liveBox.query()
+                .contains(LiveStream_.name, query, StringOrder.CASE_INSENSITIVE)
+                .order(LiveStream_.order)
+                .build()
+                .find(0, limit.toLong())
+                .filter { !it.isHidden }
+        } else {
+            val baseChannels = when (currentId) {
+                CAT_ID_FAVORITES -> {
+                    val favs = liveBox.query()
+                        .equal(LiveStream_.isFavorite, true)
                         .order(LiveStream_.order)
                         .build().find(0, limit.toLong())
+                    if (favs.isEmpty() && selectedId == null) {
+                        val fallback = allCategories.firstOrNull { !it.isVirtual }
+                        if (fallback != null) {
+                            liveBox.query()
+                                .equal(LiveStream_.remoteCategoryId, fallback.categoryId, StringOrder.CASE_INSENSITIVE)
+                                .order(LiveStream_.order)
+                                .build().find(0, limit.toLong())
+                        } else favs
+                    } else favs
+                }
+                CAT_ID_RECENT -> {
+                    liveBox.query()
+                        .greater(LiveStream_.lastWatchedAt, 0L)
+                        .orderDesc(LiveStream_.lastWatchedAt)
+                        .build()
+                        .find(0, 50)
+                }
+                else -> {
+                    if (currentId >= 1000000) {
+                        val realGroupId = currentId - 1000000
+                        val memberships = groupMembershipBox.query()
+                            .equal(GroupMembership_.groupId, realGroupId)
+                            .order(GroupMembership_.order)
+                            .build().find(0, limit.toLong())
+                        val streamIds = memberships.map { it.streamId }
+                        liveBox.get(streamIds).filterNotNull()
+                    } else {
+                        liveBox.query()
+                            .equal(LiveStream_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+                            .order(LiveStream_.order)
+                            .build().find(0, limit.toLong())
+                    }
                 }
             }
-        }
-        baseChannels.filter { 
-            !it.isHidden && (query.isEmpty() || it.name.contains(query, ignoreCase = true)) 
+            baseChannels.filter { !it.isHidden }
         }
     }.flowOn(Dispatchers.IO)
 

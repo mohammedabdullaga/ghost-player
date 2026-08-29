@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -33,8 +34,12 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.intl.Locale
+import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
@@ -106,6 +111,9 @@ fun TvLiveTvScreen(
 
     var lastFocusedCategoryId by remember { mutableStateOf<Long?>(null) }
     var lastFocusedChannelId by remember { mutableStateOf<Long?>(null) }
+    var searchText by remember { mutableStateOf("") }
+
+    LaunchedEffect(searchText) { delay(300); viewModel.setSearchQuery(searchText) }
 
     val scope = rememberCoroutineScope()
     val categoryListState = rememberLazyListState()
@@ -290,16 +298,64 @@ fun TvLiveTvScreen(
 
                     // --- 2. CHANNELS ---
                     Column(modifier = Modifier.weight(CHANNELS_PANE_WEIGHT).fillMaxHeight()) {
+                        var isSearchFocused by remember { mutableStateOf(false) }
+                        var isSearchEditing by remember { mutableStateOf(false) }
+                        val keyboardController = LocalSoftwareKeyboardController.current
+
+                        LaunchedEffect(isSearchEditing) {
+                            if (isSearchEditing) { delay(100); keyboardController?.show() }
+                        }
+
                         Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = if (uiState.isChannelReorderMode) stringResource(R.string.channel_reorder) else (uiState.selectedCategory?.categoryName ?: "").uppercase(),
-                                color = TvColors.TextSecondary,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 11.sp,
-                                letterSpacing = 1.5.sp
-                            )
+                            if (uiState.isChannelReorderMode) {
+                                Text(
+                                    text = stringResource(R.string.channel_reorder).uppercase(),
+                                    color = TvColors.TextSecondary,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 11.sp,
+                                    letterSpacing = 1.5.sp
+                                )
+                            } else {
+                                OutlinedTextField(
+                                    value = searchText,
+                                    onValueChange = { searchText = it },
+                                    placeholder = { Text(stringResource(R.string.nav_search) + "...", color = Color.White.copy(alpha = 0.35f), fontSize = 11.sp) },
+                                    textStyle = TextStyle(color = Color.White, fontSize = 11.sp),
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp).height(44.dp)
+                                        .onFocusChanged {
+                                            isSearchFocused = it.isFocused
+                                            if (!it.isFocused) isSearchEditing = false
+                                        }
+                                        .onKeyEvent { keyEvent ->
+                                            if (isSearchFocused && !isSearchEditing) {
+                                                if (keyEvent.type == KeyEventType.KeyUp &&
+                                                    (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter)) {
+                                                    isSearchEditing = true
+                                                    return@onKeyEvent true
+                                                }
+                                            }
+                                            false
+                                        },
+                                    readOnly = !isSearchEditing,
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(
+                                        hintLocales = LocaleList(Locale("ar"), Locale("en"))
+                                    ),
+                                    trailingIcon = {
+                                        Icon(Icons.Default.Search, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(16.dp))
+                                    },
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = AppColors.ArenaOrange,
+                                        unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                                        cursorColor = AppColors.ArenaOrange,
+                                        focusedContainerColor = Color.Transparent,
+                                        unfocusedContainerColor = Color.Transparent
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                            }
 
                             if (uiState.isChannelReorderMode) {
                                 var isDoneFocused by remember { mutableStateOf(false) }
@@ -915,7 +971,7 @@ private fun TvDialogActionItem(
 private fun TvEpgItem(program: EPGProgram) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         val time = remember(program.startTimestamp) {
-            SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(program.startTimestamp))
+            SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(Date(program.startTimestamp))
         }
         Text(text = time, color = TvColors.Primary, fontSize = 12.sp, fontWeight = FontWeight.Black)
         Text(text = program.title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
