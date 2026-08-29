@@ -95,11 +95,11 @@ class SeriesViewModel @Inject constructor(
         val limit = (page + 1) * PAGE_SIZE
 
         if (query.isNotEmpty()) {
-            val qb = seriesBox.query().contains(Series_.name, query, StringOrder.CASE_INSENSITIVE)
-            if (currentId > 0) {
-                qb.equal(Series_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
-            }
-            qb.order(Series_.order).build().find(0, limit.toLong())
+            seriesBox.query()
+                .contains(Series_.name, query, StringOrder.CASE_INSENSITIVE)
+                .order(Series_.order)
+                .build()
+                .find(0, limit.toLong())
         } else {
             when (currentId) {
                 CAT_ID_RECENTLY_ADDED -> {

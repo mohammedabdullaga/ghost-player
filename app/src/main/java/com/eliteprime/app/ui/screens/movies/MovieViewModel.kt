@@ -96,11 +96,11 @@ class MovieViewModel @Inject constructor(
         val limit = (page + 1) * PAGE_SIZE
 
         if (query.isNotEmpty()) {
-            val qb = movieBox.query().contains(Movie_.name, query, StringOrder.CASE_INSENSITIVE)
-            if (currentId > 0) {
-                qb.equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
-            }
-            qb.order(Movie_.order).build().find(0, limit.toLong())
+            movieBox.query()
+                .contains(Movie_.name, query, StringOrder.CASE_INSENSITIVE)
+                .order(Movie_.order)
+                .build()
+                .find(0, limit.toLong())
         } else {
             when (currentId) {
                 CAT_ID_RECENTLY_ADDED -> {

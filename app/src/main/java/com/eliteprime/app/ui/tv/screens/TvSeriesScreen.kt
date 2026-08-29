@@ -8,6 +8,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -39,6 +40,8 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.intl.Locale
+import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -222,6 +225,9 @@ fun TvSeriesScreen(
                         },
                     readOnly = !isSearchEditing,
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        hintLocales = LocaleList(Locale("ar"), Locale("en"))
+                    ),
                     trailingIcon = {
                         Icon(Icons.Default.Search, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
                     },

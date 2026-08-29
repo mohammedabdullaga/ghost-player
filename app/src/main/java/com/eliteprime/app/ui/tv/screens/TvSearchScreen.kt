@@ -145,7 +145,7 @@ fun TvSearchScreen(
                         unfocusedContainerColor = Color.White.copy(alpha = 0.05f)
                     ),
                     keyboardOptions = KeyboardOptions(
-                        hintLocales = LocaleList(Locale("en"), Locale("ar"))
+                        hintLocales = LocaleList(Locale("ar"), Locale("en"))
                     ),
                     singleLine = true,
                     shape = RoundedCornerShape(10.dp)

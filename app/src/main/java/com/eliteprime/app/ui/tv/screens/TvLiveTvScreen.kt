@@ -668,26 +668,26 @@ private fun TvCategoryItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    // Every row is its own soft bubble at rest; selection indicator is
-    // now a full-height accent bar (not a small fixed box), which reads
-    // more like a proper nav-rail selection than a decorative tick.
     var isFocused by remember { mutableStateOf(false) }
-    TvSurfaceCard(
+    val isLite = DeviceRenderProfile.isLiteMode()
+
+    TvSurface(
         onClick = onClick,
         onLongClick = onLongClick,
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 44.dp)
+            .height(52.dp)
             .onFocusChanged { isFocused = it.isFocused },
-        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f),
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(LiveRadius.row)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = if (isLite) 1.0f else 1.02f),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.045f),
-            focusedContainerColor = Color.White
+            containerColor = Color.Transparent, 
+            focusedContainerColor = Color.Transparent,
+            pressedContainerColor = Color.White.copy(alpha = 0.1f)
         ),
         border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-            border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+            border = Border.None, 
+            focusedBorder = Border(BorderStroke(1.5.dp, AppColors.ArenaOrange))
         )
     ) {
         Row(
@@ -696,28 +696,27 @@ private fun TvCategoryItem(
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxHeight()
+                    .fillMaxHeight(0.6f)
                     .width(3.dp)
-                    .background(if (isSelected || isFocused) AppColors.ArenaOrange else Color.Transparent)
+                    .background(if (isSelected) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(2.dp))
             )
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = category.categoryName,
-                color = if (isFocused) Color.Black else Color.White,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isSelected || isFocused) FontWeight.Bold else FontWeight.Normal,
-                maxLines = 1, // Changed to 1 line to better handle counts on the side
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = if (isFocused) FontWeight.Black else FontWeight.Bold,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                lineHeight = 16.sp,
-                modifier = Modifier.weight(1f).padding(start = LiveSpacing.md, end = 8.dp, top = 10.dp, bottom = 10.dp)
+                modifier = Modifier.weight(1f)
             )
             if (count != null) {
                 Text(
                     text = count.toString(),
-                    color = if (isFocused) Color.Black.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.5f),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontSize = 10.sp,
+                    color = Color.White.copy(alpha = 0.45f),
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(end = 12.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp)
                 )
             }
         }
@@ -732,17 +731,15 @@ private fun TvChannelItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
-    // Larger logo tile and bigger type — easier to read at TV viewing
-    // distance. Selected (previewed) channel gets a bright outlined
-    // border layered over its resting bubble fill.
     var isFocused by remember { mutableStateOf(false) }
     val layoutDirection = LocalLayoutDirection.current
+    val isLite = DeviceRenderProfile.isLiteMode()
 
-    TvSurfaceCard(
+    TvSurface(
         onClick = onClick,
         onLongClick = onLongClick,
         modifier = modifier
-            .heightIn(min = 52.dp)
+            .height(52.dp)
             .onFocusChanged { isFocused = it.isFocused }
             .focusProperties {
                 if (layoutDirection == LayoutDirection.Ltr) {
@@ -751,39 +748,49 @@ private fun TvChannelItem(
                     left = FocusRequester.Cancel
                 }
             },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(LiveRadius.row)),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = if (isLite) 1.0f else 1.02f),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.045f),
-            focusedContainerColor = Color.White
+            containerColor = Color.Transparent,
+            focusedContainerColor = Color.Transparent,
+            pressedContainerColor = Color.White.copy(alpha = 0.1f)
         ),
         border = ClickableSurfaceDefaults.border(
-            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-            border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+            border = Border.None,
+            focusedBorder = Border(BorderStroke(1.5.dp, AppColors.ArenaOrange))
         )
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = LiveSpacing.md, vertical = LiveSpacing.sm),
+            modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.size(40.dp).clip(RoundedCornerShape(LiveRadius.chip)).background(Color.White.copy(alpha = 0.07f)), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight(0.6f)
+                    .width(3.dp)
+                    .background(if (isSelected) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(2.dp))
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Box(modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.07f)), contentAlignment = Alignment.Center) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(channel.streamIcon)
-                        .size(Size(120, 120))
+                        .size(Size(100, 100))
                         .precision(Precision.INEXACT)
                         .build(),
                     contentDescription = null, 
-                    modifier = Modifier.fillMaxSize().padding(5.dp)
+                    modifier = Modifier.fillMaxSize().padding(4.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(LiveSpacing.md))
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = channel.name,
-                color = if (isFocused) Color.Black else Color.White,
+                color = Color.White,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = if (isFocused) FontWeight.Black else FontWeight.Bold,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
         }
     }
