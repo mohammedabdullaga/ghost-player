@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -347,12 +348,14 @@ fun TvLiveTvScreen(
                                     letterSpacing = 1.5.sp
                                 )
                             } else {
-                                OutlinedTextField(
+                                BasicTextField(
                                     value = searchText,
                                     onValueChange = { searchText = it },
-                                    placeholder = { Text(stringResource(R.string.nav_search) + "...", color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp) },
                                     textStyle = TextStyle(color = Color.White, fontSize = 11.sp),
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp).height(44.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 4.dp)
+                                        .height(40.dp)
                                         .onFocusChanged {
                                             isSearchFocused = it.isFocused
                                             if (!it.isFocused) isSearchEditing = false
@@ -366,23 +369,40 @@ fun TvLiveTvScreen(
                                                 }
                                             }
                                             false
-                                        },
+                                        }
+                                        .border(
+                                            1.dp,
+                                            if (isSearchFocused) AppColors.ArenaOrange else Color.White.copy(alpha = 0.15f),
+                                            RoundedCornerShape(8.dp)
+                                        ),
+                                    decorationBox = { innerTextField ->
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(modifier = Modifier.weight(1f)) {
+                                                if (searchText.isEmpty()) {
+                                                    Text(
+                                                        text = stringResource(R.string.nav_search) + "...",
+                                                        color = Color.White.copy(alpha = 0.35f),
+                                                        fontSize = 10.sp
+                                                    )
+                                                }
+                                                innerTextField()
+                                            }
+                                            Icon(
+                                                Icons.Default.Search,
+                                                null,
+                                                tint = AppColors.ArenaOrange,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    },
                                     readOnly = !isSearchEditing,
                                     singleLine = true,
                                     keyboardOptions = KeyboardOptions(
                                         hintLocales = LocaleList(Locale("ar"), Locale("en"))
-                                    ),
-                                    trailingIcon = {
-                                        Icon(Icons.Default.Search, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(16.dp))
-                                    },
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        focusedBorderColor = AppColors.ArenaOrange,
-                                        unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
-                                        cursorColor = AppColors.ArenaOrange,
-                                        focusedContainerColor = Color.Transparent,
-                                        unfocusedContainerColor = Color.Transparent
-                                    ),
-                                    shape = RoundedCornerShape(8.dp)
+                                    )
                                 )
                             }
 
