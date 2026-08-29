@@ -350,7 +350,7 @@ fun TvLiveTvScreen(
                                 OutlinedTextField(
                                     value = searchText,
                                     onValueChange = { searchText = it },
-                                    placeholder = { Text(stringResource(R.string.nav_search) + "...", color = Color.White.copy(alpha = 0.35f), fontSize = 11.sp) },
+                                    placeholder = { Text(stringResource(R.string.nav_search) + "...", color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp) },
                                     textStyle = TextStyle(color = Color.White, fontSize = 11.sp),
                                     modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp).height(44.dp)
                                         .onFocusChanged {

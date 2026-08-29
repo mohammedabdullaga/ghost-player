@@ -206,8 +206,8 @@ fun TvSeriesScreen(
                 OutlinedTextField(
                     value = searchText,
                     onValueChange = { searchText = it },
-                    placeholder = { Text("Search series...", color = Color.White.copy(alpha = 0.35f), fontSize = 13.sp) },
-                    textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+                    placeholder = { Text("Search series...", color = Color.White.copy(alpha = 0.35f), fontSize = 10.sp) },
+                    textStyle = TextStyle(color = Color.White, fontSize = 11.sp),
                     modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 20.dp, bottom = 16.dp).height(44.dp)
                         .onFocusChanged {
                             isSearchFocused = it.isFocused
