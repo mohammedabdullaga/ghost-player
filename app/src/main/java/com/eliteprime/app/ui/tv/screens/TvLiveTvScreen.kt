@@ -241,8 +241,8 @@ fun TvLiveTvScreen(
                         LazyColumn(
                             state = categoryListState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 10.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             itemsIndexed(uiState.categories, key = { _, cat -> cat.id }) { index, category ->
                                 val requester = if (index == 0) firstCategoryRequester else categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
@@ -280,8 +280,6 @@ fun TvLiveTvScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(4.dp))
-
                     // --- 2. CHANNELS ---
                     Column(modifier = Modifier.weight(CHANNELS_PANE_WEIGHT).fillMaxHeight()) {
                         Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp),
@@ -318,8 +316,8 @@ fun TvLiveTvScreen(
                         LazyColumn(
                             state = channelListState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = LiveSpacing.sm, vertical = LiveSpacing.sm),
-                            verticalArrangement = Arrangement.spacedBy(LiveSpacing.xs)
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             itemsIndexed(uiState.filteredChannels, key = { _, c -> c.id }) { index, channel ->
                                 val requester = if (index == 0) firstChannelRequester else channelFocusRequesters.getOrPut(channel.id) { FocusRequester() }
@@ -356,8 +354,6 @@ fun TvLiveTvScreen(
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.width(4.dp))
 
                     // --- 3. PREVIEW & EPG (hero style) ---
                     Column(modifier = Modifier.weight(PREVIEW_PANE_WEIGHT).fillMaxHeight()) {
@@ -700,11 +696,11 @@ private fun TvCategoryItem(
                     .width(3.dp)
                     .background(if (isSelected) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(2.dp))
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = category.categoryName,
                 color = Color.White,
-                fontSize = 15.sp,
+                fontSize = 13.sp,
                 fontWeight = if (isFocused) FontWeight.Black else FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -714,9 +710,9 @@ private fun TvCategoryItem(
                 Text(
                     text = count.toString(),
                     color = Color.White.copy(alpha = 0.45f),
-                    fontSize = 13.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 12.dp)
+                    modifier = Modifier.padding(end = 4.dp)
                 )
             }
         }
@@ -761,7 +757,7 @@ private fun TvChannelItem(
         )
     ) {
         Row(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -770,7 +766,7 @@ private fun TvChannelItem(
                     .width(3.dp)
                     .background(if (isSelected) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(2.dp))
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Box(modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.07f)), contentAlignment = Alignment.Center) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -782,11 +778,11 @@ private fun TvChannelItem(
                     modifier = Modifier.fillMaxSize().padding(4.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = channel.name,
                 color = Color.White,
-                fontSize = 15.sp,
+                fontSize = 13.sp,
                 fontWeight = if (isFocused) FontWeight.Black else FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
