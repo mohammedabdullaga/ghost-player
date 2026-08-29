@@ -67,9 +67,9 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-private const val CATEGORIES_PANE_WEIGHT = 0.24f
-private const val CHANNELS_PANE_WEIGHT = 0.36f
-private const val PREVIEW_PANE_WEIGHT = 0.40f
+private const val CATEGORIES_PANE_WEIGHT = 0.27f
+private const val CHANNELS_PANE_WEIGHT = 0.28f
+private const val PREVIEW_PANE_WEIGHT = 0.48f
 
 // Shared spacing/radius scale for this screen — keeps every row, gap,
 // and corner consistent instead of scattered magic numbers.
