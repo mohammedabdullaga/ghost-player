@@ -2,6 +2,7 @@ package com.eliteprime.app.ui.tv.screens
 
 import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,6 +21,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -78,8 +80,6 @@ private const val CATEGORIES_PANE_WEIGHT = 0.27f
 private const val CHANNELS_PANE_WEIGHT = 0.28f
 private const val PREVIEW_PANE_WEIGHT = 0.48f
 
-// Shared spacing/radius scale for this screen — keeps every row, gap,
-// and corner consistent instead of scattered magic numbers.
 private object LiveSpacing {
     val xs = 6.dp
     val sm = 10.dp
@@ -103,6 +103,7 @@ fun TvLiveTvScreen(
     val epgList by viewModel.currentEpg.collectAsState()
     val videoFormat by viewModel.playerEngine.videoFormat.collectAsState()
     val playerStats by viewModel.playerEngine.playerStats.collectAsState()
+    val selectedReorderIds by viewModel.selectedReorderCategoryIds.collectAsState()
 
     var showAddGroupDialog by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
@@ -139,13 +140,11 @@ fun TvLiveTvScreen(
         )
     }
 
-    // COMMUNICATE WITH SHELL TO LOCK NAVBAR
     val focusManager = LocalTvFocusManager.current
     LaunchedEffect(isAnyPopupOpen) {
         focusManager.value = isAnyPopupOpen
     }
 
-    // AUTO-PREVIEW FIRST CHANNEL IF NONE IS PREVIEWED
     LaunchedEffect(uiState.filteredChannels) {
         if (previewChannel == null && uiState.filteredChannels.isNotEmpty()) {
             val first = uiState.filteredChannels.first()
@@ -155,7 +154,7 @@ fun TvLiveTvScreen(
 
     DisposableEffect(Unit) {
         onDispose {
-            focusManager.value = false // RESET ON LEAVE
+            focusManager.value = false 
             if (viewModel.globalPlayerState.mode.value != PlayerViewMode.FULLSCREEN) {
                 viewModel.globalPlayerState.hide()
                 viewModel.playerEngine.stop()
@@ -177,7 +176,6 @@ fun TvLiveTvScreen(
         }
     }
 
-    // ROBUST FOCUS RESTORATION: Request focus immediately when popup closes
     LaunchedEffect(isAnyPopupOpen) {
         if (!isAnyPopupOpen) {
             try {
@@ -186,7 +184,7 @@ fun TvLiveTvScreen(
                 } else if (lastFocusedCategoryId != null) {
                     categoryFocusRequesters[lastFocusedCategoryId]?.requestFocus()
                 }
-            } catch (e: Exception) {}
+            } catch (_: Exception) {}
         }
     }
 
@@ -196,104 +194,118 @@ fun TvLiveTvScreen(
             backgroundColor = TvColors.GlassBase,
             shape = RoundedCornerShape(LiveRadius.pane)
         ) {
-                Row(modifier = Modifier.fillMaxSize()) {
-                    // --- 1. CATEGORIES (tonal rail) ---
-                    Column(
-                        modifier = Modifier
-                            .weight(CATEGORIES_PANE_WEIGHT)
-                            .fillMaxHeight()
-                            .background(Color.Black.copy(alpha = 0.18f))
+            Row(modifier = Modifier.fillMaxSize()) {
+                // --- 1. CATEGORIES ---
+                Column(
+                    modifier = Modifier
+                        .weight(if (uiState.isCategoryReorderMode) 0.45f else CATEGORIES_PANE_WEIGHT)
+                        .fillMaxHeight()
+                        .background(Color.Black.copy(alpha = 0.18f))
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (uiState.isCategoryReorderMode) stringResource(R.string.group_reorder) else stringResource(R.string.generic_groups),
-                                color = TvColors.TextSecondary,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 11.sp,
-                                letterSpacing = 1.5.sp
-                            )
+                        Text(
+                            text = if (uiState.isCategoryReorderMode) stringResource(R.string.group_reorder) else stringResource(R.string.generic_groups),
+                            color = TvColors.TextSecondary,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 11.sp,
+                            letterSpacing = 1.5.sp
+                        )
 
-                            if (uiState.isCategoryReorderMode) {
-                                var isDoneFocused by remember { mutableStateOf(false) }
-                                TvSurfaceCard(
-                                    onClick = { viewModel.saveCategoryOrder() },
-                                    modifier = Modifier.align(Alignment.CenterEnd).height(32.dp).onFocusChanged { isDoneFocused = it.isFocused },
-                                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
-                                    colors = ClickableSurfaceDefaults.colors(containerColor = AppColors.ArenaOrange.copy(alpha = 0.25f), focusedContainerColor = Color.White),
-                                    border = ClickableSurfaceDefaults.border(
-                                        focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-                                        border = Border(BorderStroke(2.dp, AppColors.ArenaOrange.copy(alpha = 0.85f)))
-                                    )
-                                ) {
-                                    Box(modifier = Modifier.fillMaxHeight(), contentAlignment = Alignment.Center) {
-                                        Text(stringResource(R.string.generic_done), color = if (isDoneFocused) Color.Black else Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp, modifier = Modifier.padding(horizontal = 12.dp))
-                                    }
-                                }
-                            } else {
-                                var isAddFocused by remember { mutableStateOf(false) }
-                                TvSurfaceCard(
-                                    onClick = { showAddGroupDialog = true },
-                                    modifier = Modifier.align(Alignment.CenterEnd).size(32.dp).focusRequester(addGroupFocusRequester).onFocusChanged { isAddFocused = it.isFocused },
-                                    shape = ClickableSurfaceDefaults.shape(CircleShape),
-                                    colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Add,
-                                        contentDescription = null,
-                                        tint = if (isAddFocused) Color.Black else AppColors.ArenaOrange,
-                                        modifier = Modifier.size(18.dp).align(Alignment.Center)
-                                    )
-                                }
-                            }
-                        }
-                        HorizontalDivider(color = TvColors.GlassBorder)
-
-                        LazyColumn(
-                            state = categoryListState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
-                            verticalArrangement = Arrangement.spacedBy(1.dp)
-                        ) {
-                            itemsIndexed(uiState.categories, key = { _, cat -> cat.id }) { index, category ->
-                                val requester = if (index == 0) firstCategoryRequester else categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
-
-                                if (uiState.isCategoryReorderMode) {
-                                    TvReorderRow(
-                                        label = category.categoryName,
-                                        onMoveUp = { viewModel.moveCategoryUp(category) },
-                                        onMoveDown = { viewModel.moveCategoryDown(category) }
-                                    )
-                                } else {
-                                    LaunchedEffect(category.id) { viewModel.loadCategoryCount(category) }
-                                    TvCategoryItem(
-                                        category = category,
-                                        count = uiState.categoryCounts[category.id],
-                                        isSelected = category.id == uiState.selectedCategory?.id,
-                                        modifier = Modifier.fillMaxWidth()
-                                            .focusRequester(requester)
-                                            .onFocusChanged { if (it.isFocused) {
-                                                lastFocusedCategoryId = category.id
-                                                lastFocusedChannelId = null
-                                            }}
-                                            .focusProperties {
-                                                if (index == 0) up = addGroupFocusRequester
-                                            },
-                                        onClick = {
-                                            if (!isAnyPopupOpen) {
-                                                viewModel.selectCategory(category)
-                                                scope.launch { channelListState.scrollToItem(0) }
-                                            }
-                                        },
-                                        onLongClick = { selectedCategoryForOptions = category }
-                                    )
-                                }
+                        if (!uiState.isCategoryReorderMode) {
+                            var isAddFocused by remember { mutableStateOf(false) }
+                            TvSurfaceCard(
+                                onClick = { showAddGroupDialog = true },
+                                modifier = Modifier.align(Alignment.CenterEnd).size(32.dp).focusRequester(addGroupFocusRequester).onFocusChanged { isAddFocused = it.isFocused },
+                                shape = ClickableSurfaceDefaults.shape(CircleShape),
+                                colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = if (isAddFocused) Color.Black else AppColors.ArenaOrange,
+                                    modifier = Modifier.size(18.dp).align(Alignment.Center)
+                                )
                             }
                         }
                     }
+                    HorizontalDivider(color = TvColors.GlassBorder)
 
+                    LazyColumn(
+                        state = categoryListState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(1.dp)
+                    ) {
+                        itemsIndexed(uiState.categories, key = { _, cat -> cat.id }) { index, category ->
+                            val requester = if (index == 0) firstCategoryRequester else categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
+
+                            if (uiState.isCategoryReorderMode) {
+                                TvReorderCheckboxRow(
+                                    label = category.categoryName,
+                                    isSelected = selectedReorderIds.contains(category.id),
+                                    isVirtual = category.isVirtual && index < 2,
+                                    modifier = Modifier.focusRequester(requester),
+                                    onClick = { viewModel.toggleReorderSelection(category.id) }
+                                )
+                            } else {
+                                LaunchedEffect(category.id) { viewModel.loadCategoryCount(category) }
+                                TvCategoryItem(
+                                    category = category,
+                                    count = uiState.categoryCounts[category.id],
+                                    isSelected = category.id == uiState.selectedCategory?.id,
+                                    modifier = Modifier.fillMaxWidth()
+                                        .focusRequester(requester)
+                                        .onFocusChanged { if (it.isFocused) {
+                                            lastFocusedCategoryId = category.id
+                                            lastFocusedChannelId = null
+                                        }}
+                                        .focusProperties {
+                                            if (index == 0) up = addGroupFocusRequester
+                                        },
+                                    onClick = {
+                                        if (!isAnyPopupOpen) {
+                                            viewModel.selectCategory(category)
+                                            scope.launch { channelListState.scrollToItem(0) }
+                                        }
+                                    },
+                                    onLongClick = { selectedCategoryForOptions = category }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (uiState.isCategoryReorderMode) {
+                    // NEW PRO REORDER CONTROL PANEL
+                    Column(
+                        modifier = Modifier.weight(0.55f).fillMaxHeight()
+                            .background(Color.Black.copy(alpha = 0.3f))
+                            .padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "${selectedReorderIds.size} " + stringResource(R.string.nav_categories).uppercase() + " SELECTED",
+                            color = TvColors.Primary,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 20.sp,
+                            letterSpacing = 2.sp
+                        )
+                        Spacer(Modifier.height(48.dp))
+                        
+                        TvReorderControlPanel(
+                            onMoveUp = { viewModel.moveSelectedCategoriesUp() },
+                            onMoveDown = { viewModel.moveSelectedCategoriesDown() },
+                            onToTop = { viewModel.moveSelectedCategoriesToTop() },
+                            onToBottom = { viewModel.moveSelectedCategoriesToBottom() },
+                            onSave = { viewModel.saveCategoryOrder() },
+                            onCancel = { viewModel.exitCategoryReorderMode() }
+                        )
+                    }
+                } else {
                     Spacer(modifier = Modifier.width(20.dp))
 
                     // --- 2. CHANNELS ---
@@ -422,13 +434,10 @@ fun TvLiveTvScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(2.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                    // --- 3. PREVIEW & EPG (hero style) ---
+                    // --- 3. PREVIEW & EPG ---
                     Column(modifier = Modifier.weight(PREVIEW_PANE_WEIGHT).fillMaxHeight()) {
-                        // Video fills the width; title/badge live ON the
-                        // image via a bottom gradient scrim, instead of a
-                        // separate text block below a bordered box.
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -520,172 +529,173 @@ fun TvLiveTvScreen(
                     }
                 }
             }
+        }
+    }
 
-        // --- DIALOGS ---
+    // --- DIALOGS ---
 
-        if (showAddGroupDialog) {
-            val firstActionRequester = remember { FocusRequester() }
-            LaunchedEffect(Unit) {
-                delay(300)
-                try { firstActionRequester.requestFocus() } catch (e: Exception) {}
-            }
-
-            TvOverlayDialog(onDismiss = { showAddGroupDialog = false }) {
-                Text(stringResource(R.string.group_create_title), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White)
-                Spacer(Modifier.height(24.dp))
-                OutlinedTextField(
-                    value = newGroupName,
-                    onValueChange = { newGroupName = it },
-                    placeholder = { Text(stringResource(R.string.group_name_label), color = Color.White.copy(alpha = 0.3f)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth().focusRequester(firstActionRequester),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = TvColors.Primary,
-                        unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
-                        focusedTextColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                Spacer(Modifier.height(32.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    var isCreateFocused by remember { mutableStateOf(false) }
-                    TvSurfaceCard(
-                        onClick = {
-                            viewModel.addCustomGroup(newGroupName)
-                            showAddGroupDialog = false
-                            newGroupName = ""
-                        },
-                        modifier = Modifier.weight(1f).height(52.dp).onFocusChanged { isCreateFocused = it.isFocused },
-                        colors = ClickableSurfaceDefaults.colors(containerColor = AppColors.ArenaOrange.copy(alpha = 0.25f), focusedContainerColor = Color.White),
-                        border = ClickableSurfaceDefaults.border(
-                            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-                            border = Border(BorderStroke(2.dp, AppColors.ArenaOrange.copy(alpha = 0.85f)))
-                        )
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.generic_create), color = if (isCreateFocused) Color.Black else Color.White, fontWeight = FontWeight.Black)
-                        }
-                    }
-                    var isCancelFocused by remember { mutableStateOf(false) }
-                    TvSurfaceCard(
-                        onClick = { showAddGroupDialog = false },
-                        modifier = Modifier.weight(1f).height(52.dp).onFocusChanged { isCancelFocused = it.isFocused },
-                        colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.generic_cancel), color = if (isCancelFocused) Color.Black else Color.White, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
+    if (showAddGroupDialog) {
+        val firstActionRequester = remember { FocusRequester() }
+        LaunchedEffect(Unit) {
+            delay(300)
+            try { firstActionRequester.requestFocus() } catch (e: Exception) {}
         }
 
-        selectedChannelForOptions?.let { channel ->
-            var canInteract by remember { mutableStateOf(false) }
-            val firstActionRequester = remember { FocusRequester() }
-            LaunchedEffect(channel) {
-                delay(400)
-                canInteract = true
-                try { firstActionRequester.requestFocus() } catch (e: Exception) {}
-            }
-
-            TvOverlayDialog(onDismiss = { if (canInteract) selectedChannelForOptions = null }) {
-                Text(channel.name.uppercase(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
-                TvBadge(text = stringResource(R.string.channel_options), containerColor = Color.White.copy(alpha = 0.1f), contentColor = Color.White)
-                Spacer(Modifier.height(24.dp))
-
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    item {
-                        TvDialogActionItem(
-                            label = if (channel.isFavorite) stringResource(R.string.fav_remove) else stringResource(R.string.fav_add),
-                            icon = if (channel.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                            enabled = canInteract,
-                            modifier = Modifier.focusRequester(firstActionRequester)
-                        ) {
-                            viewModel.toggleFavorite(channel)
-                            selectedChannelForOptions = null
-                        }
-                    }
-                    item {
-                        TvDialogActionItem(
-                            label = stringResource(R.string.channel_reorder),
-                            icon = Icons.Default.Reorder,
-                            enabled = canInteract
-                        ) {
-                            viewModel.enterChannelReorderMode()
-                            selectedChannelForOptions = null
-                        }
-                    }
-                    item {
-                        TvDialogActionItem(
-                            label = stringResource(R.string.live_hide_channel),
-                            icon = Icons.Default.VisibilityOff,
-                            enabled = canInteract
-                        ) {
-                            viewModel.hideChannel(channel)
-                            selectedChannelForOptions = null
-                        }
-                    }
-
-                    val currentCat = uiState.selectedCategory
-                    if (currentCat != null && currentCat.id >= 1000000) {
-                        item {
-                            TvDialogActionItem(
-                                label = stringResource(R.string.channel_remove_from_group),
-                                icon = Icons.Default.DeleteSweep,
-                                color = Color.Red.copy(alpha = 0.8f),
-                                enabled = canInteract
-                            ) {
-                                viewModel.removeFromGroup(channel, currentCat)
-                                selectedChannelForOptions = null
-                            }
-                        }
-                    }
-
-                    val otherCustomGroups = uiState.categories.filter { it.id >= 1000000 && it.id != currentCat?.id }
-                    if (otherCustomGroups.isNotEmpty()) {
-                        item {
-                            Text(stringResource(R.string.group_add_to), color = TvColors.Primary, fontWeight = FontWeight.Black, fontSize = 11.sp, modifier = Modifier.padding(top = 16.dp, start = 12.dp))
-                        }
-                        itemsIndexed(otherCustomGroups) { _, group ->
-                            TvDialogActionItem(label = group.categoryName, icon = Icons.Default.FolderOpen, enabled = canInteract) {
-                                viewModel.addToGroup(channel, group)
-                                selectedChannelForOptions = null
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        selectedCategoryForOptions?.let { category ->
-            var canInteract by remember { mutableStateOf(false) }
-            val firstActionRequester = remember { FocusRequester() }
-            LaunchedEffect(category) {
-                delay(400)
-                canInteract = true
-                try { firstActionRequester.requestFocus() } catch (e: Exception) {}
-            }
-
-            TvOverlayDialog(onDismiss = { if (canInteract) selectedCategoryForOptions = null }) {
-                Text(category.categoryName.uppercase(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White)
-                TvBadge(text = stringResource(R.string.group_options), containerColor = Color.White.copy(alpha = 0.1f), contentColor = Color.White)
-                Spacer(Modifier.height(24.dp))
-
-                TvDialogActionItem(
-                    label = stringResource(R.string.group_reorder),
-                    icon = Icons.Default.Reorder,
-                    enabled = canInteract,
-                    modifier = Modifier.focusRequester(firstActionRequester)
+        TvOverlayDialog(onDismiss = { showAddGroupDialog = false }) {
+            Text(stringResource(R.string.group_create_title), style = TvMaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White)
+            Spacer(Modifier.height(24.dp))
+            OutlinedTextField(
+                value = newGroupName,
+                onValueChange = { newGroupName = it },
+                placeholder = { Text(stringResource(R.string.group_name_label), color = Color.White.copy(alpha = 0.3f)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().focusRequester(firstActionRequester),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = TvColors.Primary,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.1f),
+                    focusedTextColor = Color.White
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(Modifier.height(32.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                var isCreateFocused by remember { mutableStateOf(false) }
+                TvSurfaceCard(
+                    onClick = {
+                        viewModel.addCustomGroup(newGroupName)
+                        showAddGroupDialog = false
+                        newGroupName = ""
+                    },
+                    modifier = Modifier.weight(1f).height(52.dp).onFocusChanged { isCreateFocused = it.isFocused },
+                    colors = ClickableSurfaceDefaults.colors(containerColor = AppColors.ArenaOrange.copy(alpha = 0.25f), focusedContainerColor = Color.White),
+                    border = ClickableSurfaceDefaults.border(
+                        focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+                        border = Border(BorderStroke(2.dp, AppColors.ArenaOrange.copy(alpha = 0.85f)))
+                    )
                 ) {
-                    viewModel.enterCategoryReorderMode()
-                    selectedCategoryForOptions = null
-                }
-                if (category.id >= 1000000) {
-                    TvDialogActionItem(label = stringResource(R.string.group_delete), icon = Icons.Default.Delete, color = Color.Red, enabled = canInteract) {
-                        viewModel.deleteCustomGroup(category)
-                        selectedCategoryForOptions = null
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(stringResource(R.string.generic_create), color = if (isCreateFocused) Color.Black else Color.White, fontWeight = FontWeight.Black)
                     }
+                }
+                var isCancelFocused by remember { mutableStateOf(false) }
+                TvSurfaceCard(
+                    onClick = { showAddGroupDialog = false },
+                    modifier = Modifier.weight(1f).height(52.dp).onFocusChanged { isCancelFocused = it.isFocused },
+                    colors = ClickableSurfaceDefaults.colors(containerColor = Color.White.copy(alpha = 0.1f), focusedContainerColor = Color.White)
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(stringResource(R.string.generic_cancel), color = if (isCancelFocused) Color.Black else Color.White, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+
+    selectedChannelForOptions?.let { channel ->
+        var canInteract by remember { mutableStateOf(false) }
+        val firstActionRequester = remember { FocusRequester() }
+        LaunchedEffect(channel) {
+            delay(400)
+            canInteract = true
+            try { firstActionRequester.requestFocus() } catch (e: Exception) {}
+        }
+
+        TvOverlayDialog(onDismiss = { if (canInteract) selectedChannelForOptions = null }) {
+            Text(channel.name.uppercase(), style = TvMaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White, maxLines = 1)
+            TvBadge(text = stringResource(R.string.channel_options), containerColor = Color.White.copy(alpha = 0.1f), contentColor = Color.White)
+            Spacer(Modifier.height(24.dp))
+
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    TvDialogActionItem(
+                        label = if (channel.isFavorite) stringResource(R.string.fav_remove) else stringResource(R.string.fav_add),
+                        icon = if (channel.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                        enabled = canInteract,
+                        modifier = Modifier.focusRequester(firstActionRequester)
+                    ) {
+                        viewModel.toggleFavorite(channel)
+                        selectedChannelForOptions = null
+                    }
+                }
+                item {
+                    TvDialogActionItem(
+                        label = stringResource(R.string.channel_reorder),
+                        icon = Icons.Default.Reorder,
+                        enabled = canInteract
+                    ) {
+                        viewModel.enterChannelReorderMode()
+                        selectedChannelForOptions = null
+                    }
+                }
+                item {
+                    TvDialogActionItem(
+                        label = stringResource(R.string.live_hide_channel),
+                        icon = Icons.Default.VisibilityOff,
+                        enabled = canInteract
+                    ) {
+                        viewModel.hideChannel(channel)
+                        selectedChannelForOptions = null
+                    }
+                }
+
+                val currentCat = uiState.selectedCategory
+                if (currentCat != null && currentCat.id >= 1000000) {
+                    item {
+                        TvDialogActionItem(
+                            label = stringResource(R.string.channel_remove_from_group),
+                            icon = Icons.Default.DeleteSweep,
+                            color = Color.Red.copy(alpha = 0.8f),
+                            enabled = canInteract
+                        ) {
+                            viewModel.removeFromGroup(channel, currentCat)
+                            selectedChannelForOptions = null
+                        }
+                    }
+                }
+
+                val otherCustomGroups = uiState.categories.filter { it.id >= 1000000 && it.id != currentCat?.id }
+                if (otherCustomGroups.isNotEmpty()) {
+                    item {
+                        Text(stringResource(R.string.group_add_to), color = TvColors.Primary, fontWeight = FontWeight.Black, fontSize = 11.sp, modifier = Modifier.padding(top = 16.dp, start = 12.dp))
+                    }
+                    itemsIndexed(otherCustomGroups) { _, group ->
+                        TvDialogActionItem(label = group.categoryName, icon = Icons.Default.FolderOpen, enabled = canInteract) {
+                            viewModel.addToGroup(channel, group)
+                            selectedChannelForOptions = null
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    selectedCategoryForOptions?.let { category ->
+        var canInteract by remember { mutableStateOf(false) }
+        val firstActionRequester = remember { FocusRequester() }
+        LaunchedEffect(category) {
+            delay(400)
+            canInteract = true
+            try { firstActionRequester.requestFocus() } catch (e: Exception) {}
+        }
+
+        TvOverlayDialog(onDismiss = { if (canInteract) selectedCategoryForOptions = null }) {
+            Text(category.categoryName.uppercase(), style = TvMaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black, color = Color.White)
+            TvBadge(text = stringResource(R.string.group_options), containerColor = Color.White.copy(alpha = 0.1f), contentColor = Color.White)
+            Spacer(Modifier.height(24.dp))
+
+            TvDialogActionItem(
+                label = stringResource(R.string.group_reorder),
+                icon = Icons.Default.Reorder,
+                enabled = canInteract,
+                modifier = Modifier.focusRequester(firstActionRequester)
+            ) {
+                viewModel.enterCategoryReorderMode()
+                selectedCategoryForOptions = null
+            }
+            if (category.id >= 1000000) {
+                TvDialogActionItem(label = stringResource(R.string.group_delete), icon = Icons.Default.Delete, color = Color.Red, enabled = canInteract) {
+                    viewModel.deleteCustomGroup(category)
+                    selectedCategoryForOptions = null
                 }
             }
         }
@@ -817,6 +827,7 @@ private fun TvChannelItem(
     onLongClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    val layoutDirection = LocalLayoutDirection.current
     val isLite = DeviceRenderProfile.isLiteMode()
 
     TvSurface(
@@ -874,6 +885,115 @@ private fun TvChannelItem(
 }
 
 @Composable
+private fun TvReorderCheckboxRow(
+    label: String,
+    isSelected: Boolean,
+    isVirtual: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    TvSurface(
+        onClick = { if (!isVirtual) onClick() },
+        modifier = modifier.fillMaxWidth().height(48.dp).onFocusChanged { isFocused = it.isFocused },
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.15f) else Color.Transparent,
+            focusedContainerColor = Color.White
+        ),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+            border = Border(BorderStroke(1.dp, if (isSelected) AppColors.ArenaOrange else Color.White.copy(alpha = 0.1f)))
+        ),
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp))
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = null,
+                colors = CheckboxDefaults.colors(
+                    checkedColor = AppColors.ArenaOrange,
+                    uncheckedColor = Color.White.copy(alpha = 0.3f),
+                    checkmarkColor = Color.Black
+                ),
+                modifier = Modifier.alpha(if (isVirtual) 0.3f else 1f)
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = label,
+                color = if (isFocused) Color.Black else Color.White,
+                fontWeight = if (isSelected || isFocused) FontWeight.Black else FontWeight.Medium,
+                fontSize = 14.sp,
+                modifier = Modifier.alpha(if (isVirtual) 0.5f else 1f)
+            )
+            if (isVirtual) {
+                Spacer(Modifier.weight(1f))
+                Icon(Icons.Default.Lock, null, tint = if (isFocused) Color.Black else Color.White.copy(alpha = 0.3f), modifier = Modifier.size(14.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun TvReorderControlPanel(
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onToTop: () -> Unit,
+    onToBottom: () -> Unit,
+    onSave: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Column(
+        modifier = Modifier.width(320.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        ControlActionButton(label = "MOVE UP", icon = Icons.Default.ArrowUpward, onClick = onMoveUp)
+        ControlActionButton(label = "MOVE DOWN", icon = Icons.Default.ArrowDownward, onClick = onMoveDown)
+        ControlActionButton(label = "MOVE TO TOP", icon = Icons.Default.VerticalAlignTop, onClick = onToTop)
+        ControlActionButton(label = "MOVE TO BOTTOM", icon = Icons.Default.VerticalAlignBottom, onClick = onToBottom)
+        
+        Spacer(Modifier.height(24.dp))
+        
+        ControlActionButton(label = "SAVE CHANGES", icon = Icons.Default.Save, color = AppColors.ArenaOrange, onClick = onSave)
+        ControlActionButton(label = "CANCEL", icon = Icons.Default.Close, onClick = onCancel)
+    }
+}
+
+@Composable
+private fun ControlActionButton(
+    label: String,
+    icon: ImageVector,
+    color: Color = Color.White,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    TvSurfaceCard(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(56.dp).onFocusChanged { isFocused = it.isFocused },
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = if (color != Color.White) color.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f),
+            focusedContainerColor = Color.White
+        ),
+        border = ClickableSurfaceDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, Color.White)),
+            border = Border(BorderStroke(1.dp, if (color != Color.White) color else Color.White.copy(alpha = 0.1f)))
+        )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, null, tint = if (isFocused) Color.Black else color, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(16.dp))
+            Text(label, color = if (isFocused) Color.Black else Color.White, fontWeight = FontWeight.Black, fontSize = 13.sp)
+        }
+    }
+}
+
+@Composable
 private fun TvReorderRow(
     label: String,
     modifier: Modifier = Modifier,
@@ -881,8 +1001,7 @@ private fun TvReorderRow(
     onMoveDown: () -> Unit
 ) {
     TvGlassPane(
-        modifier = modifier
-            .heightIn(min = 44.dp),
+        modifier = modifier.heightIn(min = 44.dp),
         backgroundColor = Color.White.copy(alpha = 0.05f),
         borderColor = Color.White.copy(alpha = 0.1f),
         shape = RoundedCornerShape(LiveRadius.row)
@@ -897,7 +1016,7 @@ private fun TvReorderRow(
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium,
+                style = TvMaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold
             )
 
@@ -1004,7 +1123,6 @@ private fun TvStreamInfoCard(format: VideoFormat, stats: PlayerStats) {
 
         Spacer(Modifier.width(10.dp))
 
-        // Prefer dynamic bitrate from stats if available and high enough to be measured data
         val displayBitrate = if (stats.videoBitrate > 100_000) stats.videoBitrate else format.bitrate
         TechnicalTag(
             label = "BITRATE", 

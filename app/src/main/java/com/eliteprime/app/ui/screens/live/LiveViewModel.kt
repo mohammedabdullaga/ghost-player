@@ -71,6 +71,9 @@ class LiveViewModel @Inject constructor(
     private val _categoryCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
     private val loadedCountIds = mutableSetOf<Long>()
 
+    private val _selectedReorderCategoryIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedReorderCategoryIds = _selectedReorderCategoryIds.asStateFlow()
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private val categoriesFlow = combine(
         categoryBox.query().build().flow(),
@@ -370,10 +373,74 @@ class LiveViewModel @Inject constructor(
     fun enterCategoryReorderMode() {
         _reorderCategories.value = uiState.value.categories
         _isReorderMode.value = true
+        _selectedReorderCategoryIds.value = emptySet()
     }
 
     fun exitCategoryReorderMode() {
         _isReorderMode.value = false
+        _selectedReorderCategoryIds.value = emptySet()
+    }
+
+    fun toggleReorderSelection(categoryId: Long) {
+        _selectedReorderCategoryIds.update { current ->
+            if (current.contains(categoryId)) current - categoryId
+            else current + categoryId
+        }
+    }
+
+    fun moveSelectedCategoriesUp() {
+        val selectedIds = _selectedReorderCategoryIds.value
+        if (selectedIds.isEmpty()) return
+
+        val list = _reorderCategories.value.toMutableList()
+        // Sort selected indices to move them in order
+        val selectedIndices = list.indices.filter { list[it].id in selectedIds }.sorted()
+        
+        selectedIndices.forEach { index ->
+            if (index > 2) { // Skip Favorites (0) and Recent (1)
+                Collections.swap(list, index, index - 1)
+            }
+        }
+        _reorderCategories.value = list
+    }
+
+    fun moveSelectedCategoriesDown() {
+        val selectedIds = _selectedReorderCategoryIds.value
+        if (selectedIds.isEmpty()) return
+
+        val list = _reorderCategories.value.toMutableList()
+        val selectedIndices = list.indices.filter { list[it].id in selectedIds }.sortedDescending()
+
+        selectedIndices.forEach { index ->
+            if (index >= 2 && index < list.size - 1) {
+                Collections.swap(list, index, index + 1)
+            }
+        }
+        _reorderCategories.value = list
+    }
+
+    fun moveSelectedCategoriesToTop() {
+        val selectedIds = _selectedReorderCategoryIds.value
+        if (selectedIds.isEmpty()) return
+
+        val list = _reorderCategories.value.toMutableList()
+        val selectedItems = list.filter { it.id in selectedIds }
+        list.removeAll { it.id in selectedIds }
+        
+        // Insert after virtual categories (Favorites/Recent)
+        list.addAll(2, selectedItems)
+        _reorderCategories.value = list
+    }
+
+    fun moveSelectedCategoriesToBottom() {
+        val selectedIds = _selectedReorderCategoryIds.value
+        if (selectedIds.isEmpty()) return
+
+        val list = _reorderCategories.value.toMutableList()
+        val selectedItems = list.filter { it.id in selectedIds }
+        list.removeAll { it.id in selectedIds }
+        list.addAll(selectedItems)
+        _reorderCategories.value = list
     }
 
     fun moveCategoryUp(category: Category) {
