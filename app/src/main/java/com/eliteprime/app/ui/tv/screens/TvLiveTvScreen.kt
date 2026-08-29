@@ -82,7 +82,7 @@ private object LiveSpacing {
 
 private object LiveRadius {
     val row = 16.dp
-    val pane = 24.dp
+    val pane = 0.dp
     val chip = 8.dp
 }
 
@@ -177,7 +177,7 @@ fun TvLiveTvScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent).padding(16.dp)) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         TvGlassPane(
             modifier = Modifier.fillMaxSize(),
             backgroundColor = TvColors.GlassBase,
