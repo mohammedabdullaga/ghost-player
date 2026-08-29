@@ -8,6 +8,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -31,10 +32,13 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
@@ -188,47 +192,49 @@ fun TvMovieScreen(
                     .padding(top = 24.dp, bottom = 24.dp)
                     .alpha(if (isSidebarHidden) 0f else 1f)
             ) {
-                // Search bar — TvSurface makes it d-pad focusable on TV
-                val searchRequester = remember { FocusRequester() }
-                TvSurface(
-                    onClick = {},
-                    modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 20.dp, bottom = 16.dp)
-                        .height(40.dp)
-                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                        .focusRequester(searchRequester)
-                        .onKeyEvent { event ->
-                            if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
-                            when {
-                                event.key == Key.Backspace -> { if (searchText.isNotEmpty()) searchText = searchText.dropLast(1); true }
-                                event.utf16CodePoint in 32..126 -> { searchText += event.utf16CodePoint.toChar(); true }
-                                else -> false
-                            }
-                        },
-                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
-                    colors = ClickableSurfaceDefaults.colors(
-                        containerColor = Color.Transparent,
-                        focusedContainerColor = Color.White.copy(alpha = 0.05f),
-                        pressedContainerColor = Color.White.copy(alpha = 0.1f)
-                    ),
-                    border = ClickableSurfaceDefaults.border(
-                        border = Border.None,
-                        focusedBorder = Border(BorderStroke(1.5.dp, AppColors.ArenaOrange))
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = searchText.ifEmpty { "Search movies..." },
-                            color = if (searchText.isEmpty()) Color.White.copy(alpha = 0.35f) else Color.White,
-                            fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(Icons.Default.Search, contentDescription = "Search",
-                            tint = AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
-                    }
+                // Search bar — keyboard only opens on OK (login-screen pattern)
+                var isSearchFocused by remember { mutableStateOf(false) }
+                var isSearchEditing by remember { mutableStateOf(false) }
+                val keyboardController = LocalSoftwareKeyboardController.current
+
+                LaunchedEffect(isSearchEditing) {
+                    if (isSearchEditing) { delay(100); keyboardController?.show() }
                 }
+
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    placeholder = { Text("Search movies...", color = Color.White.copy(alpha = 0.35f), fontSize = 13.sp) },
+                    textStyle = TextStyle(color = Color.White, fontSize = 13.sp),
+                    modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 20.dp, bottom = 16.dp).height(44.dp)
+                        .onFocusChanged {
+                            isSearchFocused = it.isFocused
+                            if (!it.isFocused) isSearchEditing = false
+                        }
+                        .onKeyEvent { keyEvent ->
+                            if (isSearchFocused && !isSearchEditing) {
+                                if (keyEvent.type == KeyEventType.KeyUp &&
+                                    (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter)) {
+                                    isSearchEditing = true
+                                    return@onKeyEvent true
+                                }
+                            }
+                            false
+                        },
+                    readOnly = !isSearchEditing,
+                    singleLine = true,
+                    trailingIcon = {
+                        Icon(Icons.Default.Search, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AppColors.ArenaOrange,
+                        unfocusedBorderColor = Color.White.copy(alpha = 0.15f),
+                        cursorColor = AppColors.ArenaOrange,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                )
 
                 LazyColumn(state = sidebarListState, modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
