@@ -67,9 +67,9 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-private const val CATEGORIES_PANE_WEIGHT = 0.30f
-private const val CHANNELS_PANE_WEIGHT = 0.32f
-private const val PREVIEW_PANE_WEIGHT = 0.38f
+private const val CATEGORIES_PANE_WEIGHT = 0.24f
+private const val CHANNELS_PANE_WEIGHT = 0.36f
+private const val PREVIEW_PANE_WEIGHT = 0.40f
 
 // Shared spacing/radius scale for this screen — keeps every row, gap,
 // and corner consistent instead of scattered magic numbers.
@@ -192,7 +192,7 @@ fun TvLiveTvScreen(
                             .background(Color.Black.copy(alpha = 0.18f))
                     ) {
                         Box(
-                            modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp),
+                            modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -242,7 +242,7 @@ fun TvLiveTvScreen(
                             state = categoryListState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            verticalArrangement = Arrangement.spacedBy(1.dp)
                         ) {
                             itemsIndexed(uiState.categories, key = { _, cat -> cat.id }) { index, category ->
                                 val requester = if (index == 0) firstCategoryRequester else categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
@@ -254,6 +254,7 @@ fun TvLiveTvScreen(
                                         onMoveDown = { viewModel.moveCategoryDown(category) }
                                     )
                                 } else {
+                                    LaunchedEffect(category.id) { viewModel.loadCategoryCount(category) }
                                     TvCategoryItem(
                                         category = category,
                                         count = uiState.categoryCounts[category.id],
@@ -280,9 +281,11 @@ fun TvLiveTvScreen(
                         }
                     }
 
+                    Spacer(modifier = Modifier.width(20.dp))
+
                     // --- 2. CHANNELS ---
                     Column(modifier = Modifier.weight(CHANNELS_PANE_WEIGHT).fillMaxHeight()) {
-                        Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp),
+                        Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -317,7 +320,7 @@ fun TvLiveTvScreen(
                             state = channelListState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             itemsIndexed(uiState.filteredChannels, key = { _, c -> c.id }) { index, channel ->
                                 val requester = if (index == 0) firstChannelRequester else channelFocusRequesters.getOrPut(channel.id) { FocusRequester() }
@@ -354,6 +357,8 @@ fun TvLiveTvScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(2.dp))
 
                     // --- 3. PREVIEW & EPG (hero style) ---
                     Column(modifier = Modifier.weight(PREVIEW_PANE_WEIGHT).fillMaxHeight()) {
@@ -696,7 +701,7 @@ private fun TvCategoryItem(
                     .width(3.dp)
                     .background(if (isSelected) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(2.dp))
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(2.dp))
             Text(
                 text = category.categoryName,
                 color = Color.White,
@@ -712,7 +717,7 @@ private fun TvCategoryItem(
                     color = Color.White.copy(alpha = 0.45f),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(end = 4.dp)
+                    modifier = Modifier.padding(end = 2.dp)
                 )
             }
         }
@@ -757,7 +762,7 @@ private fun TvChannelItem(
         )
     ) {
         Row(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -766,7 +771,7 @@ private fun TvChannelItem(
                     .width(3.dp)
                     .background(if (isSelected) AppColors.ArenaOrange else Color.Transparent, RoundedCornerShape(2.dp))
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(2.dp))
             Box(modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.07f)), contentAlignment = Alignment.Center) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -778,7 +783,7 @@ private fun TvChannelItem(
                     modifier = Modifier.fillMaxSize().padding(4.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = channel.name,
                 color = Color.White,

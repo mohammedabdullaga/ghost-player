@@ -67,6 +67,10 @@ class LiveViewModel @Inject constructor(
     private val _reorderCategories = MutableStateFlow<List<Category>>(emptyList())
     private val _reorderChannels = MutableStateFlow<List<LiveStream>>(emptyList())
 
+    // True lazy: counts are loaded per-category only when item scrolls into view
+    private val _categoryCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
+    private val loadedCountIds = mutableSetOf<Long>()
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private val categoriesFlow = combine(
         categoryBox.query().build().flow(),
@@ -159,8 +163,9 @@ class LiveViewModel @Inject constructor(
         categoriesFlow,
         _selectedCategoryId,
         filteredChannelsFlow,
+        _categoryCounts,
         combine(_isReorderMode, _reorderCategories, _isChannelReorderMode, _reorderChannels) { a, b, c, d -> Quad(a, b, c, d) }
-    ) { allCategories, selectedId, channels, quad ->
+    ) { allCategories, selectedId, channels, counts, quad ->
         if (channels.isNotEmpty() && browsingTrace != null) {
             browsingTrace?.stop()
             browsingTrace = null
@@ -177,7 +182,7 @@ class LiveViewModel @Inject constructor(
 
         LiveUiState(
             categories = categories,
-            categoryCounts = emptyMap(),
+            categoryCounts = counts,
             selectedCategory = currentSelected,
             filteredChannels = if (channelReorderMode) channelReorderList else (if (reorderMode) emptyList() else channels),
             isLoading = false,
@@ -209,6 +214,33 @@ class LiveViewModel @Inject constructor(
             
             _page.value = 0
             _selectedCategoryId.value = category.id
+        }
+    }
+
+    /** Lazy: call this from the compose item — runs count() only for this category, one-shot */
+    fun loadCategoryCount(category: Category) {
+        if (!loadedCountIds.add(category.id)) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val count = when (category.id) {
+                CAT_ID_FAVORITES -> liveBox.query()
+                    .equal(LiveStream_.isFavorite, true).build().count().toInt()
+                CAT_ID_RECENT -> liveBox.query()
+                    .greater(LiveStream_.lastWatchedAt, 0L).build().count().toInt()
+                else -> {
+                    if (category.id >= 1000000) {
+                        val realGroupId = category.id - 1000000
+                        groupMembershipBox.query()
+                            .equal(GroupMembership_.groupId, realGroupId).build().count().toInt()
+                    } else {
+                        liveBox.query()
+                            .equal(LiveStream_.remoteCategoryId, category.categoryId, StringOrder.CASE_INSENSITIVE)
+                            .build().count().toInt()
+                    }
+                }
+            }
+            if (count > 0) {
+                _categoryCounts.update { it + (category.id to count) }
+            }
         }
     }
 
