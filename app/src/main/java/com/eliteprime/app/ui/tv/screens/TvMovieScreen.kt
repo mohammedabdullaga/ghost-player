@@ -188,9 +188,10 @@ fun TvMovieScreen(
                     .padding(top = 24.dp, bottom = 24.dp)
                     .alpha(if (isSidebarHidden) 0f else 1f)
             ) {
-                // Search bar
+                // Search bar — TvSurface makes it d-pad focusable on TV
                 val searchRequester = remember { FocusRequester() }
-                Box(
+                TvSurface(
+                    onClick = {},
                     modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 20.dp, bottom = 16.dp)
                         .height(40.dp)
                         .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
@@ -202,11 +203,22 @@ fun TvMovieScreen(
                                 event.utf16CodePoint in 32..126 -> { searchText += event.utf16CodePoint.toChar(); true }
                                 else -> false
                             }
-                        }
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.CenterStart
+                        },
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color.Transparent,
+                        focusedContainerColor = Color.White.copy(alpha = 0.05f),
+                        pressedContainerColor = Color.White.copy(alpha = 0.1f)
+                    ),
+                    border = ClickableSurfaceDefaults.border(
+                        border = Border.None,
+                        focusedBorder = Border(BorderStroke(1.5.dp, AppColors.ArenaOrange))
+                    )
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
                             text = searchText.ifEmpty { "Search movies..." },
                             color = if (searchText.isEmpty()) Color.White.copy(alpha = 0.35f) else Color.White,

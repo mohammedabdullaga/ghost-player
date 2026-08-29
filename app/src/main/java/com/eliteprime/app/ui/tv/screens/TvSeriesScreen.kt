@@ -188,33 +188,34 @@ fun TvSeriesScreen(
                     .padding(top = 24.dp, bottom = 24.dp)
                     .alpha(if (isSidebarHidden) 0f else 1f)
             ) {
-                // Search bar
-                val searchRequester = remember { FocusRequester() }
-                Box(
+                // Search bar — TvSurface makes it d-pad focusable
+                val s = remember { FocusRequester() }
+                TvSurface(onClick = {},
                     modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 20.dp, bottom = 16.dp)
-                        .height(40.dp)
-                        .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
-                        .focusRequester(searchRequester)
-                        .onKeyEvent { event ->
-                            if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                        .height(40.dp).border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                        .focusRequester(s)
+                        .onKeyEvent { e ->
+                            if (e.type != KeyEventType.KeyDown) return@onKeyEvent false
                             when {
-                                event.key == Key.Backspace -> { if (searchText.isNotEmpty()) searchText = searchText.dropLast(1); true }
-                                event.utf16CodePoint in 32..126 -> { searchText += event.utf16CodePoint.toChar(); true }
+                                e.key == Key.Backspace -> { if (searchText.isNotEmpty()) searchText = searchText.dropLast(1); true }
+                                e.utf16CodePoint in 32..126 -> { searchText += e.utf16CodePoint.toChar(); true }
                                 else -> false
                             }
-                        }
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.CenterStart
+                        },
+                    shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+                    colors = ClickableSurfaceDefaults.colors(
+                        containerColor = Color.Transparent, focusedContainerColor = Color.White.copy(alpha = 0.05f),
+                        pressedContainerColor = Color.White.copy(alpha = 0.1f)),
+                    border = ClickableSurfaceDefaults.border(
+                        border = Border.None, focusedBorder = Border(BorderStroke(1.5.dp, AppColors.ArenaOrange)))
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = searchText.ifEmpty { "Search series..." },
+                    Row(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = searchText.ifEmpty { "Search series..." },
                             color = if (searchText.isEmpty()) Color.White.copy(alpha = 0.35f) else Color.White,
                             fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(Icons.Default.Search, contentDescription = "Search",
-                            tint = AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
+                            modifier = Modifier.weight(1f))
+                        Icon(Icons.Default.Search, null, tint = AppColors.ArenaOrange, modifier = Modifier.size(18.dp))
                     }
                 }
 
