@@ -181,14 +181,14 @@ fun MobileLiveTvScreen(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp)
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // --- Pane 1: Categories ---
                 PaneSurface(modifier = Modifier.weight(0.28f)) {
                     Column {
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -229,7 +229,7 @@ fun MobileLiveTvScreen(
 
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+                            contentPadding = PaddingValues(vertical = 4.dp)
                         ) {
                             items(uiState.categories) { category ->
                                 if (uiState.isCategoryReorderMode) {
@@ -253,36 +253,33 @@ fun MobileLiveTvScreen(
 
                 // --- Pane 2: Channel List ---
                 PaneSurface(modifier = Modifier.weight(0.32f)) {
-                    Column {
-                        PaneHeader(title = uiState.selectedCategory?.categoryName ?: stringResource(R.string.generic_channels))
-                        LazyColumn(
-                            state = channelListState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 8.dp)
-                        ) {
-                            itemsIndexed(uiState.filteredChannels, key = { _, it -> it.id }) { index, channel ->
-                                if (index >= uiState.filteredChannels.size - 10) {
-                                    SideEffect {
-                                        viewModel.loadMore()
-                                    }
+                    LazyColumn(
+                        state = channelListState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(vertical = 2.dp)
+                    ) {
+                        itemsIndexed(uiState.filteredChannels, key = { _, it -> it.id }) { index, channel ->
+                            if (index >= uiState.filteredChannels.size - 10) {
+                                SideEffect {
+                                    viewModel.loadMore()
                                 }
-                                val focusRequester = channelFocusRequesters.getOrPut(channel.id) { FocusRequester() }
-                                ChannelRowWithLongClick(
-                                    channel = channel,
-                                    isSelected = previewChannel?.id == channel.id,
-                                    focusRequester = focusRequester,
-                                    onFocusChanged = { if (it.isFocused) lastFocusedChannelId = channel.id },
-                                    onClick = { 
-                                        if (previewChannel?.id == channel.id) {
-                                            viewModel.confirmChannel(channel)
-                                            onPlayChannel(channel)
-                                        } else {
-                                            viewModel.previewChannel(channel)
-                                        }
-                                    },
-                                    onLongClick = { selectedChannelForOptions = channel }
-                                )
                             }
+                            val focusRequester = channelFocusRequesters.getOrPut(channel.id) { FocusRequester() }
+                            ChannelRowWithLongClick(
+                                channel = channel,
+                                isSelected = previewChannel?.id == channel.id,
+                                focusRequester = focusRequester,
+                                onFocusChanged = { if (it.isFocused) lastFocusedChannelId = channel.id },
+                                onClick = { 
+                                    if (previewChannel?.id == channel.id) {
+                                        viewModel.confirmChannel(channel)
+                                        onPlayChannel(channel)
+                                    } else {
+                                        viewModel.previewChannel(channel)
+                                    }
+                                },
+                                onLongClick = { selectedChannelForOptions = channel }
+                            )
                         }
                     }
                 }
@@ -595,7 +592,7 @@ private fun CategoryTabContent(category: Category, isActive: Boolean, isFocused:
         else -> Color.White.copy(alpha = 0.6f)
     }
     Row(
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(modifier = Modifier.width(3.dp).height(18.dp).clip(CircleShape).background(if (isActive || isFocused) AppColors.ArenaOrange else Color.Transparent))
@@ -655,7 +652,7 @@ private fun ChannelRowWithLongClick(
             onLongClick = onLongClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .padding(horizontal = 8.dp, vertical = 1.dp)
                 .onFocusChanged { 
                     isFocused = it.isFocused
                     onFocusChanged(it)
@@ -679,7 +676,7 @@ private fun ChannelRowWithLongClick(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 3.dp)
+                .padding(horizontal = 8.dp, vertical = 1.dp)
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = { onClick() },
@@ -708,7 +705,7 @@ private fun ChannelRowContent(channel: LiveStream, isActive: Boolean, isFocused:
     }
 
     Row(
-        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -912,11 +909,4 @@ private fun PaneSurface(
     }
 }
 
-@Composable
-private fun PaneHeader(title: String) {
-    Box(modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-        Text(text = title.uppercase(), color = Color.White.copy(alpha = 0.6f), fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.2.sp)
-    }
-    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(LivePalette.hairline))
-}
 
