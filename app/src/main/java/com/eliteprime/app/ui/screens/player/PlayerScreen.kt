@@ -210,6 +210,7 @@ fun PlayerScreen(
                 onNextEpisode = { viewModel.playNextEpisode() },
                 onPreviousEpisode = { viewModel.playPreviousEpisode() },
                 channelLogoUrl = channelLogoUrl,
+                videoFormat = videoFormat,
                 modifier = Modifier.fillMaxSize()
             )
 

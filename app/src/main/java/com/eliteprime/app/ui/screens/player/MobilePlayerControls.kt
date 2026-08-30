@@ -47,7 +47,13 @@ import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Precision
 import coil3.size.Size
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.key
 import androidx.compose.ui.layout.ContentScale
+import com.eliteprime.app.domain.model.VideoFormat
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -84,10 +90,21 @@ fun MobilePlayerControls(
     hasPreviousEpisode: Boolean = false,
     onNextEpisode: () -> Unit = {},
     onPreviousEpisode: () -> Unit = {},
-    channelLogoUrl: String? = null
+    channelLogoUrl: String? = null,
+    videoFormat: VideoFormat = VideoFormat(0, 0, 0f, 0)
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
     val playPauseFocusRequester = remember { FocusRequester() }
+
+    // Separate channel switch toast — shows logo+name+LIVE briefly when title changes for live TV
+    var showChannelSwitchBar by remember { mutableStateOf(false) }
+    LaunchedEffect(title) {
+        if (contentType == PlayerContentType.LIVE_TV) {
+            showChannelSwitchBar = true
+            delay(5000)
+            showChannelSwitchBar = false
+        }
+    }
 
     LaunchedEffect(isControlsVisible) {
         if (isTv && isControlsVisible) {
@@ -240,7 +257,7 @@ fun MobilePlayerControls(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
                                 PlayerTopIconButton(
-                                    icon = Icons.Default.BugReport,
+                                    icon = Icons.Default.Info,
                                     contentDescription = stringResource(R.string.player_diagnostics),
                                     onClick = onToggleDiagnostics,
                                     onInteraction = onInteraction
@@ -430,9 +447,8 @@ fun MobilePlayerControls(
                                         }
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
-                                    Spacer(modifier = Modifier.width(10.dp))
                                 }
-                                // Channel name + LIVE indicator
+                                // Channel name + quality chips + LIVE indicator
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = title,
@@ -442,13 +458,23 @@ fun MobilePlayerControls(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                    VideoQualityChips(videoFormat)
                                     LiveIndicatorBar()
                                 }
                             }
                         }
                     }
                 }
+            }
+
+            // Live TV: channel switch info bar — only when NOT showing full controls
+            AnimatedVisibility(
+                visible = contentType == PlayerContentType.LIVE_TV && showChannelSwitchBar && !isControlsVisible,
+                enter = fadeIn() + slideInVertically { it / 2 },
+                exit = fadeOut(),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 40.dp)
+            ) {
+                LiveChannelSwitchBar(title = title, channelLogoUrl = channelLogoUrl, stats = videoFormat)
             }
         }
     }
@@ -554,6 +580,119 @@ private fun LiveIndicatorBar() {
                 .clip(RoundedCornerShape(2.dp))
                 .background(AppColors.ArenaOrange)
         )
+    }
+}
+
+@Composable
+private fun VideoQualityChips(fmt: VideoFormat) {
+    val chips = buildList {
+        if (fmt.height > 0) {
+            val label = when {
+                fmt.height >= 2160 -> "4K"
+                fmt.height >= 1080 -> "1080p"
+                fmt.height >= 720 -> "720p"
+                fmt.height >= 480 -> "${fmt.height}p"
+                else -> "${fmt.height}p"
+            }
+            add(label)
+        }
+        if (fmt.bitrate > 0) {
+            val mbps = fmt.bitrate / 1_000_000f
+            add(if (mbps >= 1f) String.format(Locale.US, "%.1f Mbps", mbps) else "${fmt.bitrate / 1000} kbps")
+        }
+        if (fmt.frameRate > 0) {
+            add("%.0f fps".format(fmt.frameRate))
+        }
+    }
+    if (chips.isEmpty()) return
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.padding(top = 4.dp)
+    ) {
+        chips.forEach { label ->
+            Surface(
+                color = Color.White.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text(
+                    text = label,
+                    color = Color.White.copy(alpha = 0.7f),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiveChannelSwitchBar(title: String, channelLogoUrl: String?, stats: VideoFormat) {
+    Surface(
+        modifier = Modifier.padding(horizontal = 60.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = Color.Black.copy(alpha = 0.75f),
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            if (channelLogoUrl != null) {
+                SubcomposeAsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(channelLogoUrl)
+                        .size(Size(100, 100))
+                        .precision(Precision.INEXACT)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Fit,
+                    loading = {
+                        Box(modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(8.dp)))
+                    },
+                    error = {
+                        Box(modifier = Modifier.size(40.dp).background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(8.dp)))
+                    }
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                VideoQualityChips(stats)
+                MiniLiveIndicator()
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniLiveIndicator() {
+    val infiniteTransition = rememberInfiniteTransition(label = "MiniLive")
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulsingDot"
+    )
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Box(modifier = Modifier.size(5.dp).clip(CircleShape).background(Color.White.copy(alpha = alpha)))
+        Text(stringResource(R.string.generic_live), color = AppColors.ArenaOrange, fontSize = 10.sp, fontWeight = FontWeight.Black)
+        Box(modifier = Modifier.width(60.dp).height(3.dp).clip(RoundedCornerShape(2.dp)).background(AppColors.ArenaOrange))
     }
 }
 
