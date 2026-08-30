@@ -103,13 +103,10 @@ fun TvSeriesScreen(
     }
 
     LaunchedEffect(gridState) {
-        snapshotFlow { gridState.layoutInfo.visibleItemsInfo }
-            .map { visibleItems ->
-                val lastVisibleItem = visibleItems.lastOrNull() ?: return@map false
-                lastVisibleItem.index >= uiState.filteredSeries.size - 8
-            }
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .distinctUntilChanged()
-            .filter { it }
+            .filterNotNull()
+            .filter { it >= uiState.filteredSeries.size - 8 }
             .collect { viewModel.loadMore() }
     }
 
