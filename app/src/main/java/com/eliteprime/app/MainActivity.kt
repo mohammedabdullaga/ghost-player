@@ -169,6 +169,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
+        // TV devices do not support PiP — skip entirely.
+        if (isTelevisionDevice()) return
         if (pipEnabled && globalPlayerState.activeEngine.value != null && globalPlayerState.mode.value == PlayerViewMode.FULLSCREEN) {
             enterPlayerPictureInPictureMode()
         }
@@ -184,18 +186,26 @@ class MainActivity : AppCompatActivity() {
 
     fun updatePipState(enabled: Boolean, width: Int, height: Int) {
         this.pipEnabled = enabled
+        // TV devices don't support PiP.
+        if (isTelevisionDevice()) return
         if (width > 0 && height > 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val rational = videoAspectRatioOrNull(width, height)
             if (rational != null) {
                 pipAspectRatio = rational
                 if (isInPictureInPictureMode) {
-                    setPictureInPictureParams(PictureInPictureParams.Builder().setAspectRatio(rational).build())
+                    try {
+                        setPictureInPictureParams(PictureInPictureParams.Builder().setAspectRatio(rational).build())
+                    } catch (e: Exception) {
+                        Log.w("PIP", "setPictureInPictureParams failed", e)
+                    }
                 }
             }
         }
     }
 
     fun enterPlayerPictureInPictureMode(): Boolean {
+        // TV devices don't support PiP.
+        if (isTelevisionDevice()) return false
         if (!supportsPictureInPicture() || isInPictureInPictureMode) {
             return false
         }
@@ -208,8 +218,13 @@ class MainActivity : AppCompatActivity() {
                 builder.setSeamlessResizeEnabled(true)
             }
             val params = builder.build()
-            setPictureInPictureParams(params)
-            enterPictureInPictureMode(params)
+            try {
+                setPictureInPictureParams(params)
+                enterPictureInPictureMode(params)
+            } catch (e: Exception) {
+                Log.w("PIP", "enterPictureInPictureMode failed — device may not support PiP", e)
+                false
+            }
         } else {
             false
         }

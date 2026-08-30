@@ -28,6 +28,15 @@ class DownloadService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Immediately start foreground with a placeholder notification.
+        // This satisfies Android's 5-second deadline. The notification is replaced
+        // once observeDownloads emits real download progress.
+        startForeground(NOTIFICATION_ID, buildNotification(
+            title = "Download starting…",
+            progress = 0,
+            speed = 0,
+            isIndeterminate = true
+        ))
         observeDownloads()
         return START_STICKY
     }

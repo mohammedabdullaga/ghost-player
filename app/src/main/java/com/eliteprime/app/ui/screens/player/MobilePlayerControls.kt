@@ -295,12 +295,14 @@ fun MobilePlayerControls(
                                     onClick = onToggleMute,
                                     onInteraction = onInteraction
                                 )
-                                PlayerTopIconButton(
-                                    icon = Icons.Default.PictureInPicture,
-                                    contentDescription = stringResource(R.string.player_pip),
-                                    onClick = onEnterPiP,
-                                    onInteraction = onInteraction
-                                )
+                                if (!isTv) {
+                                    PlayerTopIconButton(
+                                        icon = Icons.Default.PictureInPicture,
+                                        contentDescription = stringResource(R.string.player_pip),
+                                        onClick = onEnterPiP,
+                                        onInteraction = onInteraction
+                                    )
+                                }
                             }
                         }
                     }

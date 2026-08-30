@@ -70,7 +70,7 @@ fun PlayerScreen(
     val trapFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(videoFormat, isInPip) {
-        if (!isInPip) {
+        if (!isInPip && !isTv) {
             (activity as? MainActivity)?.updatePipState(
                 enabled = true,
                 width = videoFormat.width,
