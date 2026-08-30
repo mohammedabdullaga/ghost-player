@@ -47,7 +47,7 @@ import java.util.*
 private object VodSpacing {
     val lg = 20.dp
     val xs = 8.dp
-    val md = 16.dp
+    val md = 8.dp
 }
 
 private object VodPalette {
@@ -155,8 +155,10 @@ fun SeriesScreen(
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
                         ) {
                             items(uiState.categories) { category ->
+                                LaunchedEffect(category.id) { viewModel.loadCategoryCount(category) }
                                 CategoryTab(
                                     category = category,
+                                    count = uiState.categoryCounts[category.id],
                                     isSelected = category.id == uiState.selectedCategory?.id,
                                     onClick = { viewModel.selectCategory(category) }
                                 )
@@ -171,11 +173,11 @@ fun SeriesScreen(
                         VodPaneHeader(title = uiState.selectedCategory?.categoryName ?: stringResource(R.string.nav_series).uppercase())
                         LazyVerticalGrid(
                             state = seriesGridState,
-                            columns = GridCells.Fixed(4),
+                            columns = GridCells.Fixed(5),
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(VodSpacing.md),
                             horizontalArrangement = Arrangement.spacedBy(VodSpacing.md),
-                            verticalArrangement = Arrangement.spacedBy(24.dp)
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             itemsIndexed(uiState.filteredSeries, key = { _, s -> s.id }) { index, series ->
                                 if (index >= uiState.filteredSeries.size - 12) {

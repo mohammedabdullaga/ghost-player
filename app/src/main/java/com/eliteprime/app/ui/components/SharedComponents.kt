@@ -177,6 +177,7 @@ private fun SubFilterChipContent(label: String, icon: ImageVector, active: Boole
 @Composable
 fun CategoryTab(
     category: Category,
+    count: Int? = null,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
@@ -204,7 +205,7 @@ fun CategoryTab(
                 border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
             )
         ) {
-            CategoryTabContent(category, isSelected, isFocused)
+            CategoryTabContent(category, isSelected, isFocused, count)
         }
     } else {
         Surface(
@@ -216,13 +217,13 @@ fun CategoryTab(
             shape = RoundedCornerShape(16.dp),
             border = if (isSelected) BorderStroke(2.dp, AppColors.ArenaOrange.copy(alpha = 0.85f)) else BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
         ) {
-            CategoryTabContent(category, isSelected, false)
+            CategoryTabContent(category, isSelected, false, count)
         }
     }
 }
 
 @Composable
-private fun CategoryTabContent(category: Category, isActive: Boolean, isFocused: Boolean) {
+private fun CategoryTabContent(category: Category, isActive: Boolean, isFocused: Boolean, count: Int? = null) {
     val contentColor = when {
         isFocused -> Color.Black
         isActive -> Color.White
@@ -248,6 +249,15 @@ private fun CategoryTabContent(category: Category, isActive: Boolean, isFocused:
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f).padding(horizontal = 14.dp, vertical = 10.dp)
         )
+        if (count != null) {
+            Text(
+                text = count.toString(),
+                color = contentColor.copy(alpha = 0.5f),
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(end = 12.dp)
+            )
+        }
     }
 }
 
@@ -491,7 +501,7 @@ private fun VodPosterCardContent(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(posterUrl)
                     .crossfade(!isLite)
-                    .size(if (isTv) Size(300, 450) else Size(200, 300))
+                    .size(if (isTv) Size(300, 450) else Size(150, 225))
                     .precision(Precision.INEXACT)
                     .build(),
                 contentDescription = name,
