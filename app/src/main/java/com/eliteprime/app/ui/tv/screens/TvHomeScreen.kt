@@ -49,12 +49,15 @@ import com.eliteprime.app.ui.screens.dashboard.TrendingItem
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.input.key.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.tv.material3.Border
 import com.eliteprime.app.util.DeviceRenderProfile
 import com.eliteprime.app.util.LocalRenderTier
 import com.eliteprime.app.util.RenderTier
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private data class TvHeroInfo(
     val title: String,
@@ -116,6 +119,7 @@ fun TvHomeScreen(
 
     if (historyToRemove != null) {
         val target = historyToRemove!!
+        Log.d("TvHome", "Showing removal dialog for: ${target.name}")
         TvConfirmDialog(
             title = stringResource(R.string.history_remove_title),
             message = stringResource(R.string.history_remove_msg, target.name),
@@ -123,10 +127,14 @@ fun TvHomeScreen(
             confirmColor = Color(0xFFEF5350),
             icon = Icons.Default.Delete,
             onConfirm = {
+                Log.d("TvHome", "Confirmed removal of: ${target.name}")
                 viewModel.removeFromHistory(target)
                 historyToRemove = null
             },
-            onDismiss = { historyToRemove = null }
+            onDismiss = { 
+                Log.d("TvHome", "Cancelled removal")
+                historyToRemove = null 
+            }
         )
     }
 
@@ -423,10 +431,35 @@ private fun TvMiniHistoryCard(
     val isReducedTier = tier == RenderTier.REDUCED
     var isFocused by remember { mutableStateOf(false) }
 
+    var longPressJob: Job? by remember { mutableStateOf(null) }
+    val scope = rememberCoroutineScope()
+
     TvSurfaceCard(
         onClick = onClick,
-        onLongClick = onLongClick,
-        modifier = modifier.width(195.dp).aspectRatio(16f / 9f).onFocusChanged { isFocused = it.isFocused },
+        modifier = modifier
+            .width(195.dp)
+            .aspectRatio(16f / 9f)
+            .onFocusChanged { isFocused = it.isFocused }
+            .onKeyEvent { keyEvent ->
+                if (keyEvent.key == Key.DirectionCenter || keyEvent.key == Key.Enter) {
+                    when (keyEvent.type) {
+                        KeyEventType.KeyDown -> {
+                            if (longPressJob == null) {
+                                longPressJob = scope.launch {
+                                    delay(800) // Threshold for long press
+                                    onLongClick()
+                                    longPressJob = null
+                                }
+                            }
+                        }
+                        KeyEventType.KeyUp -> {
+                            longPressJob?.cancel()
+                            longPressJob = null
+                        }
+                    }
+                }
+                false
+            },
         scale = ClickableSurfaceDefaults.scale(focusedScale = if (isReducedTier) 1.05f else 1.1f),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp))
     ) {
