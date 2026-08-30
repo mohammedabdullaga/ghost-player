@@ -42,10 +42,6 @@ class VodSyncWorker @AssistedInject constructor(
                 2, TimeUnit.HOURS                  // 2h flex window
             )
                 .setConstraints(constraints)
-                .setBackoffCriteria(
-                    BackoffPolicy.EXPONENTIAL,
-                    30, TimeUnit.MINUTES            // Slow backoff to be gentle on device
-                )
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
