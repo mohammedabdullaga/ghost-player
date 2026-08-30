@@ -1,5 +1,6 @@
 package com.eliteprime.app.ui.tv.screens
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
@@ -8,9 +9,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -19,9 +17,9 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,19 +29,19 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.intl.LocaleList
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -53,9 +51,11 @@ import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
+import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.ui.components.VodPosterCard
+import com.eliteprime.app.ui.components.TvConfirmDialog
 import com.eliteprime.app.ui.screens.movies.MovieViewModel
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
@@ -66,10 +66,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-private const val SIDEBAR_WEIGHT_OPEN = 0.34f
+private const val SIDEBAR_WEIGHT_OPEN = 0.28f
 private const val SIDEBAR_WEIGHT_CLOSED = 0f
-private const val SIDEBAR_ANIM_MS = 220
-private const val RETURN_FOCUS_DELAY_MS = SIDEBAR_ANIM_MS + 80L
+private const val SIDEBAR_ANIM_MS = 300
+private const val RETURN_FOCUS_DELAY_MS = 350L
 
 @Composable
 fun TvMovieScreen(
@@ -79,24 +79,12 @@ fun TvMovieScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
-
     val gridState = rememberLazyGridState()
     var focusedMovie by remember { mutableStateOf<Movie?>(null) }
-
-    LaunchedEffect(gridState) {
-        snapshotFlow { gridState.layoutInfo.visibleItemsInfo }
-            .map { visibleItems ->
-                val lastVisibleItem = visibleItems.lastOrNull() ?: return@map false
-                lastVisibleItem.index >= uiState.filteredMovies.size - 8
-            }
-            .distinctUntilChanged()
-            .filter { it }
-            .collect { viewModel.loadMore() }
-    }
-
+    
     val categoryFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
-    val firstCategoryRequester = remember { FocusRequester() }
     val movieFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
+    val firstCategoryRequester = remember { FocusRequester() }
     val firstMovieRequester = remember { FocusRequester() }
     val sidebarListState = rememberLazyListState()
 
@@ -105,6 +93,7 @@ fun TvMovieScreen(
     val isGridFocused by viewModel.isGridFocused.collectAsState()
     var lastSidebarFocusKey by remember { mutableStateOf<Long?>(MovieViewModel.CAT_ID_RECENTLY_ADDED) }
     var searchText by remember { mutableStateOf("") }
+    var movieToRemove by remember { mutableStateOf<Movie?>(null) }
 
     LaunchedEffect(searchText) { delay(300); viewModel.setSearchQuery(searchText) }
 
@@ -164,6 +153,22 @@ fun TvMovieScreen(
 
     val layoutDirection = LocalLayoutDirection.current
     val isRtl = layoutDirection == LayoutDirection.Rtl
+
+    if (movieToRemove != null) {
+        val target = movieToRemove!!
+        TvConfirmDialog(
+            title = stringResource(R.string.history_remove_title),
+            message = stringResource(R.string.history_remove_msg, target.name),
+            confirmText = stringResource(R.string.generic_remove),
+            confirmColor = Color(0xFFEF5350),
+            icon = Icons.Default.Delete,
+            onConfirm = {
+                viewModel.removeFromHistory(target)
+                movieToRemove = null
+            },
+            onDismiss = { movieToRemove = null }
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         val tier = LocalRenderTier.current
@@ -269,14 +274,12 @@ fun TvMovieScreen(
                     itemsIndexed(uiState.categories) { index, category ->
                         val requester = categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
 
-                        LaunchedEffect(category.id) { viewModel.loadCategoryCount(category) }
-                        
-                        if (index > 0) {
-                            val prev = uiState.categories[index - 1]
-                            if (prev.isVirtual && !category.isVirtual) {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(vertical = 12.dp, horizontal = 12.dp),
-                                    color = Color.White.copy(alpha = 0.15f))
+                        if (index == 0) {
+                            LaunchedEffect(Unit) {
+                                if (!hasInitiallyFocused) {
+                                    delay(400); try { requester.requestFocus() } catch(_: Exception) {}
+                                    hasInitiallyFocused = true
+                                }
                             }
                         }
 
@@ -340,7 +343,12 @@ fun TvMovieScreen(
                                     }
                                     false
                                 },
-                            onClick = { onMovieClick(movie) }
+                            onClick = { onMovieClick(movie) },
+                            onLongClick = {
+                                if (uiState.selectedCategory?.id == MovieViewModel.CAT_ID_CONTINUE) {
+                                    movieToRemove = movie
+                                }
+                            }
                         )
                     }
                 }

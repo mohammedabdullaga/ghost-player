@@ -206,6 +206,30 @@ class SeriesViewModel @Inject constructor(
         seriesBox.put(series)
     }
 
+    fun removeFromHistory(series: Series) {
+        viewModelScope.launch {
+            val accountBox = boxStore.boxFor(XtreamAccount::class.java)
+            val activeAccount = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst()
+            activeAccount?.let { account ->
+                // For series, we might have multiple history items for different episodes.
+                // We need to delete all history items associated with this seriesId.
+                // The current deleteHistory only takes streamId (which is episode id for series).
+                // Let's check if we can add a method to delete by seriesId.
+                
+                val history = playbackHistoryRepository.getRecentlyWatched(100).first()
+                val seriesHistoryItems = history.filter { it.seriesId == series.id && it.providerId == account.id }
+                
+                seriesHistoryItems.forEach { item ->
+                    playbackHistoryRepository.deleteHistory(
+                        streamId = item.streamId,
+                        type = item.type,
+                        providerId = account.id
+                    )
+                }
+            }
+        }
+    }
+
     fun enterFullScreen() {
         _isSidebarHidden.value = true
         _isGridFocused.value = true

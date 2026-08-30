@@ -208,6 +208,20 @@ class MovieViewModel @Inject constructor(
         movieBox.put(movie)
     }
 
+    fun removeFromHistory(movie: Movie) {
+        viewModelScope.launch {
+            val accountBox = boxStore.boxFor(XtreamAccount::class.java)
+            val activeAccount = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst()
+            activeAccount?.let { account ->
+                playbackHistoryRepository.deleteHistory(
+                    streamId = movie.id,
+                    type = "movie",
+                    providerId = account.id
+                )
+            }
+        }
+    }
+
     fun enterFullScreen() {
         _isSidebarHidden.value = true
         _isGridFocused.value = true

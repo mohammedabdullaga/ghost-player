@@ -345,6 +345,7 @@ fun VodPosterCard(
     if (isTv) {
         TvSurface(
             onClick = onClick,
+            onLongClick = onLongClick,
             modifier = modifier
                 .fillMaxWidth()
                 .onFocusChanged { isFocused = it.isFocused },
@@ -390,6 +391,7 @@ fun SeriesPosterCard(
     if (isTv) {
         TvSurface(
             onClick = onClick,
+            onLongClick = onLongClick,
             modifier = modifier
                 .fillMaxWidth()
                 .onFocusChanged { isFocused = it.isFocused },

@@ -19,8 +19,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,15 +28,14 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.intl.Locale
@@ -50,11 +47,14 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
+import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
+import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.components.SeriesPosterCard
+import com.eliteprime.app.ui.components.TvConfirmDialog
 import com.eliteprime.app.ui.screens.series.SeriesViewModel
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
@@ -81,6 +81,7 @@ fun TvSeriesScreen(
 
     val gridState = rememberLazyGridState()
     var focusedSeries by remember { mutableStateOf<Series?>(null) }
+    var seriesToRemove by remember { mutableStateOf<Series?>(null) }
 
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo }
@@ -163,6 +164,22 @@ fun TvSeriesScreen(
 
     val layoutDirection = LocalLayoutDirection.current
     val isRtl = layoutDirection == LayoutDirection.Rtl
+
+    if (seriesToRemove != null) {
+        val target = seriesToRemove!!
+        TvConfirmDialog(
+            title = stringResource(R.string.history_remove_title),
+            message = stringResource(R.string.history_remove_msg, target.name),
+            confirmText = stringResource(R.string.generic_remove),
+            confirmColor = Color(0xFFEF5350),
+            icon = Icons.Default.Delete,
+            onConfirm = {
+                viewModel.removeFromHistory(target)
+                seriesToRemove = null
+            },
+            onDismiss = { seriesToRemove = null }
+        )
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         val tier = LocalRenderTier.current
@@ -339,7 +356,12 @@ fun TvSeriesScreen(
                                     }
                                     false
                                 },
-                            onClick = { onSeriesClick(series) }
+                            onClick = { onSeriesClick(series) },
+                            onLongClick = {
+                                if (uiState.selectedCategory?.id == SeriesViewModel.CAT_ID_CONTINUE) {
+                                    seriesToRemove = series
+                                }
+                            }
                         )
                     }
                 }
