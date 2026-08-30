@@ -50,6 +50,9 @@ class PlayerViewModel @Inject constructor(
     private val _displayTitle = MutableStateFlow(initialTitle)
     val title: StateFlow<String> = _displayTitle.asStateFlow()
 
+    private val _channelLogoUrl = MutableStateFlow<String?>(null)
+    val channelLogoUrl: StateFlow<String?> = _channelLogoUrl.asStateFlow()
+
     val playbackState = playerEngine.playbackState
     val isPlaying = playerEngine.isPlaying
     val currentPosition = playerEngine.currentPosition
@@ -260,6 +263,7 @@ class PlayerViewModel @Inject constructor(
                     .find()
                 
                 currentChannels = allChannels
+                _channelLogoUrl.value = currentChannel.streamIcon
                 updateLiveNavigation(currentChannel)
             }
         }
@@ -292,6 +296,7 @@ class PlayerViewModel @Inject constructor(
                 val nextChannel = currentChannels[index + 1]
                 activeStreamId = nextChannel.id
                 _displayTitle.value = nextChannel.name
+                _channelLogoUrl.value = nextChannel.streamIcon
                 navigateToLive(nextChannel)
             }
         }
@@ -312,6 +317,7 @@ class PlayerViewModel @Inject constructor(
                 val prevChannel = currentChannels[index - 1]
                 activeStreamId = prevChannel.id
                 _displayTitle.value = prevChannel.name
+                _channelLogoUrl.value = prevChannel.streamIcon
                 navigateToLive(prevChannel)
             }
         }

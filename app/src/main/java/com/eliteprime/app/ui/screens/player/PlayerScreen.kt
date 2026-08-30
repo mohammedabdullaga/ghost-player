@@ -59,6 +59,7 @@ fun PlayerScreen(
     val hasPreviousEpisode by viewModel.hasPreviousEpisode.collectAsStateWithLifecycle()
     val seekAccumulator by viewModel.seekAccumulator.collectAsStateWithLifecycle()
     val preventStandby by viewModel.preventStandby.collectAsStateWithLifecycle()
+    val channelLogoUrl by viewModel.channelLogoUrl.collectAsStateWithLifecycle()
 
     var showAudioSyncDialog by remember { mutableStateOf(false) }
 
@@ -128,7 +129,7 @@ fun PlayerScreen(
             }
     ) {
         // 1. Background Key Trap (TV only, when UI is hidden)
-        // This ensures D-pad Left/Right/OK works for seeking/showing menu
+        // D-pad Left/Right: seek, Center: show controls, Up/Down: channel switch for live
         if (isTv && !showControls && !resumePrompt.show) {
             Box(
                 modifier = Modifier
@@ -150,8 +151,20 @@ fun PlayerScreen(
                                     viewModel.accumulateSeek(10)
                                     true
                                 }
-                                Key.DirectionUp, Key.DirectionDown -> {
-                                    viewModel.toggleControls()
+                                Key.DirectionUp -> {
+                                    if (viewModel.type == "live") {
+                                        viewModel.playNextEpisode()
+                                    } else {
+                                        viewModel.toggleControls()
+                                    }
+                                    true
+                                }
+                                Key.DirectionDown -> {
+                                    if (viewModel.type == "live") {
+                                        viewModel.playPreviousEpisode()
+                                    } else {
+                                        viewModel.toggleControls()
+                                    }
                                     true
                                 }
                                 else -> false
@@ -196,6 +209,7 @@ fun PlayerScreen(
                 hasPreviousEpisode = hasPreviousEpisode,
                 onNextEpisode = { viewModel.playNextEpisode() },
                 onPreviousEpisode = { viewModel.playPreviousEpisode() },
+                channelLogoUrl = channelLogoUrl,
                 modifier = Modifier.fillMaxSize()
             )
 

@@ -43,6 +43,11 @@ import androidx.tv.material3.Surface as TvSurface
 import com.eliteprime.app.R
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.util.isTelevisionDevice
+import coil3.compose.SubcomposeAsyncImage
+import coil3.request.ImageRequest
+import coil3.size.Precision
+import coil3.size.Size
+import androidx.compose.ui.layout.ContentScale
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -78,7 +83,8 @@ fun MobilePlayerControls(
     hasNextEpisode: Boolean = false,
     hasPreviousEpisode: Boolean = false,
     onNextEpisode: () -> Unit = {},
-    onPreviousEpisode: () -> Unit = {}
+    onPreviousEpisode: () -> Unit = {},
+    channelLogoUrl: String? = null
 ) {
     val isTv = LocalContext.current.isTelevisionDevice()
     val playPauseFocusRequester = remember { FocusRequester() }
@@ -299,8 +305,8 @@ fun MobilePlayerControls(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // 1. Previous Episode / Channel
-                            if (contentType != PlayerContentType.MOVIE) {
+                            // 1. Previous Episode / Channel (hidden for live TV)
+                            if (contentType != PlayerContentType.MOVIE && contentType != PlayerContentType.LIVE_TV) {
                                 PlayerControlButton(
                                     icon = Icons.Default.SkipPrevious,
                                     contentDescription = stringResource(R.string.generic_previous),
@@ -320,16 +326,18 @@ fun MobilePlayerControls(
                                 )
                             }
 
-                            // 3. Play/Pause (Center Anchor)
-                            PlayerControlButton(
-                                icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                contentDescription = stringResource(R.string.player_play_pause),
-                                onClick = onTogglePlayPause,
-                                onInteraction = onInteraction,
-                                containerColor = AppColors.ArenaOrange,
-                                size = 44.dp,
-                                modifier = Modifier.focusRequester(playPauseFocusRequester)
-                            )
+                            // 3. Play/Pause (Center Anchor) — hidden for live TV
+                            if (contentType != PlayerContentType.LIVE_TV) {
+                                PlayerControlButton(
+                                    icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = stringResource(R.string.player_play_pause),
+                                    onClick = onTogglePlayPause,
+                                    onInteraction = onInteraction,
+                                    containerColor = AppColors.ArenaOrange,
+                                    size = 44.dp,
+                                    modifier = Modifier.focusRequester(playPauseFocusRequester)
+                                )
+                            }
 
                             // 4. Seek Forward (VOD/Series only)
                             if (contentType != PlayerContentType.LIVE_TV) {
@@ -341,8 +349,8 @@ fun MobilePlayerControls(
                                 )
                             }
 
-                            // 5. Next Episode / Channel
-                            if (contentType != PlayerContentType.MOVIE) {
+                            // 5. Next Episode / Channel (hidden for live TV)
+                            if (contentType != PlayerContentType.MOVIE && contentType != PlayerContentType.LIVE_TV) {
                                 PlayerControlButton(
                                     icon = Icons.Default.SkipNext,
                                     contentDescription = stringResource(R.string.generic_next),
@@ -402,8 +410,39 @@ fun MobilePlayerControls(
                                     )
                                 }
                             } else if (contentType == PlayerContentType.LIVE_TV) {
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Box(modifier = Modifier.weight(1f)) {
+                                Spacer(modifier = Modifier.width(12.dp))
+                                // Channel logo
+                                if (channelLogoUrl != null) {
+                                    SubcomposeAsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(channelLogoUrl)
+                                            .size(Size(100, 100))
+                                            .precision(Precision.INEXACT)
+                                            .build(),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(36.dp).clip(RoundedCornerShape(6.dp)),
+                                        contentScale = ContentScale.Fit,
+                                        loading = {
+                                            Box(modifier = Modifier.size(36.dp).background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(6.dp)))
+                                        },
+                                        error = {
+                                            Box(modifier = Modifier.size(36.dp).background(Color.White.copy(alpha = 0.06f), RoundedCornerShape(6.dp)))
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                }
+                                // Channel name + LIVE indicator
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = title,
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
                                     LiveIndicatorBar()
                                 }
                             }
