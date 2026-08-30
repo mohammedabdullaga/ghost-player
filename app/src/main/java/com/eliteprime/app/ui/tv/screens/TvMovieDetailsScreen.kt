@@ -69,9 +69,7 @@ fun TvMovieDetailsScreen(
         }
     }
 
-    val isLite = DeviceRenderProfile.isLiteMode()
-
-    AppBackground(isTransparent = !isLite) {
+    AppBackground(isTransparent = true) {
         if (movie == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = TvColors.Primary)
@@ -79,30 +77,25 @@ fun TvMovieDetailsScreen(
         } else {
             val m = movie!!
             
-            // Backdrop (Disabled in Lite Mode for instant rendering)
-            if (!isLite) {
-                AsyncImage(
-                    model = m.backdropUrl ?: m.streamIcon,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    alpha = 0.45f
-                )
-            }
+            // Backdrop specific to this movie, now enabled in Lite Mode
+            AsyncImage(
+                model = m.backdropUrl ?: m.streamIcon,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alpha = 0.45f
+            )
             
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(
-                        if (isLite) Modifier.background(Color.Transparent)
-                        else Modifier.background(
-                            remember {
-                                Brush.horizontalGradient(
-                                    colors = listOf(Color.Black, Color.Black.copy(alpha = 0.8f), Color.Transparent),
-                                    endX = 1400f
-                                )
-                            }
-                        )
+                    .background(
+                        remember {
+                            Brush.horizontalGradient(
+                                colors = listOf(Color.Black, Color.Black.copy(alpha = 0.8f), Color.Transparent),
+                                endX = 1400f
+                            )
+                        }
                     )
             )
 
@@ -198,10 +191,10 @@ fun TvMovieDetailsScreen(
                         Column(modifier = Modifier.padding(20.dp)) {
                             Text(
                                 text = m.name,
-                                style = MaterialTheme.typography.headlineMedium,
+                                fontSize = 20.sp, // ~30% reduction from typical headline size
                                 color = Color.White,
                                 fontWeight = FontWeight.Black,
-                                lineHeight = 30.sp,
+                                lineHeight = 26.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
