@@ -39,7 +39,7 @@ class PreferenceRepository @Inject constructor(
     private val _liveBufferSize = MutableStateFlow(prefs.getInt("live_buffer_size", 0)) // 0 = Auto/Default
     val liveBufferSize: StateFlow<Int> = _liveBufferSize
 
-    private val _isLiteModeEnabled = MutableStateFlow(prefs.getBoolean("lite_mode_enabled", true))
+    private val _isLiteModeEnabled = MutableStateFlow(prefs.getBoolean("lite_mode_enabled", false))
     val isLiteModeEnabled: StateFlow<Boolean> = _isLiteModeEnabled
 
     val isAppModeConfigured: Boolean

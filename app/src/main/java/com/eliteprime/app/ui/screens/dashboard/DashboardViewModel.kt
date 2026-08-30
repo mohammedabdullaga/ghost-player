@@ -201,6 +201,10 @@ class DashboardViewModel @Inject constructor(
                     trendingSeries = tSeries,
                     isTrendingLoading = false
                 ) }
+            } else {
+                // No trending cache yet — clear loading flag so UI shows fallback,
+                // then fetch from TMDB will populate it.
+                _uiState.update { it.copy(isTrendingLoading = false) }
             }
         }
     }
@@ -208,7 +212,10 @@ class DashboardViewModel @Inject constructor(
     private fun fetchTrending(forceRefresh: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             // Staggered Dashboard Init: Allow first frame to render from cache first
-            delay(2000)
+            delay(1500)
+            
+            // Fallback hardcoded key in case config endpoint is slow or unreachable
+            val HARDCODED_KEY = "77db3c693088e47469e0df1feebb4a4c"
             
             val allCached = trendingBox.all
             val lastUpdate = allCached.firstOrNull()?.lastUpdated ?: 0L
@@ -229,9 +236,11 @@ class DashboardViewModel @Inject constructor(
                 apiKey = configRepository.getTmdbApiKey()
             }
             
+            // Fallback hardcoded key if config endpoint doesn't provide one.
+            // This ensures trending always works even on a fresh install with no config.
             if (apiKey == null) {
-                _uiState.update { it.copy(isTrendingLoading = false) }
-                return@launch
+                apiKey = HARDCODED_KEY
+                Log.d("DashboardVM", "Using hardcoded TMDB key as fallback")
             }
             
             val langAr = "ar"
