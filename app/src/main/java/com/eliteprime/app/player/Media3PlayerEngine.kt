@@ -485,6 +485,15 @@ class Media3PlayerEngine @Inject constructor(
             PlayerSurfaceResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
         }
 
+        // Sync decoder-level scaling mode with the view resize mode.
+        // Without this, videoScalingMode stays stuck at SCALE_TO_FIT and
+        // FILL/ZOOM on the PlayerView has no visible effect.
+        exoPlayer?.videoScalingMode = when (resizeMode) {
+            PlayerSurfaceResizeMode.FIT -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT
+            PlayerSurfaceResizeMode.FILL -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+            PlayerSurfaceResizeMode.ZOOM -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+        }
+
         if (exoPlayer == null) {
             pendingRenderView = playerView
             return
