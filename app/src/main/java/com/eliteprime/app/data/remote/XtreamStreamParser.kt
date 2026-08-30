@@ -2,8 +2,11 @@ package com.eliteprime.app.data.remote
 
 import android.util.Log
 import com.eliteprime.app.data.local.entity.LiveStream
+import com.eliteprime.app.data.local.entity.LiveStream_
 import com.eliteprime.app.data.local.entity.Movie
+import com.eliteprime.app.data.local.entity.Movie_
 import com.eliteprime.app.data.local.entity.Series
+import com.eliteprime.app.data.local.entity.Series_
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.google.gson.JsonSyntaxException
@@ -47,6 +50,16 @@ class XtreamStreamParser @Inject constructor(
         val writerJob = launch(Dispatchers.IO) {
             for (batch in writeChannel) {
                 try {
+                    // Preserve user data (favorites, last watched) that would be overwritten by sync
+                    val existingIds = batch.map { it.id }.toLongArray()
+                    val existing = liveBox.query().`in`(LiveStream_.id, existingIds).build().find()
+                    val existingMap = existing.associateBy { it.id }
+                    batch.forEach { newLive ->
+                        existingMap[newLive.id]?.let { old ->
+                            newLive.isFavorite = old.isFavorite
+                            newLive.lastWatchedAt = old.lastWatchedAt
+                        }
+                    }
                     liveBox.put(batch)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error putting batch of live streams: ${e.message}")
@@ -128,6 +141,18 @@ class XtreamStreamParser @Inject constructor(
         val writerJob = launch(Dispatchers.IO) {
             for (batch in writeChannel) {
                 try {
+                    // Preserve user data (favorites, progress) that would be overwritten by sync
+                    val existingIds = batch.map { it.id }.toLongArray()
+                    val existing = movieBox.query().`in`(Movie_.id, existingIds).build().find()
+                    val existingMap = existing.associateBy { it.id }
+                    batch.forEach { newMovie ->
+                        existingMap[newMovie.id]?.let { old ->
+                            newMovie.isFavorite = old.isFavorite
+                            newMovie.watchProgress = old.watchProgress
+                            newMovie.totalDuration = old.totalDuration
+                            newMovie.lastWatchedAt = old.lastWatchedAt
+                        }
+                    }
                     movieBox.put(batch)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error putting batch of movies: ${e.message}")
@@ -199,6 +224,16 @@ class XtreamStreamParser @Inject constructor(
         val writerJob = launch(Dispatchers.IO) {
             for (batch in writeChannel) {
                 try {
+                    // Preserve user data (favorites) that would be overwritten by sync
+                    val existingIds = batch.map { it.id }.toLongArray()
+                    val existing = seriesBox.query().`in`(Series_.id, existingIds).build().find()
+                    val existingMap = existing.associateBy { it.id }
+                    batch.forEach { newSeries ->
+                        existingMap[newSeries.id]?.let { old ->
+                            newSeries.isFavorite = old.isFavorite
+                            newSeries.lastWatchedAt = old.lastWatchedAt
+                        }
+                    }
                     seriesBox.put(batch)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error putting batch of series: ${e.message}")

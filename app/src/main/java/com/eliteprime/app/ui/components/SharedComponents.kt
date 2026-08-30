@@ -460,12 +460,27 @@ private fun VodPosterCardContent(
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFF121212))
             .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = if (isFocused) Color.White else Color.Transparent,
+                width = if (isFocused) 2.dp else if (isFavorite) 1.5.dp else 0.dp,
+                color = if (isFocused) Color.White else if (isFavorite) AppColors.ArenaOrange else Color.Transparent,
                 shape = RoundedCornerShape(12.dp)
             ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Favorite star badge
+        if (isFavorite) {
+            Surface(
+                modifier = Modifier.align(Alignment.Start).padding(start = 4.dp, top = 4.dp),
+                color = AppColors.ArenaOrange,
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Icon(
+                    Icons.Default.Star,
+                    contentDescription = "Favorite",
+                    tint = Color.White,
+                    modifier = Modifier.size(12.dp).padding(2.dp)
+                )
+            }
+        }
         // 1. Poster Image Area
         Box(
             modifier = Modifier

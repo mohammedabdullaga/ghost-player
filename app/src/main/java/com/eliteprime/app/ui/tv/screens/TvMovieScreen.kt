@@ -170,6 +170,25 @@ fun TvMovieScreen(
         )
     }
 
+    // Toggle favorite confirm dialog
+    var movieToToggleFav by remember { mutableStateOf<Movie?>(null) }
+    if (movieToToggleFav != null) {
+        val target = movieToToggleFav!!
+        val isFav = target.isFavorite
+        TvConfirmDialog(
+            title = if (isFav) stringResource(R.string.fav_remove) else stringResource(R.string.fav_add),
+            message = target.name,
+            confirmText = if (isFav) stringResource(R.string.generic_remove) else stringResource(R.string.fav_add),
+            confirmColor = if (isFav) Color(0xFFEF5350) else AppColors.ArenaOrange,
+            icon = Icons.Default.Star,
+            onConfirm = {
+                viewModel.toggleFavorite(target)
+                movieToToggleFav = null
+            },
+            onDismiss = { movieToToggleFav = null }
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         val tier = LocalRenderTier.current
         val isReducedTier = tier == RenderTier.REDUCED
@@ -347,8 +366,9 @@ fun TvMovieScreen(
                                 },
                             onClick = { onMovieClick(movie) },
                             onLongClick = {
-                                if (uiState.selectedCategory?.id == MovieViewModel.CAT_ID_CONTINUE) {
-                                    movieToRemove = movie
+                                when (uiState.selectedCategory?.id) {
+                                    MovieViewModel.CAT_ID_CONTINUE -> movieToRemove = movie
+                                    else -> movieToToggleFav = movie
                                 }
                             }
                         )

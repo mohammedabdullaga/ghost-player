@@ -83,6 +83,25 @@ fun TvSeriesScreen(
     var focusedSeries by remember { mutableStateOf<Series?>(null) }
     var seriesToRemove by remember { mutableStateOf<Series?>(null) }
 
+    // Toggle favorite confirm dialog
+    var seriesToToggleFav by remember { mutableStateOf<Series?>(null) }
+    if (seriesToToggleFav != null) {
+        val target = seriesToToggleFav!!
+        val isFav = target.isFavorite
+        TvConfirmDialog(
+            title = if (isFav) stringResource(R.string.fav_remove) else stringResource(R.string.fav_add),
+            message = target.name,
+            confirmText = if (isFav) stringResource(R.string.generic_remove) else stringResource(R.string.fav_add),
+            confirmColor = if (isFav) Color(0xFFEF5350) else AppColors.ArenaOrange,
+            icon = Icons.Default.Star,
+            onConfirm = {
+                viewModel.toggleFavorite(target)
+                seriesToToggleFav = null
+            },
+            onDismiss = { seriesToToggleFav = null }
+        )
+    }
+
     LaunchedEffect(gridState) {
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo }
             .map { visibleItems ->
@@ -358,8 +377,9 @@ fun TvSeriesScreen(
                                 },
                             onClick = { onSeriesClick(series) },
                             onLongClick = {
-                                if (uiState.selectedCategory?.id == SeriesViewModel.CAT_ID_CONTINUE) {
-                                    seriesToRemove = series
+                                when (uiState.selectedCategory?.id) {
+                                    SeriesViewModel.CAT_ID_CONTINUE -> seriesToRemove = series
+                                    else -> seriesToToggleFav = series
                                 }
                             }
                         )
