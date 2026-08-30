@@ -274,6 +274,8 @@ fun TvMovieScreen(
                     itemsIndexed(uiState.categories) { index, category ->
                         val requester = categoryFocusRequesters.getOrPut(category.id) { FocusRequester() }
 
+                        LaunchedEffect(category.id) { viewModel.loadCategoryCount(category) }
+
                         if (index == 0) {
                             LaunchedEffect(Unit) {
                                 if (!hasInitiallyFocused) {

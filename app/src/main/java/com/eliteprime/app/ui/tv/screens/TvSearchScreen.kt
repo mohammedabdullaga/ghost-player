@@ -1,6 +1,7 @@
 package com.eliteprime.app.ui.tv.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +25,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -39,11 +41,13 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.LiveStream
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.components.AppBackground
+import com.eliteprime.app.ui.components.ArenaLiveThumbnailPlaceholder
 import com.eliteprime.app.ui.screens.search.SearchViewModel
 import com.eliteprime.app.ui.tv.core.*
 import kotlinx.coroutines.delay
@@ -371,11 +375,13 @@ private fun TvSearchPosterCardV3(
             modifier = Modifier.fillMaxWidth().aspectRatio(2f/3f).onFocusChanged { isFocused = it.isFocused },
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp))
         ) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = posterUrl,
                 contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                loading = { ArenaLiveThumbnailPlaceholder(Modifier.fillMaxSize()) },
+                error = { ArenaLiveThumbnailPlaceholder(Modifier.fillMaxSize()) }
             )
         }
         Text(
@@ -411,11 +417,21 @@ private fun TvSearchChannelCardV3(
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp))
         ) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                AsyncImage(
+                SubcomposeAsyncImage(
                     model = channel.streamIcon,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize().padding(10.dp),
-                    contentScale = ContentScale.Fit
+                    contentScale = ContentScale.Fit,
+                    loading = {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Image(painter = painterResource(id = R.drawable.app_logo), contentDescription = null, modifier = Modifier.fillMaxSize(0.6f), contentScale = ContentScale.Fit)
+                        }
+                    },
+                    error = {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Image(painter = painterResource(id = R.drawable.app_logo), contentDescription = null, modifier = Modifier.fillMaxSize(0.6f), contentScale = ContentScale.Fit)
+                        }
+                    }
                 )
             }
         }

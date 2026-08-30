@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -38,6 +39,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -59,6 +61,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Precision
 import coil3.size.Size
+import coil3.compose.SubcomposeAsyncImage
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.EPGProgram
@@ -67,6 +70,7 @@ import com.eliteprime.app.domain.model.VideoFormat
 import com.eliteprime.app.player.PlayerStats
 import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.components.AppBackground
+import com.eliteprime.app.ui.components.ArenaLiveThumbnailPlaceholder
 import com.eliteprime.app.ui.components.TvExitDialog
 import com.eliteprime.app.ui.screens.live.LiveViewModel
 import com.eliteprime.app.ui.theme.AppColors
@@ -937,14 +941,25 @@ private fun TvChannelItem(
             )
             Spacer(modifier = Modifier.width(2.dp))
             Box(modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)).background(Color.White.copy(alpha = 0.07f)), contentAlignment = Alignment.Center) {
-                AsyncImage(
+                SubcomposeAsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(channel.streamIcon)
                         .size(Size(100, 100))
                         .precision(Precision.INEXACT)
                         .build(),
                     contentDescription = null, 
-                    modifier = Modifier.fillMaxSize().padding(4.dp)
+                    modifier = Modifier.fillMaxSize().padding(4.dp),
+                    contentScale = ContentScale.Fit,
+                    loading = {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Image(painter = painterResource(id = R.drawable.app_logo), contentDescription = null, modifier = Modifier.fillMaxSize(0.6f), contentScale = ContentScale.Fit)
+                        }
+                    },
+                    error = {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Image(painter = painterResource(id = R.drawable.app_logo), contentDescription = null, modifier = Modifier.fillMaxSize(0.6f), contentScale = ContentScale.Fit)
+                        }
+                    }
                 )
             }
             Spacer(modifier = Modifier.width(4.dp))

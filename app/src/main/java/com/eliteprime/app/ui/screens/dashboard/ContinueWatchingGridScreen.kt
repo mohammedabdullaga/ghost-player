@@ -167,27 +167,43 @@ fun ContinueWatchingGridScreen(
         }
 
         if (historyToDelete != null) {
-            AlertDialog(
-                onDismissRequest = { historyToDelete = null },
-                title = { Text(stringResource(R.string.history_remove_title)) },
-                text = { Text(stringResource(R.string.history_remove_msg, historyToDelete!!.name)) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        viewModel.removeFromHistory(historyToDelete!!)
+            val entry = historyToDelete!!
+            if (isTv) {
+                TvConfirmDialog(
+                    title = stringResource(R.string.history_remove_title),
+                    message = stringResource(R.string.history_remove_msg, entry.name),
+                    confirmText = stringResource(R.string.generic_remove),
+                    confirmColor = Color.Red,
+                    icon = Icons.Default.Delete,
+                    onConfirm = {
+                        viewModel.removeFromHistory(entry)
                         historyToDelete = null
-                    }) {
-                        Text(stringResource(R.string.generic_remove), color = Color.Red, fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { historyToDelete = null }) {
-                        Text(stringResource(R.string.generic_cancel), color = Color.White.copy(alpha = 0.6f))
-                    }
-                },
-                containerColor = Color(0xFF1A1C1E),
-                titleContentColor = Color.White,
-                textContentColor = Color.White.copy(alpha = 0.7f)
-            )
+                    },
+                    onDismiss = { historyToDelete = null }
+                )
+            } else {
+                AlertDialog(
+                    onDismissRequest = { historyToDelete = null },
+                    title = { Text(stringResource(R.string.history_remove_title)) },
+                    text = { Text(stringResource(R.string.history_remove_msg, historyToDelete!!.name)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            viewModel.removeFromHistory(historyToDelete!!)
+                            historyToDelete = null
+                        }) {
+                            Text(stringResource(R.string.generic_remove), color = Color.Red, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { historyToDelete = null }) {
+                            Text(stringResource(R.string.generic_cancel), color = Color.White.copy(alpha = 0.6f))
+                        }
+                    },
+                    containerColor = Color(0xFF1A1C1E),
+                    titleContentColor = Color.White,
+                    textContentColor = Color.White.copy(alpha = 0.7f)
+                )
+            }
         }
     }
 }

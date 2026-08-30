@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.tv.material3.ClickableSurfaceDefaults
 import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.size.Precision
 import coil3.size.Size
@@ -42,6 +44,7 @@ import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.components.AppBackground
+import com.eliteprime.app.ui.components.ArenaLiveThumbnailPlaceholder
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
 import com.eliteprime.app.ui.screens.dashboard.TrendingItem
 import com.eliteprime.app.ui.tv.core.*
@@ -96,7 +99,9 @@ fun TvTrendingScreen(
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        alpha = 0.45f
+                        alpha = 0.45f,
+                        placeholder = painterResource(R.drawable.app_logo),
+                        error = painterResource(R.drawable.app_logo)
                     )
                     Box(
                         modifier = Modifier
@@ -243,7 +248,7 @@ private fun TvTrendingPosterCard(
             modifier = modifier.fillMaxWidth().aspectRatio(2f/3f).onFocusChanged { isFocused = it.isFocused },
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp))
         ) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(item.posterUrl ?: item.backdropUrl)
                     .size(Size(400, 600)) // ~134dp * 3
@@ -251,7 +256,9 @@ private fun TvTrendingPosterCard(
                     .build(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                loading = { ArenaLiveThumbnailPlaceholder(Modifier.fillMaxSize()) },
+                error = { ArenaLiveThumbnailPlaceholder(Modifier.fillMaxSize()) }
             )
 
             if (isAvailable) {

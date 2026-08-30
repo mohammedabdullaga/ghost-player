@@ -54,6 +54,9 @@ import coil3.request.bitmapConfig
 import coil3.request.crossfade
 import coil3.size.Precision
 import coil3.size.Size
+import coil3.compose.SubcomposeAsyncImage
+import coil3.compose.SubcomposeAsyncImageContent
+import androidx.compose.ui.res.painterResource
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.LiveStream
@@ -318,7 +321,22 @@ private fun ChannelRowContent(channel: LiveStream, isActive: Boolean, isFocused:
             contentAlignment = Alignment.Center
         ) {
             if (channel.streamIcon != null) {
-                AsyncImage(model = channel.streamIcon, contentDescription = null, modifier = Modifier.fillMaxSize().padding(6.dp), contentScale = ContentScale.Fit)
+                SubcomposeAsyncImage(
+                    model = channel.streamIcon,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize().padding(6.dp),
+                    contentScale = ContentScale.Fit,
+                    loading = { 
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Image(painter = painterResource(id = R.drawable.app_logo), contentDescription = null, modifier = Modifier.fillMaxSize(0.6f), contentScale = ContentScale.Fit)
+                        }
+                    },
+                    error = { 
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Image(painter = painterResource(id = R.drawable.app_logo), contentDescription = null, modifier = Modifier.fillMaxSize(0.6f), contentScale = ContentScale.Fit)
+                        }
+                    }
+                )
             } else {
                 Icon(Icons.Default.Tv, contentDescription = null, modifier = Modifier.size(18.dp), tint = secondaryContentColor)
             }
@@ -454,7 +472,7 @@ private fun VodPosterCardContent(
                 .fillMaxWidth()
                 .aspectRatio(2f / 3f)
         ) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(posterUrl)
                     .crossfade(!isLite)
@@ -463,7 +481,9 @@ private fun VodPosterCardContent(
                     .build(),
                 contentDescription = name,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                loading = { ArenaLiveThumbnailPlaceholder(Modifier.fillMaxSize()) },
+                error = { ArenaLiveThumbnailPlaceholder(Modifier.fillMaxSize()) }
             )
 
             if (rating > 0) {
@@ -628,11 +648,13 @@ fun ContinueWatchingCard(
 
     val content = @Composable {
         Box(modifier = Modifier.fillMaxSize()) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = history.backdropUrl ?: history.posterUrl,
                 contentDescription = history.name,
+                modifier = Modifier.fillMaxSize().alpha(0.8f),
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().alpha(0.8f)
+                loading = { ArenaLiveThumbnailPlaceholder(Modifier.fillMaxSize()) },
+                error = { ArenaLiveThumbnailPlaceholder(Modifier.fillMaxSize()) }
             )
             
             // Bottom Scrim
@@ -682,9 +704,18 @@ fun ContinueWatchingCard(
     }
 
     if (isTv) {
+        var suppressClick by remember { mutableStateOf(false) }
         TvSurface(
-            onClick = onClick,
-            onLongClick = onLongClick,
+            onClick = {
+                if (!suppressClick) {
+                    onClick()
+                }
+                suppressClick = false
+            },
+            onLongClick = {
+                suppressClick = true
+                onLongClick()
+            },
             modifier = modifier
                 .width(220.dp)
                 .aspectRatio(16f / 9f)
@@ -716,6 +747,21 @@ fun ContinueWatchingCard(
 }
 
 @Composable
+fun ArenaLiveThumbnailPlaceholder(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.background(Color(0xFF1A1A2E)),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.app_logo),
+            contentDescription = "ArenaLive",
+            modifier = Modifier.fillMaxSize(0.45f),
+            contentScale = ContentScale.Fit
+        )
+    }
+}
+
+@Composable
 fun TvExitDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
@@ -743,9 +789,14 @@ fun TvConfirmDialog(
 ) {
     val focusRequester = remember { FocusRequester() }
 
+    // Prevent accidental instant-confirm from the key-up of the long-press that opened this dialog
+    var canInteract by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         delay(300)
         try { focusRequester.requestFocus() } catch (e: Exception) {}
+        delay(300) // Extra grace period so the key-up from the triggering long-press doesn't land on the button
+        canInteract = true
     }
 
     Dialog(
@@ -822,7 +873,7 @@ fun TvConfirmDialog(
                         if (isTv) {
                             var isYesFocused by remember { mutableStateOf(false) }
                             TvSurface(
-                                onClick = onConfirm,
+                                onClick = { if (canInteract) onConfirm() },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp)
@@ -850,7 +901,7 @@ fun TvConfirmDialog(
 
                             var isNoFocused by remember { mutableStateOf(false) }
                             TvSurface(
-                                onClick = onDismiss,
+                                onClick = { if (canInteract) onDismiss() },
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp)

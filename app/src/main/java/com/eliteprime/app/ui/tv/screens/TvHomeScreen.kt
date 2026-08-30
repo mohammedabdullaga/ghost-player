@@ -37,11 +37,13 @@ import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.MaterialTheme as TvMaterialTheme
 import androidx.tv.material3.Surface as TvSurface
 import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.data.local.entity.PlaybackHistory
 import com.eliteprime.app.ui.components.AppBackground
+import com.eliteprime.app.ui.components.ArenaLiveThumbnailPlaceholder
 import com.eliteprime.app.ui.components.TvExitDialog
 import com.eliteprime.app.ui.components.TvConfirmDialog
 import com.eliteprime.app.ui.screens.dashboard.DashboardViewModel
@@ -411,11 +413,13 @@ private fun TvMiniPosterCard(item: TrendingItem<*>, modifier: Modifier = Modifie
         scale = ClickableSurfaceDefaults.scale(focusedScale = if (isReducedTier) 1.05f else 1.1f),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp))
     ) {
-        AsyncImage(
+        SubcomposeAsyncImage(
             model = item.posterUrl,
             contentDescription = item.title,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+            loading = { ArenaLiveThumbnailPlaceholder(Modifier.fillMaxSize()) },
+            error = { ArenaLiveThumbnailPlaceholder(Modifier.fillMaxSize()) }
         )
     }
 }
@@ -464,11 +468,13 @@ private fun TvMiniHistoryCard(
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp))
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            AsyncImage(
+            SubcomposeAsyncImage(
                 model = history.backdropUrl ?: history.posterUrl,
                 contentDescription = history.name,
                 modifier = Modifier.fillMaxSize().alpha(0.8f),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                loading = { ArenaLiveThumbnailPlaceholder(Modifier.fillMaxSize()) },
+                error = { ArenaLiveThumbnailPlaceholder(Modifier.fillMaxSize()) }
             )
             Box(
                 modifier = Modifier.fillMaxSize().background(remember { Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))) }),
