@@ -19,6 +19,7 @@ import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.remote.proxy.NetworkManager
 import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.sync.CatalogSyncWorker
+import com.eliteprime.app.data.sync.VodSyncWorker
 import com.eliteprime.app.util.DeviceRenderProfile
 import com.eliteprime.app.util.RenderTier
 import dagger.hilt.android.HiltAndroidApp
@@ -99,10 +100,11 @@ class ElitePrimeApp : Application(), SingletonImageLoader.Factory {
         // Initialize network/proxy immediately so it can react to local state
         networkManager.init()
 
-        // Fetch config & background daily sync
+        // Fetch config & schedule background syncs
         appScope.launch {
             configRepository.fetchConfig()
             CatalogSyncWorker.schedulePeriodicSync(this@ElitePrimeApp)
+            VodSyncWorker.scheduleSilentSync(this@ElitePrimeApp)
         }
     }
 }

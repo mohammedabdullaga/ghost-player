@@ -32,7 +32,7 @@ class SeriesViewModel @Inject constructor(
         const val CAT_ID_FAVORITES = -1L
         const val CAT_ID_CONTINUE = -2L
         private const val FAST_LOAD_LIMIT = 500L
-        private const val RECENTLY_ADDED_LIMIT = 30L
+        private const val RECENTLY_ADDED_LIMIT = 100L
     }
 
     private val categoryBox = boxStore.boxFor(Category::class.java)

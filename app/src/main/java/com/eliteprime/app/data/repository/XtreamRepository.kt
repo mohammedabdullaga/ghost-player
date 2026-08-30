@@ -199,6 +199,60 @@ class XtreamRepository @Inject constructor(
         }
     }
 
+    /**
+     * Lightweight VOD-only sync — movies + series, no Live channels.
+     * Designed for silent background refresh on TV devices.
+     */
+    suspend fun syncVodOnly(
+        onMovieProgress: (Int) -> Unit = {},
+        onSeriesProgress: (Int) -> Unit = {}
+    ) = withContext(Dispatchers.IO) {
+        val syncTrace = FirebasePerformance.getInstance().newTrace("vod_silent_sync")
+        syncTrace.start()
+        try {
+            val account = getActiveAccountOrRefresh() ?: return@withContext
+
+            Log.i(TAG, "Starting silent VOD sync. Current counts: Movie=${movieBox.count()}, Series=${seriesBox.count()}")
+
+            // Evict stale connections before sync
+            okHttpClient.connectionPool.evictAll()
+
+            // Only sync Movies + Series (skip Live channels for speed)
+            syncStreamType(account, "get_vod_streams") { inputStream ->
+                parser.parseMovies(inputStream, null, onMovieProgress)
+            }
+            Log.i(TAG, "Silent VOD sync: movies done. New count: ${movieBox.count()}")
+
+            syncStreamType(account, "get_series") { inputStream ->
+                parser.parseSeries(inputStream, null, onSeriesProgress)
+            }
+            Log.i(TAG, "Silent VOD sync: series done. New count: ${seriesBox.count()}")
+
+            // Lightweight cleanup — only series-related orphans (skip EPG since we skip Live)
+            cleanupVodOrphans()
+            Log.i(TAG, "Silent VOD sync completed")
+        } finally {
+            syncTrace.stop()
+        }
+    }
+
+    /** Lightweight cleanup for VOD-only orphaned data (seasons/episodes with no matching series). */
+    private fun cleanupVodOrphans() {
+        try {
+            val seriesIds = seriesBox.query().build().property(Series_.id).findLongs().toSet()
+            boxStore.runInTx {
+                val episodeBox = boxStore.boxFor(Episode::class.java)
+                val seasonBox = boxStore.boxFor(Season::class.java)
+                val orphanedEpisodes = episodeBox.query().build().find().filter { it.seriesId !in seriesIds }
+                episodeBox.remove(orphanedEpisodes)
+                val orphanedSeasons = seasonBox.query().build().find().filter { it.seriesId !in seriesIds }
+                seasonBox.remove(orphanedSeasons)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "VOD cleanup failed: ${e.message}")
+        }
+    }
+
     private fun cleanupOrphanedData() {
         try {
             // Optimized Cleanup: Only fetch IDs
