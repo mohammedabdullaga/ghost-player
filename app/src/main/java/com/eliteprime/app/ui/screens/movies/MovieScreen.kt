@@ -132,6 +132,67 @@ fun MovieScreen(
         }
     }
 
+    // Favorite add/remove confirm dialog
+    var movieToToggleFav by remember { mutableStateOf<Movie?>(null) }
+    if (movieToToggleFav != null) {
+        val target = movieToToggleFav!!
+        val isFav = target.isFavorite
+        AlertDialog(
+            onDismissRequest = { movieToToggleFav = null },
+            title = { Text(if (isFav) stringResource(R.string.fav_remove) else stringResource(R.string.fav_add), fontWeight = FontWeight.Bold) },
+            text = { Text(target.name) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.toggleFavorite(target)
+                    movieToToggleFav = null
+                }) {
+                    Text(
+                        if (isFav) stringResource(R.string.generic_remove) else stringResource(R.string.fav_add),
+                        color = if (isFav) Color(0xFFEF5350) else AppColors.ArenaOrange,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { movieToToggleFav = null }) {
+                    Text(stringResource(R.string.generic_no), color = Color.White.copy(alpha = 0.6f))
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color(0xFF12151B),
+            titleContentColor = Color.White,
+            textContentColor = Color.White.copy(alpha = 0.7f)
+        )
+    }
+
+    // Continue Watching remove confirm dialog
+    var movieToRemove by remember { mutableStateOf<Movie?>(null) }
+    if (movieToRemove != null) {
+        val target = movieToRemove!!
+        AlertDialog(
+            onDismissRequest = { movieToRemove = null },
+            title = { Text(stringResource(R.string.history_remove_title), fontWeight = FontWeight.Bold) },
+            text = { Text(target.name) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.removeFromHistory(target)
+                    movieToRemove = null
+                }) {
+                    Text(stringResource(R.string.generic_remove), color = Color(0xFFEF5350), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { movieToRemove = null }) {
+                    Text(stringResource(R.string.generic_no), color = Color.White.copy(alpha = 0.6f))
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color(0xFF12151B),
+            titleContentColor = Color.White,
+            textContentColor = Color.White.copy(alpha = 0.7f)
+        )
+    }
+
     AppBackground {
         Column(modifier = Modifier.fillMaxSize()) {
             // Top Nav Bar (Optional on TV if Sidebar is used, but kept for Mobile/Tablet)
@@ -200,7 +261,12 @@ fun MovieScreen(
                                             }
                                         },
                                     onClick = { onMovieClick(movie) },
-                                    onLongClick = { viewModel.toggleFavorite(movie) }
+                                    onLongClick = {
+                                        when (uiState.selectedCategory?.id) {
+                                            MovieViewModel.CAT_ID_CONTINUE -> movieToRemove = movie
+                                            else -> movieToToggleFav = movie
+                                        }
+                                    }
                                 )
                             }
                         }

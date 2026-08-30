@@ -129,6 +129,67 @@ fun SeriesScreen(
         }
     }
 
+    // Favorite add/remove confirm dialog
+    var seriesToToggleFav by remember { mutableStateOf<Series?>(null) }
+    if (seriesToToggleFav != null) {
+        val target = seriesToToggleFav!!
+        val isFav = target.isFavorite
+        AlertDialog(
+            onDismissRequest = { seriesToToggleFav = null },
+            title = { Text(if (isFav) stringResource(R.string.fav_remove) else stringResource(R.string.fav_add), fontWeight = FontWeight.Bold) },
+            text = { Text(target.name) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.toggleFavorite(target)
+                    seriesToToggleFav = null
+                }) {
+                    Text(
+                        if (isFav) stringResource(R.string.generic_remove) else stringResource(R.string.fav_add),
+                        color = if (isFav) Color(0xFFEF5350) else AppColors.ArenaOrange,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { seriesToToggleFav = null }) {
+                    Text(stringResource(R.string.generic_no), color = Color.White.copy(alpha = 0.6f))
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color(0xFF12151B),
+            titleContentColor = Color.White,
+            textContentColor = Color.White.copy(alpha = 0.7f)
+        )
+    }
+
+    // Continue Watching remove confirm dialog
+    var seriesToRemove by remember { mutableStateOf<Series?>(null) }
+    if (seriesToRemove != null) {
+        val target = seriesToRemove!!
+        AlertDialog(
+            onDismissRequest = { seriesToRemove = null },
+            title = { Text(stringResource(R.string.history_remove_title), fontWeight = FontWeight.Bold) },
+            text = { Text(target.name) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.removeFromHistory(target)
+                    seriesToRemove = null
+                }) {
+                    Text(stringResource(R.string.generic_remove), color = Color(0xFFEF5350), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { seriesToRemove = null }) {
+                    Text(stringResource(R.string.generic_no), color = Color.White.copy(alpha = 0.6f))
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = Color(0xFF12151B),
+            titleContentColor = Color.White,
+            textContentColor = Color.White.copy(alpha = 0.7f)
+        )
+    }
+
     AppBackground {
         Column(modifier = Modifier.fillMaxSize()) {
             VodTopNavBar(
@@ -196,7 +257,12 @@ fun SeriesScreen(
                                             }
                                         },
                                     onClick = { onSeriesClick(series) },
-                                    onLongClick = { viewModel.toggleFavorite(series) }
+                                    onLongClick = {
+                                        when (uiState.selectedCategory?.id) {
+                                            SeriesViewModel.CAT_ID_CONTINUE -> seriesToRemove = series
+                                            else -> seriesToToggleFav = series
+                                        }
+                                    }
                                 )
                             }
                         }
