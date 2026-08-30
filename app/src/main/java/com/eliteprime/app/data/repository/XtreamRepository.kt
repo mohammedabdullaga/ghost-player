@@ -358,13 +358,12 @@ class XtreamRepository @Inject constructor(
                 seasonBox.remove(oldSeasons)
                 episodeBox.remove(existingEpisodes)
 
-                // Fallback for seasons if list is empty but episodes map is not
-                val seasonsToProcess = if (response.seasons.isNullOrEmpty()) {
-                    response.episodes?.keys?.mapNotNull { it.toIntOrNull() }?.sorted()?.map { 
-                        XtreamSeasonResponse(it, "Season $it") 
-                    } ?: emptyList()
-                } else {
-                    response.seasons!!
+                // Always derive seasons from episode map keys first (authoritative), then overlay metadata
+                val seasonNumbersFromEpisodes = response.episodes?.keys?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
+                val seasonMetadataMap = response.seasons?.associateBy { it.seasonNumber } ?: emptyMap()
+
+                val seasonsToProcess = seasonNumbersFromEpisodes.sorted().map { seasonNum ->
+                    seasonMetadataMap[seasonNum] ?: XtreamSeasonResponse(seasonNum, "Season $seasonNum")
                 }
 
                 // 3. Add new seasons and episodes, restoring progress
