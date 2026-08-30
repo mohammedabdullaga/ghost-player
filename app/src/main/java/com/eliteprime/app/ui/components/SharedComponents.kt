@@ -517,12 +517,13 @@ private fun VodPosterCardContent(
             }
         }
         
-        // 2. Title Card Area
+        // 2. Title Card Area — fixed min height so all cards match, short titles center vertically
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(min = 32.dp)
                 .background(Color(0xFF222222))
-                .padding(vertical = 6.dp, horizontal = 6.dp),
+                .padding(vertical = 4.dp, horizontal = 4.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -532,7 +533,7 @@ private fun VodPosterCardContent(
                 fontWeight = if (isFocused) FontWeight.Black else FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
-                minLines = 2,
+                lineHeight = 12.sp,
                 overflow = TextOverflow.Ellipsis
             )
         }

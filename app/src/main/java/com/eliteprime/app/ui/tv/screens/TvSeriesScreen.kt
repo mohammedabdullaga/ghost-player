@@ -209,7 +209,7 @@ fun TvSeriesScreen(
             Column(
                 modifier = Modifier.weight(sidebarWeight + 0.001f).fillMaxHeight()
                     .background(Color.Black.copy(alpha = 0.7f))
-                    .padding(top = 24.dp, bottom = 24.dp)
+                    .padding(top = 16.dp, bottom = 16.dp)
                     .alpha(if (isSidebarHidden) 0f else 1f)
             ) {
                 // Search bar — keyboard only opens on OK (login-screen pattern)
@@ -227,7 +227,7 @@ fun TvSeriesScreen(
                     textStyle = TextStyle(color = Color.White, fontSize = 11.sp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 24.dp, end = 20.dp, bottom = 16.dp)
+                        .padding(start = 24.dp, end = 20.dp, bottom = 8.dp)
                         .height(40.dp)
                         .onFocusChanged {
                             isSearchFocused = it.isFocused
@@ -279,7 +279,7 @@ fun TvSeriesScreen(
                 )
 
                 LazyColumn(state = sidebarListState, modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp)
                 ) {
                     itemsIndexed(uiState.categories) { index, category ->
@@ -291,7 +291,7 @@ fun TvSeriesScreen(
                             val prev = uiState.categories[index - 1]
                             if (prev.isVirtual && !category.isVirtual) {
                                 HorizontalDivider(
-                                    modifier = Modifier.padding(vertical = 12.dp, horizontal = 12.dp),
+                                    modifier = Modifier.padding(vertical = 4.dp, horizontal = 12.dp),
                                     color = Color.White.copy(alpha = 0.15f))
                             }
                         }
@@ -327,7 +327,7 @@ fun TvSeriesScreen(
             // PANE 2: CONTENT GRID
             val columns = if (isSidebarHidden) 6 else 4
             Column(modifier = Modifier.weight(gridWeight + 0.001f).fillMaxHeight()
-                .padding(top = 24.dp, bottom = 24.dp, start = if (isSidebarHidden) 24.dp else 12.dp, end = 24.dp)
+                .padding(top = 24.dp, bottom = 24.dp, start = if (isSidebarHidden) 16.dp else 12.dp, end = 16.dp)
             ) {
                 LazyVerticalGrid(state = gridState, columns = GridCells.Fixed(columns),
                     modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp),
@@ -376,7 +376,7 @@ private fun TvCategoryItem(label: String, count: Int?, isSelected: Boolean,
 ) {
     var isFocused by remember { mutableStateOf(false) }
     TvSurface(onClick = onClick,
-        modifier = modifier.fillMaxWidth().height(52.dp).onFocusChanged { isFocused = it.isFocused },
+        modifier = modifier.fillMaxWidth().height(40.dp).onFocusChanged { isFocused = it.isFocused },
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.02f),
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
         colors = ClickableSurfaceDefaults.colors(
