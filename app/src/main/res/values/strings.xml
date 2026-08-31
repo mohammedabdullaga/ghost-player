@@ -164,6 +164,8 @@
     <string name="live_no_epg_data">No EPG Data</string>
     <string name="fav_remove">Remove from Favorites</string>
     <string name="fav_add">Add to Favorites</string>
+    <string name="fav_added">Added to favorites</string>
+    <string name="fav_removed">Removed from favorites</string>
     <string name="group_create_title">CREATE NEW GROUP</string>
     <string name="group_name_label">Group Name</string>
     <string name="group_add_to">ADD TO GROUP</string>

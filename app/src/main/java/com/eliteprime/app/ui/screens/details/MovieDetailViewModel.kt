@@ -66,11 +66,12 @@ class MovieDetailViewModel @Inject constructor(
         }
     }
 
-    fun toggleFavorite() {
+    fun toggleFavorite(addedMsg: String = "Added to favorites", removedMsg: String = "Removed from favorites") {
         viewModelScope.launch {
             val current = movie.value ?: return@launch
             current.isFavorite = !current.isFavorite
             movieBox.put(current)
+            _userMessage.emit(if (current.isFavorite) addedMsg else removedMsg)
         }
     }
 

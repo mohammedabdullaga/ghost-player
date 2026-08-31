@@ -164,6 +164,8 @@
     <string name="live_no_epg_data">لا توجد بيانات دليل</string>
     <string name="fav_remove">إزالة من المفضلة</string>
     <string name="fav_add">إضافة إلى المفضلة</string>
+    <string name="fav_added">تمت الإضافة إلى المفضلة</string>
+    <string name="fav_removed">تمت الإزالة من المفضلة</string>
     <string name="group_create_title">إنشاء مجموعة جديدة</string>
     <string name="group_name_label">اسم المجموعة</string>
     <string name="group_add_to">إضافة إلى المجموعة</string>

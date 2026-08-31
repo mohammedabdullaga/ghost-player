@@ -64,9 +64,17 @@ class CapabilityAwareMediaCodecSelector(
                     ActiveDecoderPolicy.COMPATIBILITY -> if (isSoftwareCodec(info.name)) 0 else 1
                 }
             }.thenByDescending { info ->
-                // 2. Amlogic native decoder priority (The "vdec" units)
+                // 2. Vendor-native decoder priority
                 val name = info.name.lowercase(Locale.ROOT)
-                name.contains("vdec") || (name.contains("amlogic") && (name.contains("video") || name.contains("avc") || name.contains("hevc")))
+                // Amlogic vdec
+                val hasAmlogic = name.contains("vdec") || (name.contains("amlogic") && (name.contains("video") || name.contains("avc") || name.contains("hevc")))
+                // MediaTek (TCL, Haier, Philips, Sony Android TVs)
+                val hasMediatek = name.contains("mtk") || name.contains("mediatek")
+                // Samsung Exynos
+                val hasExynos = name.contains("exynos") || name.contains("samsung")
+                // Qualcomm
+                val hasQualcomm = name.contains("qcom") || name.contains("qualcomm")
+                hasAmlogic || hasMediatek || hasExynos || hasQualcomm
             }.thenByDescending { info ->
                 // 3. Hardware acceleration flag
                 !info.softwareOnly
@@ -94,6 +102,18 @@ class CapabilityAwareMediaCodecSelector(
                 normalized.startsWith("c2.android.") ||
                 normalized.contains("ffmpeg") ||
                 normalized.contains("avcodec")
+        }
+
+        fun isMediatek(): Boolean {
+            return Build.HARDWARE.contains("mt", ignoreCase = true) ||
+                Build.BOARD.contains("mt", ignoreCase = true) ||
+                Build.HARDWARE.contains("mediatek", ignoreCase = true) ||
+                Build.BOARD.contains("mediatek", ignoreCase = true)
+        }
+
+        fun isAmlogic(): Boolean {
+            return Build.HARDWARE.contains("amlogic", ignoreCase = true) ||
+                Build.BOARD.contains("amlogic", ignoreCase = true)
         }
     }
 }

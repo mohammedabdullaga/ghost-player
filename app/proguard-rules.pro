@@ -104,3 +104,13 @@
 # -------------------------------------------------------------------------
 -keep class com.google.firebase.** { *; }
 -keepclassmembers class com.google.firebase.** { *; }
+
+# -------------------------------------------------------------------------
+# 8. Jetpack Compose UI Platform & ViewInterop Protection
+# -------------------------------------------------------------------------
+-keep class androidx.compose.ui.platform.** { *; }
+-keep class androidx.compose.ui.viewinterop.** { *; }
+-keep class androidx.compose.ui.node.** { *; }
+-keep class androidx.compose.runtime.** { *; }
+-keepclassmembers class androidx.compose.ui.** { *; }
+-keepclassmembers class androidx.compose.runtime.** { *; }

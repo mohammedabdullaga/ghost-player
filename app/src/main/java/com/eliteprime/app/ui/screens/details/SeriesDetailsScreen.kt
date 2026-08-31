@@ -217,6 +217,9 @@ fun SeriesDetailsScreen(
                                 color = AppColors.ArenaOrange
                             )
 
+                            val favAddedMsg = stringResource(R.string.fav_added)
+                            val favRemovedMsg = stringResource(R.string.fav_removed)
+
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
                                 Text(
                                     text = series.name,
@@ -229,7 +232,7 @@ fun SeriesDetailsScreen(
                                 
                                 DetailFavButton(
                                     isFavorite = series.isFavorite,
-                                    onClick = { viewModel.toggleFavorite() },
+                                    onClick = { viewModel.toggleFavorite(favAddedMsg, favRemovedMsg) },
                                     isTv = isTv
                                 )
                             }

@@ -1,6 +1,7 @@
 package com.eliteprime.app.ui.tv.screens
 
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -97,8 +98,19 @@ fun TvSeriesDetailsScreen(
     val scrollState = rememberScrollState()
 
     var episodesSectionY by remember { mutableStateOf(0) }
+    var moreLikeThisSectionY by remember { mutableStateOf(0) }
 
     BackHandler { onBack() }
+
+    val context = LocalContext.current
+    val favAddedMsg = stringResource(R.string.fav_added)
+    val favRemovedMsg = stringResource(R.string.fav_removed)
+
+    LaunchedEffect(Unit) {
+        viewModel.userMessage.collect { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     LaunchedEffect(series) {
         if (series != null) {
@@ -246,12 +258,18 @@ fun TvSeriesDetailsScreen(
 
                             val isFavorite = s.isFavorite
                             TvActionButton(
-                                icon = if (isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                                onClick = { viewModel.toggleFavorite() },
-                                tint = if (isFavorite) TvColors.Primary else Color.White
+                                icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                onClick = { viewModel.toggleFavorite(favAddedMsg, favRemovedMsg) },
+                                tint = if (isFavorite) AppColors.ArenaOrange else Color.White
                             )
-                            TvActionButton(icon = Icons.Default.CheckCircleOutline, onClick = { })
-                            TvActionButton(icon = Icons.Default.MoreHoriz, onClick = { })
+
+                            TvMoreLikeThisButton(
+                                onClick = {
+                                    scope.launch {
+                                        scrollState.animateScrollTo(moreLikeThisSectionY)
+                                    }
+                                }
+                            )
                         }
                     }
 
@@ -316,7 +334,7 @@ fun TvSeriesDetailsScreen(
 
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(20.dp),
-                        contentPadding = PaddingValues(start = 48.dp, end = 48.dp, top = 6.dp, bottom = 56.dp)
+                        contentPadding = PaddingValues(start = 48.dp, end = 48.dp, top = 6.dp, bottom = 24.dp)
                     ) {
                         selectedSeason?.episodes?.let { episodes ->
                             items(episodes) { episode ->
@@ -330,8 +348,123 @@ fun TvSeriesDetailsScreen(
                         }
                     }
                 }
+
+                // --- 3. MORE LIKE THIS (RECOMMENDATIONS) ---
+                if (relatedSeries.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 48.dp)
+                            .padding(bottom = 56.dp)
+                            .onGloballyPositioned { coords ->
+                                moreLikeThisSectionY = coords.boundsInParent().top.toInt()
+                            },
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.detail_more_like_this).uppercase(),
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 18.sp
+                        )
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            contentPadding = PaddingValues(vertical = 6.dp)
+                        ) {
+                            items(relatedSeries) { related ->
+                                TvRelatedSeriesCard(
+                                    series = related,
+                                    onClick = { onSeriesClick(related) }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun TvMoreLikeThisButton(
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    TvSurfaceCard(
+        onClick = onClick,
+        modifier = Modifier
+            .height(40.dp)
+            .onFocusChanged { isFocused = it.isFocused },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(6.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.White.copy(alpha = 0.18f),
+            focusedContainerColor = Color.White
+        ),
+        scale = ClickableSurfaceDefaults.scale(focusedScale = 1.04f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp).fillMaxHeight(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = if (isFocused) Color.Black else Color.White
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.detail_more_like_this),
+                color = if (isFocused) Color.Black else Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun TvRelatedSeriesCard(
+    series: Series,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val displayTitle = remember(series.name) { cleanSeriesTitle(series.name) }
+
+    Column(
+        modifier = Modifier
+            .width(150.dp)
+            .onFocusChanged { isFocused = it.isFocused },
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        TvSurfaceCard(
+            onClick = onClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(2f / 3f),
+            shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
+            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f)
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(series.cover ?: series.backdropUrl)
+                    .size(Size(300, 450))
+                    .precision(Precision.INEXACT)
+                    .build(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+        Text(
+            text = displayTitle,
+            color = if (isFocused) AppColors.ArenaOrange else Color.White.copy(alpha = 0.85f),
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

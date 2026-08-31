@@ -218,15 +218,16 @@ class Media3PlayerEngine @Inject constructor(
 
         val decoderMode = preferenceRepository.decoderMode.value
         val codecSelector = CapabilityAwareMediaCodecSelector(context, decoderMode)
-        val newTrackSelector = DefaultTrackSelector(context).apply {
-            parameters = buildUponParameters()
-                .setPreferredAudioMimeType(MimeTypes.AUDIO_AAC) // PREFER AAC for maximum device compatibility
-                .build()
-        }
+        // FIX: DO NOT artificially prefer AAC — IPTV streams commonly use MP2, AC3, E-AC3, or Opus.
+        // Forcing AAC on TCL/Haier (MediaTek) TVs causes silent audio when the HW AAC decoder
+        // rejects the profile or when there is no AAC track at all.
+        val newTrackSelector = DefaultTrackSelector(context)
         currentTrackSelector = newTrackSelector
 
+        // MediaTek (TCL/Haier) devices may need float output for audio compatibility
+        val isMediatek = CapabilityAwareMediaCodecSelector.isMediatek()
         val audioSink = DefaultAudioSink.Builder(context)
-            .setEnableFloatOutput(false) // FIX: Disable float output for AmLogic TV stability
+            .setEnableFloatOutput(isMediatek) // Mediatek: allow float; others: disable for stability
             .setAudioProcessorChain(DefaultAudioSink.DefaultAudioProcessorChain())
             .build()
 
@@ -278,6 +279,9 @@ class Media3PlayerEngine @Inject constructor(
                 eventListener: AudioRendererEventListener,
                 out: ArrayList<Renderer>
             ) {
+                // HW audio renderer with decoder fallback enabled.
+                // On MediaTek (TCL/Haier) devices, if a specific codec profile is rejected
+                // by the HW decoder, MediaCodec will try alternate decoders automatically.
                 out.add(MediaCodecAudioRenderer(
                     context, mediaCodecSelector, enableDecoderFallback,
                     eventHandler, eventListener, audioSink
@@ -625,6 +629,22 @@ class Media3PlayerEngine @Inject constructor(
                 frameRate = format.frameRate.takeIf { it > 0 } ?: current.frameRate,
                 bitrate = format.bitrate.takeIf { it > 0 } ?: format.peakBitrate.takeIf { it > 0 } ?: current.bitrate,
                 codec = format.sampleMimeType ?: current.codec
+            )
+        }
+
+        override fun onAudioInputFormatChanged(
+            eventTime: AnalyticsListener.EventTime,
+            format: Format,
+            decoderReuseEvaluation: DecoderReuseEvaluation?
+        ) {
+            val codec = format.sampleMimeType ?: format.codecs ?: "Unknown"
+            val decoderName = format.sampleMimeType ?: format.codecs ?: "Unknown"
+            val sampleRate = format.sampleRate
+            val channelCount = format.channelCount
+            Log.d(TAG, "Audio format changed: codec=$codec decoder=$decoderName sampleRate=$sampleRate channels=$channelCount")
+            _playerStats.value = _playerStats.value.copy(
+                audioCodec = codec,
+                audioDecoderName = decoderName
             )
         }
     }

@@ -93,6 +93,20 @@ fun PlayerRenderView(
                     playerEngine.unbindRenderView(view)
                 }
             },
+            onReset = { view ->
+                try {
+                    playerEngine.unbindRenderView(view)
+                } catch (e: Exception) {
+                    Log.e("PlayerBinding", "Error in AndroidView.onReset", e)
+                }
+            },
+            onRelease = { view ->
+                try {
+                    playerEngine.unbindRenderView(view)
+                } catch (e: Exception) {
+                    Log.e("PlayerBinding", "Error in AndroidView.onRelease", e)
+                }
+            },
             modifier = modifier.then(aspectModifier).focusable(false)
         )
     }

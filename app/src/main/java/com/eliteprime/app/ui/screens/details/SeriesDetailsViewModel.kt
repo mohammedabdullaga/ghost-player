@@ -132,11 +132,12 @@ class SeriesDetailsViewModel @Inject constructor(
         _selectedSeasonNumber.value = swE.season.seasonNumber
     }
 
-    fun toggleFavorite() {
+    fun toggleFavorite(addedMsg: String = "Added to favorites", removedMsg: String = "Removed from favorites") {
         viewModelScope.launch {
             val current = series.value ?: return@launch
             current.isFavorite = !current.isFavorite
             seriesBox.put(current)
+            _userMessage.emit(if (current.isFavorite) addedMsg else removedMsg)
         }
     }
 
