@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.R
 import com.eliteprime.app.data.config.ConfigRepository
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.pairing.ProviderQrPairingManager
@@ -90,7 +91,8 @@ class LoginViewModel @Inject constructor(
                     _loginState.value = LoginState.Error(errorMsg)
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Login crash: ${e.message}", e)
+                Log.e(TAG, "Login error: ${e.message}", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
                 _loginState.value = LoginState.Error("Login error: ${e.message}")
             }
         }

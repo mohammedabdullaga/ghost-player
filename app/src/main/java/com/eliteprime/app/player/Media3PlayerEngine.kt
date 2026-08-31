@@ -13,6 +13,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.*
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.ExperimentalApi
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -48,7 +49,6 @@ import com.eliteprime.app.player.timeshift.LiveTimeshiftState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import com.google.firebase.crashlytics.FirebaseCrashlytics
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import java.util.concurrent.atomic.AtomicInteger
@@ -461,7 +461,10 @@ class Media3PlayerEngine @Inject constructor(
             boundPlayerView?.player = null
             exoPlayer?.stop()
             exoPlayer?.release()
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            Log.e(TAG, "Error releasing player", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
+        }
     }
 
     override fun createRenderView(context: Context, resizeMode: PlayerSurfaceResizeMode, surfaceType: PlayerRenderSurfaceType): View {

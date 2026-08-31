@@ -1,6 +1,7 @@
 package com.eliteprime.app.data.remote.proxy
 
 import android.util.Log
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import kotlinx.coroutines.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,6 +18,7 @@ class SecureStreamingManager @Inject constructor() {
                 System.loadLibrary("securestreaming")
             } catch (e: Exception) {
                 Log.e("SecureStreaming", "Failed to load native library", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
             }
         }
     }
@@ -62,6 +64,7 @@ class SecureStreamingManager @Inject constructor() {
                 Log.i(TAG, "Secure Streaming engine stopped with code: $result")
             } catch (e: Exception) {
                 Log.e(TAG, "Error running Secure Streaming engine", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
             }
         }
     }

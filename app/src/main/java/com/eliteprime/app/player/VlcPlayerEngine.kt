@@ -293,7 +293,8 @@ class VlcPlayerEngine @Inject constructor(
                 try {
                     player.stop()
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error stopping VLC player in background", e)
+                    Log.e(TAG, "Error stopping VLC player", e)
+                    FirebaseCrashlytics.getInstance().recordException(e)
                 }
             }
         }
@@ -349,7 +350,8 @@ class VlcPlayerEngine @Inject constructor(
                 player?.release()
                 lib?.release()
             } catch (e: Exception) {
-                Log.e(TAG, "Error releasing VLC resources in background", e)
+                Log.e(TAG, "Error releasing VLC resources", e)
+                FirebaseCrashlytics.getInstance().recordException(e)
             }
         }
         
@@ -419,6 +421,7 @@ class VlcPlayerEngine @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "attachVlcViews: Failed", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
     }
 
@@ -431,6 +434,7 @@ class VlcPlayerEngine @Inject constructor(
             attachedLayout = null
         } catch (e: Exception) {
             Log.e(TAG, "detachVlcViews: Failed", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
         }
     }
 }

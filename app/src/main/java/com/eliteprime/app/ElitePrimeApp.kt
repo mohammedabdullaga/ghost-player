@@ -77,7 +77,12 @@ class ElitePrimeApp : Application(), SingletonImageLoader.Factory {
         }
 
         val isLite = preferenceRepository.isLiteModeEnabled.value
-        DeviceRenderProfile.initialize(this, liteMode = isLite)
+        try {
+            DeviceRenderProfile.initialize(this, liteMode = isLite)
+        } catch (e: Exception) {
+            Log.e("ElitePrimeApp", "DeviceRenderProfile initialization failed", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
+        }
         preferenceRepository.applySavedLocale()
 
         Log.i("ElitePrimeApp", "Initializing Network and Config...")
