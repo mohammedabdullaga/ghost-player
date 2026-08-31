@@ -22,6 +22,7 @@
     <string name="settings_about">About</string>
     <string name="settings_language">Language / اللغة</string>
     <string name="settings_secure_connection">Secure Streaming (Fast VPN)</string>
+    <string name="hub_fast_vpn">Fast VPN</string>
     <string name="settings_secure_connection_desc">Enable this mode if you experience any connection blocks or slow streaming performance.</string>
     <string name="settings_refresh_data">Refresh Data</string>
     <string name="settings_edit_account">Edit Account</string>
@@ -49,19 +50,19 @@
     <string name="hub_sync_failed">Catalog update failed</string>
     <string name="hub_expires_format">Expires: %1$s</string>
 
-    <string name="login_title">SIGN IN</string>
-    <string name="login_subtitle">Enter your credentials to start</string>
-    <string name="login_username">Username</string>
-    <string name="login_password">Password</string>
-    <string name="login_btn">LOGIN</string>
-    <string name="login_error_invalid">Invalid credentials or server error</string>
-    <string name="login_qr_title">Login via Phone</string>
-    <string name="login_qr_msg">Scan the code to enter data quickly and easily from your mobile phone</string>
-    <string name="login_qr_footer">Phone must be on the same Wi-Fi network</string>
-    <string name="login_qr_generating">Generating QR Code...</string>
-    <string name="login_secure_vpn">Secure Connection (VPN)</string>
-    <string name="login_sync_finishing">FINISHING SETUP...</string>
-    <string name="login_sync_preparing">PREPARING CONTENT...</string>
+    <string name="login_title">تسجيل الدخول</string>
+    <string name="login_subtitle">أدخل بيانات الاعتماد الخاصة بك للبدء</string>
+    <string name="login_username">اسم المستخدم</string>
+    <string name="login_password">كلمة المرور</string>
+    <string name="login_btn">دخول</string>
+    <string name="login_error_invalid">بيانات الاعتماد غير صالحة أو خطأ في الخادم</string>
+    <string name="login_qr_title">تسجيل الدخول عبر الهاتف</string>
+    <string name="login_qr_msg">امسح الرمز لادخال البيانات بسرعة وسهولة من هاتفك المحمول</string>
+    <string name="login_qr_footer">يجب ان يكون الهاتف على نفس شبكة الواي فاي</string>
+    <string name="login_qr_generating">جاري إنشاء رمز QR...</string>
+    <string name="login_secure_vpn">اتصال آمن (VPN)</string>
+    <string name="login_sync_finishing">إنهاء الإعداد...</string>
+    <string name="login_sync_preparing">تحضير المحتوى...</string>
 
     <string name="dashboard_expires">EXPIRES ON</string>
     <string name="dashboard_live_desc">Watch live channels from around the world</string>

@@ -2,6 +2,7 @@ package com.eliteprime.app.player
 
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import android.view.View
 import com.eliteprime.app.R
@@ -122,11 +123,16 @@ class VlcPlayerEngine @Inject constructor(
 
     private fun ensureLibInitialized() {
         if (libVLC == null) {
+            val manufacturer = Build.MANUFACTURER ?: "unknown"
+            val model = Build.MODEL ?: "unknown"
+            val isTcl = manufacturer.contains("tcl", ignoreCase = true)
+            Log.i(TAG, "Device: $manufacturer $model — VOD VLC audio strategy: ${if (isTcl) "TCL (multi-aout + SW fallback)" else "standard"}")
+
             Log.d(TAG, "Initializing LibVLC Context")
             val args = arrayListOf(
                 // FORCE VLC NATIVE MEDIACODEC HARDWARE MODULE OVER AVCODEC/FFMPEG
                 "--codec=mediacodec_ndk,mediacodec_jni,all",
-                "--aout=android_audiotrack", // STABILITY: Prefer standard Android AudioTrack for maximum device compatibility
+                "--aout=android_audiotrack,opensles_android,audiotrack_java", // FALLBACK: TCL/MediaTek audio fix
                 "--audio-resampler=soxr",    // QUALITY: Better resampling for cheap TV sticks
                 "--audio-time-stretch",      // SYNC: Maintain pitch during speed changes or jitter
                 "--network-caching=3000",
@@ -188,7 +194,7 @@ class VlcPlayerEngine @Inject constructor(
         
         val media = Media(libVLC, Uri.parse(url))
         // Direct zero-copy MediaCodec hardware decoding on SurfaceView
-        media.setHWDecoderEnabled(true, false)
+        media.setHWDecoderEnabled(true, true) // HW first, SW fallback for TCL/MediaTek compatibility
         // Tune stream flags per media instance
         media.addOption(":clock-synchro=0")
         media.addOption(":network-caching=3000")

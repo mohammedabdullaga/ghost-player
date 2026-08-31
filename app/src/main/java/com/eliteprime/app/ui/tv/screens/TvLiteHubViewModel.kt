@@ -2,6 +2,10 @@ package com.eliteprime.app.ui.tv.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.eliteprime.app.data.config.ConfigRepository
+import com.eliteprime.app.data.local.entity.LiveStream
+import com.eliteprime.app.data.local.entity.Movie
+import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.data.local.entity.XtreamAccount
 import com.eliteprime.app.data.local.entity.XtreamAccount_
 import com.eliteprime.app.data.repository.PreferenceRepository
@@ -21,14 +25,27 @@ data class LiteHubUiState(
     val accountName: String = "",
     val formattedExpiryDate: String? = null,
     val isSyncing: Boolean = false,
-    val syncMessage: String? = null
+    val syncMessage: String? = null,
+    val liveCount: Int = 0,
+    val movieCount: Int = 0,
+    val seriesCount: Int = 0,
+    val isSecureConnectionEnabled: Boolean = false,
+    val isByeDpiAvailable: Boolean = true
+)
+
+private data class SystemStatusState(
+    val isSyncing: Boolean,
+    val syncMessage: String?,
+    val isSecureEnabled: Boolean,
+    val isByeDpiAvailable: Boolean
 )
 
 @HiltViewModel
 class TvLiteHubViewModel @Inject constructor(
     private val boxStore: BoxStore,
     private val xtreamRepository: XtreamRepository,
-    private val preferenceRepository: PreferenceRepository
+    private val preferenceRepository: PreferenceRepository,
+    private val configRepository: ConfigRepository
 ) : ViewModel() {
 
     private val accountBox = boxStore.boxFor(XtreamAccount::class.java)
@@ -38,10 +55,22 @@ class TvLiteHubViewModel @Inject constructor(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<LiteHubUiState> = combine(
+        combine(
+            boxStore.boxFor(LiveStream::class.java).query().build().flow().map { it.size },
+            boxStore.boxFor(Movie::class.java).query().build().flow().map { it.size },
+            boxStore.boxFor(Series::class.java).query().build().flow().map { it.size }
+        ) { live, movies, series -> Triple(live, movies, series) },
         accountBox.query().equal(XtreamAccount_.isActive, true).build().flow().map { it.firstOrNull() },
-        _isSyncing,
-        _syncMessage
-    ) { account, syncing, message ->
+        combine(
+            _isSyncing,
+            _syncMessage,
+            preferenceRepository.isSecureConnectionEnabled,
+            configRepository.isByeDpiAvailable
+        ) { syncing, message, isSecureEnabled, isByeDpiAvail ->
+            SystemStatusState(syncing, message, isSecureEnabled, isByeDpiAvail)
+        }
+    ) { counts, account, status ->
+        val (liveCount, movieCount, seriesCount) = counts
         val expiryFormatted = account?.expiryDate?.let { timestamp ->
             if (timestamp > 0) {
                 try {
@@ -55,8 +84,13 @@ class TvLiteHubViewModel @Inject constructor(
         LiteHubUiState(
             accountName = account?.username ?: account?.name ?: "",
             formattedExpiryDate = expiryFormatted,
-            isSyncing = syncing,
-            syncMessage = message
+            isSyncing = status.isSyncing,
+            syncMessage = status.syncMessage,
+            liveCount = liveCount,
+            movieCount = movieCount,
+            seriesCount = seriesCount,
+            isSecureConnectionEnabled = status.isSecureEnabled,
+            isByeDpiAvailable = status.isByeDpiAvailable
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LiteHubUiState())
 
@@ -85,5 +119,9 @@ class TvLiteHubViewModel @Inject constructor(
 
     fun setLiteMode(enabled: Boolean) {
         preferenceRepository.setLiteModeEnabled(enabled)
+    }
+
+    fun setSecureConnectionEnabled(enabled: Boolean) {
+        preferenceRepository.setSecureConnectionEnabled(enabled)
     }
 }

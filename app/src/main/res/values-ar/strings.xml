@@ -22,6 +22,7 @@
     <string name="settings_about">حول</string>
     <string name="settings_language">اللغة</string>
     <string name="settings_secure_connection">البث الآمن (Fast VPN)</string>
+    <string name="hub_fast_vpn">Fast VPN</string>
     <string name="settings_secure_connection_desc">قم بتفعيل هذا الوضع إذا كنت تواجه أي حجب في الاتصال أو بطء في البث.</string>
     <string name="settings_refresh_data">تحديث البيانات</string>
     <string name="settings_edit_account">تعديل الحساب</string>

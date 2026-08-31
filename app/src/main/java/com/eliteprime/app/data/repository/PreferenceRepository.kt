@@ -9,6 +9,7 @@ import com.eliteprime.app.util.DeviceRenderProfile
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,7 +40,7 @@ class PreferenceRepository @Inject constructor(
     private val _liveBufferSize = MutableStateFlow(prefs.getInt("live_buffer_size", 0)) // 0 = Auto/Default
     val liveBufferSize: StateFlow<Int> = _liveBufferSize
 
-    private val _isLiteModeEnabled = MutableStateFlow(prefs.getBoolean("lite_mode_enabled", false))
+    private val _isLiteModeEnabled = MutableStateFlow(prefs.getBoolean("lite_mode_enabled", true))
     val isLiteModeEnabled: StateFlow<Boolean> = _isLiteModeEnabled
 
     val isAppModeConfigured: Boolean
@@ -77,18 +78,25 @@ class PreferenceRepository @Inject constructor(
         prefs.edit().putLong("last_sync_timestamp", timestamp).apply()
     }
 
-    private fun getCurrentLanguage(): String {
-        // 1. Check SharedPreferences first (Our manual persistence)
-        val saved = prefs.getString("app_language", null)
-        if (saved != null) return saved
+    init {
+        // Force Lite Mode as default for fresh installs
+        if (!prefs.contains("lite_mode_enabled")) {
+            prefs.edit().putBoolean("lite_mode_enabled", true).apply()
+        }
+    }
 
-        // 2. Check AppCompatDelegate locales
-        val locales = AppCompatDelegate.getApplicationLocales()
-        if (!locales.isEmpty) {
-            return locales.get(0)?.language ?: "ar"
+    private fun getCurrentLanguage(): String {
+        // 1. Check SharedPreferences first (Manual user override from Settings)
+        val saved = prefs.getString("app_language", null)
+        if (!saved.isNullOrBlank()) return saved
+
+        // 2. Respect Device System Language
+        val deviceLang = Locale.getDefault().language
+        if (!deviceLang.isNullOrBlank()) {
+            return deviceLang
         }
 
-        // 3. Fallback to Arabic as default for this specific app
+        // 3. Fallback to Arabic as default
         return "ar"
     }
 
