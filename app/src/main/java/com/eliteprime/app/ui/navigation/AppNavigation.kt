@@ -131,7 +131,7 @@ fun AppNavigation(
         }
         composable("live") {
             MobileLiveTvScreen(
-                onBack = navigateToHome,
+                onBack = { navController.popBackStack() },
                 onNavigateToSearch = { stopPlayerAndNavigate("search") },
                 onNavigateToMovies = { stopPlayerAndNavigate("movies") },
                 onNavigateToSeries = { stopPlayerAndNavigate("series") },
@@ -142,7 +142,7 @@ fun AppNavigation(
         }
         composable("movies") {
             MovieScreen(
-                onBack = navigateToHome,
+                onBack = { navController.popBackStack() },
                 onNavigateToSearch = { stopPlayerAndNavigate("search") },
                 onNavigateToLiveTv = { stopPlayerAndNavigate("live") },
                 onNavigateToSeries = { stopPlayerAndNavigate("series") },
@@ -153,7 +153,7 @@ fun AppNavigation(
         }
         composable("series") {
             SeriesScreen(
-                onBack = navigateToHome,
+                onBack = { navController.popBackStack() },
                 onNavigateToSearch = { stopPlayerAndNavigate("search") },
                 onNavigateToLiveTv = { stopPlayerAndNavigate("live") },
                 onNavigateToMovies = { stopPlayerAndNavigate("movies") },
@@ -200,7 +200,7 @@ fun AppNavigation(
         }
         composable("search") {
             SearchScreen(
-                onBack = navigateToHome,
+                onBack = { navController.popBackStack() },
                 onMovieClick = { movie -> navController.navigate("movie_details/${movie.id}") },
                 onSeriesClick = { series -> navController.navigate("series_details/${series.id}") },
                 onChannelClick = { channel -> navController.navigate("player/${channel.id}/live/${channel.name}") }

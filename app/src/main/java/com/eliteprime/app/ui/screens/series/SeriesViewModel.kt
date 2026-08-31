@@ -2,10 +2,12 @@ package com.eliteprime.app.ui.screens.series
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.*
 import com.eliteprime.app.domain.repository.PlaybackHistoryRepository
+import com.eliteprime.app.player.GlobalPlayerState
 import com.google.firebase.perf.FirebasePerformance
 import com.google.firebase.perf.metrics.Trace
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,7 +26,9 @@ import javax.inject.Inject
 class SeriesViewModel @Inject constructor(
     application: Application,
     private val boxStore: BoxStore,
-    private val playbackHistoryRepository: PlaybackHistoryRepository
+    private val playbackHistoryRepository: PlaybackHistoryRepository,
+    val globalPlayerState: GlobalPlayerState,
+    private val savedHandle: SavedStateHandle
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -38,8 +42,9 @@ class SeriesViewModel @Inject constructor(
     private val categoryBox = boxStore.boxFor(Category::class.java)
     private val seriesBox = boxStore.boxFor(Series::class.java)
 
-    private val _selectedCategoryId = MutableStateFlow<Long?>(null)
-    private val _searchQuery = MutableStateFlow("")
+    private val _selectedCategoryId = MutableStateFlow<Long?>(savedHandle["selectedCat"])
+    private val _searchQuery = MutableStateFlow(savedHandle["search"] ?: "")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
     private val _page = MutableStateFlow(0)
     private val PAGE_SIZE = 60
 
@@ -48,6 +53,12 @@ class SeriesViewModel @Inject constructor(
     val isSidebarHidden: StateFlow<Boolean> = _isSidebarHidden
     private val _isGridFocused = MutableStateFlow(false)
     val isGridFocused: StateFlow<Boolean> = _isGridFocused
+
+    // Focus position state — backed by SavedStateHandle for Lite mode survival
+    private val _lastFocusedCategoryId = MutableStateFlow<Long?>(savedHandle["focusCat"])
+    val lastFocusedCategoryId: StateFlow<Long?> = _lastFocusedCategoryId.asStateFlow()
+    private val _lastFocusedItemId = MutableStateFlow<Long?>(savedHandle["focusItem"])
+    val lastFocusedItemId: StateFlow<Long?> = _lastFocusedItemId.asStateFlow()
 
     private var browsingTrace: Trace? = null
 
@@ -187,13 +198,39 @@ class SeriesViewModel @Inject constructor(
             browsingTrace?.start()
             _page.value = 0
             _selectedCategoryId.value = category.id
+            savedHandle["selectedCat"] = category.id
+            _lastFocusedItemId.value = null
         }
+    }
+
+    fun selectCategoryForRestore(category: Category) {
+        if (_selectedCategoryId.value != category.id) {
+            browsingTrace = FirebasePerformance.getInstance().newTrace("series_category_load_time")
+            browsingTrace?.start()
+            _page.value = 0
+            _selectedCategoryId.value = category.id
+            savedHandle["selectedCat"] = category.id
+        }
+    }
+    fun recordFocusedCategory(categoryId: Long) {
+        _lastFocusedCategoryId.value = categoryId
+        savedHandle["focusCat"] = categoryId
+    }
+
+    fun recordFocusedItem(itemId: Long) {
+        _lastFocusedItemId.value = itemId
+        savedHandle["focusItem"] = itemId
+    }
+
+    fun clearFocusedItem() {
+        _lastFocusedItemId.value = null
     }
 
     fun setSearchQuery(query: String) {
         if (_searchQuery.value != query) {
             _page.value = 0
             _searchQuery.value = query
+            savedHandle["search"] = query
         }
     }
 

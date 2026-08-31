@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,8 +41,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
@@ -54,6 +51,7 @@ import com.eliteprime.app.data.local.entity.LiveStream
 import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.ui.util.FocusRestoration
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -93,7 +91,8 @@ fun MobileLiveTvScreen(
     val isTv = context.isTelevisionDevice()
     val channelFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
     val globalMode by viewModel.globalPlayerState.mode.collectAsState()
-    var lastFocusedChannelId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val lastFocusedCategoryId by viewModel.lastFocusedCategoryId.collectAsState()
+    val lastFocusedItemId by viewModel.lastFocusedItemId.collectAsState()
     val scope = rememberCoroutineScope()
 
     // Ensure player is hidden when leaving Live TV if not transitioning to fullscreen
@@ -105,61 +104,23 @@ fun MobileLiveTvScreen(
         }
     }
 
-    // Restore focus on every resume (e.g. coming back from player)
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        if (isTv) {
-            keyboardController?.hide()
-            val targetId = previewChannel?.id ?: lastFocusedChannelId
-            if (targetId != null) {
-                scope.launch {
-                    repeat(25) {
-                        val index = uiState.filteredChannels.indexOfFirst { it.id == targetId }
-                        if (index >= 0) {
-                            if (!channelListState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
-                                channelListState.scrollToItem(index)
-                            }
-                            delay(20)
-                            try {
-                                channelFocusRequesters[targetId]?.requestFocus()
-                                // If we're here, requestFocus was called. 
-                                // Since we can't reliably check success, we stop if we tried multiple times 
-                                // and the channel is actually visible.
-                                if (it > 2) return@launch 
-                            } catch (e: Exception) {}
-                        }
-                        delay(60)
-                    }
-                }
-            }
-        }
-    }
+    // Restore focus on resume — uses ViewModel-backed state via shared utility
+    FocusRestoration(
+        targetCategoryId = lastFocusedCategoryId,
+        targetItemId = lastFocusedItemId,
+        selectedCategory = uiState.selectedCategory,
+        onSelectCategory = { catId ->
+            uiState.categories.find { it.id == catId }?.let { viewModel.selectCategoryForRestore(it) }
+        },
+        categoryListState = null,
+        itemListState = channelListState,
+        categoryFocusRequesters = emptyMap<Long, FocusRequester>(),
+        itemFocusRequesters = channelFocusRequesters,
+        findItemIndex = { id -> uiState.filteredChannels.indexOfFirst { it.id == id } },
+        trigger = globalMode != PlayerViewMode.FULLSCREEN
+    )
 
-    // Restore focus to the active channel or last focused instantly
-    LaunchedEffect(previewChannel, uiState.selectedCategory, globalMode) {
-        if (isTv && globalMode == PlayerViewMode.HIDDEN) {
-            val targetId = previewChannel?.id ?: lastFocusedChannelId
-            if (targetId != null) {
-                val index = uiState.filteredChannels.indexOfFirst { it.id == targetId }
-                if (index >= 0) {
-                    if (!channelListState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
-                        channelListState.scrollToItem(index)
-                    }
-                    // Minimal delay (50ms) to ensure LazyColumn has attached the item
-                    delay(50) 
-                    channelFocusRequesters[targetId]?.requestFocus()
-                }
-            } else if (uiState.filteredChannels.isNotEmpty()) {
-                // Default focus on first channel if none selected
-                delay(50)
-                channelFocusRequesters[uiState.filteredChannels.first().id]?.requestFocus()
-            }
-        }
-    }
 
-    // Reset scroll when category changes
-    LaunchedEffect(uiState.selectedCategory) {
-        channelListState.scrollToItem(0)
-    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -242,7 +203,7 @@ fun MobileLiveTvScreen(
                                     CategoryTabWithLongClick(
                                         category = category,
                                         isSelected = category.id == uiState.selectedCategory?.id,
-                                        onClick = { viewModel.selectCategory(category) },
+                                        onClick = { viewModel.selectCategory(category); viewModel.recordFocusedCategory(category.id); scope.launch { channelListState.scrollToItem(0) } },
                                         onLongClick = { selectedCategoryForOptions = category }
                                     )
                                 }
@@ -269,7 +230,7 @@ fun MobileLiveTvScreen(
                                 channel = channel,
                                 isSelected = previewChannel?.id == channel.id,
                                 focusRequester = focusRequester,
-                                onFocusChanged = { if (it.isFocused) lastFocusedChannelId = channel.id },
+                                onFocusChanged = { if (it.isFocused) viewModel.recordFocusedItem(channel.id) },
                                 onClick = { 
                                     if (previewChannel?.id == channel.id) {
                                         viewModel.confirmChannel(channel)

@@ -54,11 +54,13 @@ import coil3.compose.AsyncImage
 import com.eliteprime.app.R
 import com.eliteprime.app.data.local.entity.Category
 import com.eliteprime.app.data.local.entity.Movie
+import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.components.VodPosterCard
 import com.eliteprime.app.ui.components.TvConfirmDialog
 import com.eliteprime.app.ui.screens.movies.MovieViewModel
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.ui.util.FocusRestoration
 import com.eliteprime.app.util.DeviceRenderProfile
 import com.eliteprime.app.util.LocalRenderTier
 import com.eliteprime.app.util.RenderTier
@@ -91,8 +93,11 @@ fun TvMovieScreen(
     // ViewModel-backed state: survives navigation back from details
     val isSidebarHidden by viewModel.isSidebarHidden.collectAsState()
     val isGridFocused by viewModel.isGridFocused.collectAsState()
-    var lastSidebarFocusKey by remember { mutableStateOf<Long?>(MovieViewModel.CAT_ID_RECENTLY_ADDED) }
-    var searchText by remember { mutableStateOf("") }
+    val lastFocusedCategoryId by viewModel.lastFocusedCategoryId.collectAsState()
+    val lastFocusedItemId by viewModel.lastFocusedItemId.collectAsState()
+    val globalMode by viewModel.globalPlayerState.mode.collectAsState()
+    var lastSidebarFocusKey by remember { mutableStateOf(lastFocusedCategoryId ?: MovieViewModel.CAT_ID_RECENTLY_ADDED) }
+    var searchText by remember { mutableStateOf(viewModel.searchQuery.value) }
     var movieToRemove by remember { mutableStateOf<Movie?>(null) }
 
     LaunchedEffect(searchText) { delay(300); viewModel.setSearchQuery(searchText) }
@@ -102,9 +107,12 @@ fun TvMovieScreen(
         if (uiState.categories.isNotEmpty() && !hasInitiallyFocused) {
             delay(400)
             try {
-                val recentlyAddedCat = uiState.categories.find { it.id == MovieViewModel.CAT_ID_RECENTLY_ADDED }
-                val targetRequester = if (recentlyAddedCat != null) {
-                    categoryFocusRequesters.getOrPut(recentlyAddedCat.id) { FocusRequester() }
+                // Respect persisted focus: if ViewModel has a saved category, focus that
+                val targetCatId = lastFocusedCategoryId
+                    ?: uiState.categories.find { it.id == MovieViewModel.CAT_ID_RECENTLY_ADDED }?.id
+                    ?: uiState.categories.firstOrNull()?.id
+                val targetRequester = if (targetCatId != null) {
+                    categoryFocusRequesters.getOrPut(targetCatId) { FocusRequester() }
                 } else firstCategoryRequester
                 targetRequester.requestFocus()
                 hasInitiallyFocused = true
@@ -121,23 +129,22 @@ fun TvMovieScreen(
     val selectCategoryOnly: (Category?) -> Unit = { category ->
         if (category != null) viewModel.selectCategory(category)
         viewModel.showSidebar()
-        scope.launch { gridState.scrollToItem(0) }
     }
 
     val enterGridFullScreen: (Category?) -> Unit = { category ->
         if (category != null) viewModel.selectCategory(category)
         viewModel.enterFullScreen()
         scope.launch {
-            gridState.scrollToItem(0)
             delay(SIDEBAR_ANIM_MS + 50L)
             try { firstMovieRequester.requestFocus() } catch (_: Exception) {}
         }
     }
 
     val returnFocusToSidebar: () -> Unit = {
+        // Use ViewModel-persisted focus, fall back to local cache, then default
+        val key = lastFocusedCategoryId ?: lastSidebarFocusKey ?: MovieViewModel.CAT_ID_RECENTLY_ADDED
         viewModel.showSidebar()
         scope.launch {
-            val key = lastSidebarFocusKey
             val index = uiState.categories.indexOfFirst { it.id == key }
             if (index >= 0) {
                 try { sidebarListState.scrollToItem(index) } catch (_: Exception) {}
@@ -150,6 +157,25 @@ fun TvMovieScreen(
     }
 
     BackHandler { if (isSidebarHidden) returnFocusToSidebar() else onBack() }
+
+    // Restore focus on resume using ViewModel-backed state via shared utility
+    FocusRestoration(
+        targetCategoryId = lastFocusedCategoryId,
+        targetItemId = lastFocusedItemId,
+        selectedCategory = uiState.selectedCategory,
+        onSelectCategory = { catId ->
+            uiState.categories.find { it.id == catId }?.let { cat ->
+                viewModel.selectCategoryForRestore(cat)
+                viewModel.showSidebar()
+            }
+        },
+        categoryListState = sidebarListState,
+        gridState = gridState,
+        categoryFocusRequesters = categoryFocusRequesters,
+        itemFocusRequesters = movieFocusRequesters,
+        findItemIndex = { id -> uiState.filteredMovies.indexOfFirst { it.id == id } },
+        trigger = globalMode != PlayerViewMode.FULLSCREEN
+    )
 
     val layoutDirection = LocalLayoutDirection.current
     val isRtl = layoutDirection == LayoutDirection.Rtl
@@ -318,7 +344,7 @@ fun TvMovieScreen(
                             icon = icon,
                             modifier = Modifier
                                 .focusRequester(requester)
-                                .onFocusChanged { if (it.isFocused && !isGridFocused) { lastSidebarFocusKey = category.id } }
+                                .onFocusChanged { if (it.isFocused && !isGridFocused) { lastSidebarFocusKey = category.id; viewModel.recordFocusedCategory(category.id) } }
                                 .onPreviewKeyEvent {
                                     if (it.type == KeyEventType.KeyDown) {
                                         val isEnterGrid = if (isRtl) it.key == Key.DirectionLeft else it.key == Key.DirectionRight
@@ -326,7 +352,7 @@ fun TvMovieScreen(
                                     }
                                     false
                                 },
-                            onClick = { selectCategoryOnly(category) }
+                            onClick = { viewModel.selectCategory(category); viewModel.recordFocusedCategory(category.id); lastSidebarFocusKey = category.id; viewModel.showSidebar(); scope.launch { gridState.scrollToItem(0) } }
                         )
                     }
                 }
@@ -352,7 +378,7 @@ fun TvMovieScreen(
                             modifier = Modifier
                                 .focusRequester(requester)
                                 .onFocusChanged {
-                                    if (it.isFocused) { focusedMovie = movie; viewModel.enterFullScreen() }
+                                    if (it.isFocused) { focusedMovie = movie; viewModel.enterFullScreen(); viewModel.recordFocusedItem(movie.id) }
                                 }
                                 .onPreviewKeyEvent {
                                     if (it.type == KeyEventType.KeyDown) {

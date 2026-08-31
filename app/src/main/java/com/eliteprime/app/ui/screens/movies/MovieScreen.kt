@@ -15,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -30,14 +29,14 @@ import androidx.compose.ui.unit.dp
 import com.eliteprime.app.R
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import com.eliteprime.app.data.local.entity.Movie
+import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.ui.util.FocusRestoration
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -67,63 +66,35 @@ fun MovieScreen(
     viewModel: MovieViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val lastFocusedCategoryId by viewModel.lastFocusedCategoryId.collectAsState()
+    val lastFocusedItemId by viewModel.lastFocusedItemId.collectAsState()
+    val globalMode by viewModel.globalPlayerState.mode.collectAsState()
     val currentTime = remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
 
     val movieGridState = rememberLazyGridState()
     val context = LocalContext.current
     val isTv = context.isTelevisionDevice()
     val movieFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
-    var lastFocusedMovieId by rememberSaveable { mutableStateOf<Long?>(null) }
     val topBarHomeFocusRequester = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
 
-    // Restore focus on initial load AND when returning from other screens
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        if (isTv && uiState.filteredMovies.isNotEmpty()) {
-            val targetId = lastFocusedMovieId ?: uiState.filteredMovies.first().id
-            val index = uiState.filteredMovies.indexOfFirst { it.id == targetId }
-            
-            if (index >= 0) {
-                scope.launch {
-                    repeat(10) {
-                        try {
-                            if (!movieGridState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
-                                movieGridState.scrollToItem(index)
-                            }
-                            delay(50)
-                            movieFocusRequesters[targetId]?.requestFocus()
-                            return@launch
-                        } catch (e: Exception) {}
-                        delay(100)
-                    }
-                }
-            }
-        }
-    }
+    // Restore focus on resume — uses ViewModel-backed state via shared utility
+    FocusRestoration(
+        targetCategoryId = lastFocusedCategoryId,
+        targetItemId = lastFocusedItemId,
+        selectedCategory = uiState.selectedCategory,
+        onSelectCategory = { catId ->
+            uiState.categories.find { it.id == catId }?.let { viewModel.selectCategoryForRestore(it) }
+        },
+        categoryListState = null,
+        gridState = movieGridState,
+        categoryFocusRequesters = emptyMap<Long, FocusRequester>(),
+        itemFocusRequesters = movieFocusRequesters,
+        findItemIndex = { id -> uiState.filteredMovies.indexOfFirst { it.id == id } },
+        trigger = globalMode != PlayerViewMode.FULLSCREEN
+    )
 
-    LaunchedEffect(uiState.filteredMovies) {
-        if (isTv && uiState.filteredMovies.isNotEmpty()) {
-            val targetId = lastFocusedMovieId ?: uiState.filteredMovies.first().id
-            val index = uiState.filteredMovies.indexOfFirst { it.id == targetId }
-            
-            if (index >= 0) {
-                // Ensure the item is scrolled into view before requesting focus
-                if (!movieGridState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
-                    movieGridState.scrollToItem(index)
-                }
-                // Use a minimal delay to allow the grid to attach the newly scrolled item
-                delay(50)
-                movieFocusRequesters[targetId]?.requestFocus()
-            }
-        }
-    }
 
-    // Reset scroll when category changes
-    LaunchedEffect(uiState.selectedCategory) {
-        movieGridState.scrollToItem(0)
-        // Reset last focused when category changes to ensure we focus the first item of new category
-        lastFocusedMovieId = null 
-    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -225,7 +196,7 @@ fun MovieScreen(
                                     category = category,
                                     count = uiState.categoryCounts[category.id],
                                     isSelected = category.id == uiState.selectedCategory?.id,
-                                    onClick = { viewModel.selectCategory(category) }
+                                    onClick = { viewModel.selectCategory(category); viewModel.recordFocusedCategory(category.id); scope.launch { movieGridState.scrollToItem(0) } }
                                 )
                             }
                         }
@@ -257,7 +228,7 @@ fun MovieScreen(
                                         .focusRequester(focusRequester)
                                         .onFocusChanged { 
                                             if (it.isFocused) {
-                                                lastFocusedMovieId = movie.id 
+                                                viewModel.recordFocusedItem(movie.id)
                                             }
                                         },
                                     onClick = { onMovieClick(movie) },

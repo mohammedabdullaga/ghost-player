@@ -1,5 +1,6 @@
 package com.eliteprime.app.ui.screens.live
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.app.Application
@@ -36,7 +37,8 @@ class LiveViewModel @Inject constructor(
     val globalPlayerState: GlobalPlayerState,
     private val xtreamRepository: XtreamRepository,
     private val preferenceRepository: PreferenceRepository,
-    private val application: Application
+    private val application: Application,
+    private val savedHandle: SavedStateHandle
 ) : ViewModel() {
 
     companion object {
@@ -51,12 +53,13 @@ class LiveViewModel @Inject constructor(
     private val groupMembershipBox = boxStore.boxFor(GroupMembership::class.java)
 
     private val _selectedCategoryId = MutableStateFlow<Long?>(null)
-    private val _searchQuery = MutableStateFlow("")
+    private val _searchQuery = MutableStateFlow(savedHandle["search"] ?: "")
     private val _page = MutableStateFlow(0)
     private val PAGE_SIZE = 60
 
     private val _previewChannel = MutableStateFlow<LiveStream?>(null)
     val previewChannel = _previewChannel.asStateFlow()
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
     private val _isReorderMode = MutableStateFlow(false)
     val isReorderMode = _isReorderMode.asStateFlow()
@@ -70,6 +73,11 @@ class LiveViewModel @Inject constructor(
     // True lazy: counts are loaded per-category only when item scrolls into view
     private val _categoryCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
     private val loadedCountIds = mutableSetOf<Long>()
+
+    // Focus position state — backed by SavedStateHandle so focus survives
+    // ViewModel destruction in Lite mode (hub-and-spoke popUpTo)
+    private val _lastFocusedCategoryId = MutableStateFlow<Long?>(savedHandle["focusCat"])
+    private val _lastFocusedItemId = MutableStateFlow<Long?>(savedHandle["focusItem"])
 
     private val _selectedReorderCategoryIds = MutableStateFlow<Set<Long>>(emptySet())
     val selectedReorderCategoryIds = _selectedReorderCategoryIds.asStateFlow()
@@ -203,6 +211,24 @@ class LiveViewModel @Inject constructor(
     .flowOn(Dispatchers.Default)
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), LiveUiState(isLoading = true))
 
+    // Focus position state — survives navigation because it lives in the ViewModel
+    val lastFocusedCategoryId: StateFlow<Long?> = _lastFocusedCategoryId.asStateFlow()
+    val lastFocusedItemId: StateFlow<Long?> = _lastFocusedItemId.asStateFlow()
+
+    fun recordFocusedCategory(categoryId: Long) {
+        _lastFocusedCategoryId.value = categoryId
+        savedHandle["focusCat"] = categoryId
+    }
+
+    fun recordFocusedItem(itemId: Long) {
+        _lastFocusedItemId.value = itemId
+        savedHandle["focusItem"] = itemId
+    }
+
+    fun clearFocusedItem() {
+        _lastFocusedItemId.value = null
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val currentEpg: StateFlow<List<EPGProgram>> = _previewChannel.flatMapLatest { channel ->
         if (channel == null) flowOf(emptyList())
@@ -224,6 +250,19 @@ class LiveViewModel @Inject constructor(
             
             _page.value = 0
             _selectedCategoryId.value = category.id
+            _lastFocusedItemId.value = null
+        }
+    }
+
+    /** Like selectCategory but preserves lastFocusedItemId for focus restoration. */
+    fun selectCategoryForRestore(category: Category) {
+        if (_selectedCategoryId.value != category.id) {
+            browsingTrace = FirebasePerformance.getInstance().newTrace("live_category_load_time")
+            browsingTrace?.start()
+            
+            _page.value = 0
+            _selectedCategoryId.value = category.id
+            // KEEP lastFocusedItemId so FocusRestoration can use it
         }
     }
 
@@ -258,6 +297,7 @@ class LiveViewModel @Inject constructor(
         if (_searchQuery.value != query) {
             _page.value = 0
             _searchQuery.value = query
+            savedHandle["search"] = query
         }
     }
 

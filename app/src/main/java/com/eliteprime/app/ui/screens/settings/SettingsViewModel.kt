@@ -86,6 +86,14 @@ class SettingsViewModel @Inject constructor(
     private val _updateStatus = MutableStateFlow("Up to date")
     private val _lastUpdateCheckTimestamp = MutableStateFlow(preferenceRepository.getLastUpdateCheckTimestamp())
 
+    // Focus position state — survives navigation
+    private val _selectedSettingTab = MutableStateFlow<String>("ACCOUNT")
+    val selectedSettingTab: StateFlow<String> = _selectedSettingTab.asStateFlow()
+
+    fun recordSettingTab(tabName: String) {
+        _selectedSettingTab.value = tabName
+    }
+
     private fun <T> reactiveCount(box: Box<T>): Flow<Long> = callbackFlow {
         val subscription = boxStore.subscribe(box.entityClass)
             .observer { trySend(box.count()) }

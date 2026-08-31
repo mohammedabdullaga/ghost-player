@@ -15,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -30,14 +29,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.eliteprime.app.R
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface
 import com.eliteprime.app.data.local.entity.Series
+import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.components.*
 import com.eliteprime.app.ui.theme.AppColors
+import com.eliteprime.app.ui.util.FocusRestoration
 import com.eliteprime.app.util.isTelevisionDevice
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -67,60 +66,34 @@ fun SeriesScreen(
     viewModel: SeriesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val lastFocusedCategoryId by viewModel.lastFocusedCategoryId.collectAsState()
+    val lastFocusedItemId by viewModel.lastFocusedItemId.collectAsState()
+    val globalMode by viewModel.globalPlayerState.mode.collectAsState()
     val currentTime = remember { mutableStateOf(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())) }
 
     val seriesGridState = rememberLazyGridState()
     val context = LocalContext.current
     val isTv = context.isTelevisionDevice()
     val seriesFocusRequesters = remember { mutableMapOf<Long, FocusRequester>() }
-    var lastFocusedSeriesId by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
 
-    // Restore focus on initial load AND when returning from other screens
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        if (isTv && uiState.filteredSeries.isNotEmpty()) {
-            val targetId = lastFocusedSeriesId ?: uiState.filteredSeries.first().id
-            val index = uiState.filteredSeries.indexOfFirst { it.id == targetId }
-            
-            if (index >= 0) {
-                scope.launch {
-                    repeat(10) {
-                        try {
-                            if (!seriesGridState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
-                                seriesGridState.scrollToItem(index)
-                            }
-                            delay(50)
-                            seriesFocusRequesters[targetId]?.requestFocus()
-                            return@launch
-                        } catch (e: Exception) {}
-                        delay(100)
-                    }
-                }
-            }
-        }
-    }
+    // Restore focus on resume — uses ViewModel-backed state via shared utility
+    FocusRestoration(
+        targetCategoryId = lastFocusedCategoryId,
+        targetItemId = lastFocusedItemId,
+        selectedCategory = uiState.selectedCategory,
+        onSelectCategory = { catId ->
+            uiState.categories.find { it.id == catId }?.let { viewModel.selectCategoryForRestore(it) }
+        },
+        categoryListState = null,
+        gridState = seriesGridState,
+        categoryFocusRequesters = emptyMap<Long, FocusRequester>(),
+        itemFocusRequesters = seriesFocusRequesters,
+        findItemIndex = { id -> uiState.filteredSeries.indexOfFirst { it.id == id } },
+        trigger = globalMode != PlayerViewMode.FULLSCREEN
+    )
 
-    // Initial focus logic: Instantly target the content grid to prevent top-bar jumping
-    LaunchedEffect(uiState.filteredSeries) {
-        if (isTv && uiState.filteredSeries.isNotEmpty()) {
-            val targetId = lastFocusedSeriesId ?: uiState.filteredSeries.first().id
-            val index = uiState.filteredSeries.indexOfFirst { it.id == targetId }
-            
-            if (index >= 0) {
-                if (!seriesGridState.layoutInfo.visibleItemsInfo.any { it.index == index }) {
-                    seriesGridState.scrollToItem(index)
-                }
-                delay(50)
-                seriesFocusRequesters[targetId]?.requestFocus()
-            }
-        }
-    }
 
-    // Reset scroll when category changes
-    LaunchedEffect(uiState.selectedCategory) {
-        seriesGridState.scrollToItem(0)
-        lastFocusedSeriesId = null
-    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -221,7 +194,7 @@ fun SeriesScreen(
                                     category = category,
                                     count = uiState.categoryCounts[category.id],
                                     isSelected = category.id == uiState.selectedCategory?.id,
-                                    onClick = { viewModel.selectCategory(category) }
+                                    onClick = { viewModel.selectCategory(category); viewModel.recordFocusedCategory(category.id); scope.launch { seriesGridState.scrollToItem(0) } }
                                 )
                             }
                         }
@@ -253,7 +226,7 @@ fun SeriesScreen(
                                         .focusRequester(focusRequester)
                                         .onFocusChanged {
                                             if (it.isFocused) {
-                                                lastFocusedSeriesId = series.id
+                                                viewModel.recordFocusedItem(series.id)
                                             }
                                         },
                                     onClick = { onSeriesClick(series) },

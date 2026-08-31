@@ -75,6 +75,7 @@ import com.eliteprime.app.ui.components.TvExitDialog
 import com.eliteprime.app.ui.screens.live.LiveViewModel
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
+import com.eliteprime.app.ui.util.FocusRestoration
 import com.eliteprime.app.util.DeviceRenderProfile
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -109,6 +110,9 @@ fun TvLiveTvScreen(
     val videoFormat by viewModel.playerEngine.videoFormat.collectAsState()
     val playerStats by viewModel.playerEngine.playerStats.collectAsState()
     val selectedReorderIds by viewModel.selectedReorderCategoryIds.collectAsState()
+    val vmLastFocusedCategoryId by viewModel.lastFocusedCategoryId.collectAsState()
+    val vmLastFocusedItemId by viewModel.lastFocusedItemId.collectAsState()
+    val globalMode by viewModel.globalPlayerState.mode.collectAsState()
 
     var showAddGroupDialog by remember { mutableStateOf(false) }
     var newGroupName by remember { mutableStateOf("") }
@@ -117,7 +121,7 @@ fun TvLiveTvScreen(
 
     var lastFocusedCategoryId by remember { mutableStateOf<Long?>(null) }
     var lastFocusedChannelId by remember { mutableStateOf<Long?>(null) }
-    var searchText by remember { mutableStateOf("") }
+    var searchText by remember { mutableStateOf(viewModel.searchQuery.value) }
 
     LaunchedEffect(searchText) { delay(300); viewModel.setSearchQuery(searchText) }
 
@@ -193,6 +197,22 @@ fun TvLiveTvScreen(
         }
     }
 
+    // Restore focus on resume using ViewModel-backed state via shared utility
+    FocusRestoration(
+        targetCategoryId = vmLastFocusedCategoryId,
+        targetItemId = vmLastFocusedItemId,
+        selectedCategory = uiState.selectedCategory,
+        onSelectCategory = { catId ->
+            uiState.categories.find { it.id == catId }?.let { viewModel.selectCategoryForRestore(it) }
+        },
+        categoryListState = categoryListState,
+        itemListState = channelListState,
+        categoryFocusRequesters = categoryFocusRequesters,
+        itemFocusRequesters = channelFocusRequesters,
+        findItemIndex = { id -> uiState.filteredChannels.indexOfFirst { it.id == id } },
+        trigger = globalMode != PlayerViewMode.FULLSCREEN
+    )
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         TvGlassPane(
             modifier = Modifier.fillMaxSize(),
@@ -266,6 +286,7 @@ fun TvLiveTvScreen(
                                         .onFocusChanged { if (it.isFocused) {
                                             lastFocusedCategoryId = category.id
                                             lastFocusedChannelId = null
+                                            viewModel.recordFocusedCategory(category.id)
                                         }}
                                         .focusProperties {
                                             if (index == 0) up = addGroupFocusRequester
@@ -453,6 +474,7 @@ fun TvLiveTvScreen(
                                             .focusRequester(requester)
                                             .onFocusChanged { if (it.isFocused) {
                                                 lastFocusedChannelId = channel.id
+                                                viewModel.recordFocusedItem(channel.id)
                                             } }
                                             .focusProperties {
                                                 right = fsButtonRequester

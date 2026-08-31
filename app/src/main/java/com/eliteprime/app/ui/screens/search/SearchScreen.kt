@@ -72,8 +72,6 @@ private object SearchPalette {
     val textTertiary = Color.White.copy(alpha = 0.45f)
 }
 
-private enum class SearchResultType { ALL, MOVIES, SERIES, LIVE_TV }
-
 @Composable
 fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
@@ -83,8 +81,8 @@ fun SearchScreen(
     onChannelClick: (LiveStream) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var query by remember { mutableStateOf("") }
-    var selectedFilter by remember { mutableStateOf(SearchResultType.ALL) }
+    val query by viewModel.query.collectAsState()
+    val selectedFilter = uiState.activeFilter
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val listState = rememberLazyListState()
@@ -120,7 +118,6 @@ fun SearchScreen(
                     SearchInputField(
                         query = query,
                         onQueryChange = {
-                            query = it
                             viewModel.onQueryChange(it)
                         },
                         focusRequester = focusRequester,
@@ -136,26 +133,26 @@ fun SearchScreen(
                             SubFilterChip(
                                 label = stringResource(R.string.filter_all),
                                 icon = Icons.Default.Search,
-                                isActive = selectedFilter == SearchResultType.ALL,
-                                onClick = { selectedFilter = SearchResultType.ALL }
+                                isActive = selectedFilter == SearchResultFilter.ALL,
+                                onClick = { viewModel.setFilter(SearchResultFilter.ALL) }
                             )
                             SubFilterChip(
                                 label = stringResource(R.string.filter_movies),
                                 icon = Icons.Default.Movie,
-                                isActive = selectedFilter == SearchResultType.MOVIES,
-                                onClick = { selectedFilter = SearchResultType.MOVIES }
+                                isActive = selectedFilter == SearchResultFilter.MOVIES,
+                                onClick = { viewModel.setFilter(SearchResultFilter.MOVIES) }
                             )
                             SubFilterChip(
                                 label = stringResource(R.string.filter_series),
                                 icon = Icons.Default.VideoLibrary,
-                                isActive = selectedFilter == SearchResultType.SERIES,
-                                onClick = { selectedFilter = SearchResultType.SERIES }
+                                isActive = selectedFilter == SearchResultFilter.SERIES,
+                                onClick = { viewModel.setFilter(SearchResultFilter.SERIES) }
                             )
                             SubFilterChip(
                                 label = stringResource(R.string.generic_live),
                                 icon = Icons.Default.Tv,
-                                isActive = selectedFilter == SearchResultType.LIVE_TV,
-                                onClick = { selectedFilter = SearchResultType.LIVE_TV }
+                                isActive = selectedFilter == SearchResultFilter.LIVE_TV,
+                                onClick = { viewModel.setFilter(SearchResultFilter.LIVE_TV) }
                             )
                         }
                     }
@@ -175,7 +172,7 @@ fun SearchScreen(
                         uiState.isLoading -> item { Box(modifier = Modifier.fillParentMaxHeight(), contentAlignment = Alignment.Center) { LoadingState() } }
                         uiState.movies.isEmpty() && uiState.series.isEmpty() && uiState.channels.isEmpty() -> item { Box(modifier = Modifier.fillParentMaxHeight(), contentAlignment = Alignment.Center) { NoResultsState(query) } }
                         else -> {
-                            if ((selectedFilter == SearchResultType.ALL || selectedFilter == SearchResultType.MOVIES) && uiState.movies.isNotEmpty()) {
+                            if ((selectedFilter == SearchResultFilter.ALL || selectedFilter == SearchResultFilter.MOVIES) && uiState.movies.isNotEmpty()) {
                                 item { Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)) { ResultsSectionLabel(stringResource(R.string.nav_movies), uiState.movies.size) } }
                                 item {
                                     LazyRow(
@@ -191,7 +188,7 @@ fun SearchScreen(
                                 }
                             }
 
-                            if ((selectedFilter == SearchResultType.ALL || selectedFilter == SearchResultType.SERIES) && uiState.series.isNotEmpty()) {
+                            if ((selectedFilter == SearchResultFilter.ALL || selectedFilter == SearchResultFilter.SERIES) && uiState.series.isNotEmpty()) {
                                 item { Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)) { ResultsSectionLabel(stringResource(R.string.nav_series), uiState.series.size) } }
                                 item {
                                     LazyRow(
@@ -207,7 +204,7 @@ fun SearchScreen(
                                 }
                             }
 
-                            if ((selectedFilter == SearchResultType.ALL || selectedFilter == SearchResultType.LIVE_TV) && uiState.channels.isNotEmpty()) {
+                            if ((selectedFilter == SearchResultFilter.ALL || selectedFilter == SearchResultFilter.LIVE_TV) && uiState.channels.isNotEmpty()) {
                                 item { Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 8.dp)) { ResultsSectionLabel(stringResource(R.string.nav_live_tv), uiState.channels.size) } }
                                 items(uiState.channels) { channel ->
                                     Box(modifier = Modifier.padding(horizontal = 32.dp, vertical = 4.dp)) {

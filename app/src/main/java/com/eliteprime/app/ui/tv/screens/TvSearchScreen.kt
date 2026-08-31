@@ -48,12 +48,12 @@ import com.eliteprime.app.data.local.entity.Movie
 import com.eliteprime.app.data.local.entity.Series
 import com.eliteprime.app.ui.components.AppBackground
 import com.eliteprime.app.ui.components.ArenaLiveThumbnailPlaceholder
+import com.eliteprime.app.ui.screens.search.SearchResultFilter
 import com.eliteprime.app.ui.screens.search.SearchViewModel
 import com.eliteprime.app.ui.tv.core.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private enum class SearchFilter { ALL, MOVIES, SERIES, LIVE_TV }
 
 @Composable
 fun TvSearchScreen(
@@ -65,8 +65,7 @@ fun TvSearchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val query by viewModel.query.collectAsState()
-    
-    var selectedFilter by remember { mutableStateOf(SearchFilter.ALL) }
+    val selectedFilter = uiState.activeFilter
     val searchFocusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
 
@@ -167,26 +166,26 @@ fun TvSearchScreen(
                     TvSearchFilterChip(
                         label = stringResource(R.string.filter_all),
                         icon = Icons.Default.AllInclusive,
-                        isSelected = selectedFilter == SearchFilter.ALL,
-                        onClick = { selectedFilter = SearchFilter.ALL }
+                        isSelected = selectedFilter == SearchResultFilter.ALL,
+                        onClick = { viewModel.setFilter(SearchResultFilter.ALL) }
                     )
                     TvSearchFilterChip(
                         label = stringResource(R.string.filter_movies),
                         icon = Icons.Default.Movie,
-                        isSelected = selectedFilter == SearchFilter.MOVIES,
-                        onClick = { selectedFilter = SearchFilter.MOVIES }
+                        isSelected = selectedFilter == SearchResultFilter.MOVIES,
+                        onClick = { viewModel.setFilter(SearchResultFilter.MOVIES) }
                     )
                     TvSearchFilterChip(
                         label = stringResource(R.string.filter_series),
                         icon = Icons.Default.VideoLibrary,
-                        isSelected = selectedFilter == SearchFilter.SERIES,
-                        onClick = { selectedFilter = SearchFilter.SERIES }
+                        isSelected = selectedFilter == SearchResultFilter.SERIES,
+                        onClick = { viewModel.setFilter(SearchResultFilter.SERIES) }
                     )
                     TvSearchFilterChip(
                         label = stringResource(R.string.generic_live) + " " + stringResource(R.string.generic_channels),
                         icon = Icons.Default.LiveTv,
-                        isSelected = selectedFilter == SearchFilter.LIVE_TV,
-                        onClick = { selectedFilter = SearchFilter.LIVE_TV }
+                        isSelected = selectedFilter == SearchResultFilter.LIVE_TV,
+                        onClick = { viewModel.setFilter(SearchResultFilter.LIVE_TV) }
                     )
                 }
                 Spacer(modifier = Modifier.height(16.dp)) // Reduced padding below filters
@@ -220,7 +219,7 @@ fun TvSearchScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // 1. MOVIES SECTION
-                        if ((selectedFilter == SearchFilter.ALL || selectedFilter == SearchFilter.MOVIES) && uiState.movies.isNotEmpty()) {
+                        if ((selectedFilter == SearchResultFilter.ALL || selectedFilter == SearchResultFilter.MOVIES) && uiState.movies.isNotEmpty()) {
                             item {
                                 Column(
                                     modifier = Modifier.fillMaxWidth(),
@@ -249,7 +248,7 @@ fun TvSearchScreen(
                         }
 
                         // 2. SERIES SECTION
-                        if ((selectedFilter == SearchFilter.ALL || selectedFilter == SearchFilter.SERIES) && uiState.series.isNotEmpty()) {
+                        if ((selectedFilter == SearchResultFilter.ALL || selectedFilter == SearchResultFilter.SERIES) && uiState.series.isNotEmpty()) {
                             item {
                                 Column(
                                     modifier = Modifier.fillMaxWidth(),
@@ -278,7 +277,7 @@ fun TvSearchScreen(
                         }
 
                         // 3. LIVE TV SECTION (Now Card Grid just like Movies/Series)
-                        if ((selectedFilter == SearchFilter.ALL || selectedFilter == SearchFilter.LIVE_TV) && uiState.channels.isNotEmpty()) {
+                        if ((selectedFilter == SearchResultFilter.ALL || selectedFilter == SearchResultFilter.LIVE_TV) && uiState.channels.isNotEmpty()) {
                             item {
                                 Column(
                                     modifier = Modifier.fillMaxWidth(),

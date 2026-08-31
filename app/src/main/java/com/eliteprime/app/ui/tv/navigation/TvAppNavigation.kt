@@ -41,8 +41,9 @@ fun TvAppNavigation(
         globalPlayerState.hide()
         playerEngine.stop()
         navController.navigate(leafRoute) {
-            popUpTo("hub") { inclusive = false }
+            popUpTo("hub") { inclusive = false; saveState = true }
             launchSingleTop = true
+            restoreState = true
         }
     }
 
@@ -60,8 +61,9 @@ fun TvAppNavigation(
         globalPlayerState.hide()
         playerEngine.stop()
         navController.navigate(defaultLanding) {
-            popUpTo(defaultLanding) { inclusive = false }
+            popUpTo(defaultLanding) { inclusive = false; saveState = true }
             launchSingleTop = true
+            restoreState = true
         }
     }
 
@@ -117,7 +119,7 @@ fun TvAppNavigation(
 
         composable("live") {
             TvLiveTvScreen(
-                onBack = navigateToHomeOrHub,
+                onBack = { navController.popBackStack() },
                 onPlayChannel = { channel ->
                     navController.navigate("player/${channel.id}/live/${Uri.encode(channel.name)}")
                 }
@@ -126,7 +128,7 @@ fun TvAppNavigation(
 
         composable("movies") {
             TvMovieScreen(
-                onBack = navigateToHomeOrHub,
+                onBack = { navController.popBackStack() },
                 onMovieClick = { movie ->
                     navController.navigate("movie_details/${movie.id}")
                 }
@@ -135,7 +137,7 @@ fun TvAppNavigation(
 
         composable("series") {
             TvSeriesScreen(
-                onBack = navigateToHomeOrHub,
+                onBack = { navController.popBackStack() },
                 onSeriesClick = { series ->
                     navController.navigate("series_details/${series.id}")
                 }
@@ -174,7 +176,7 @@ fun TvAppNavigation(
 
         composable("search") {
             TvSearchScreen(
-                onBack = navigateToHomeOrHub,
+                onBack = { navController.popBackStack() },
                 onMovieClick = { movie -> navController.navigate("movie_details/${movie.id}") },
                 onSeriesClick = { series -> navController.navigate("series_details/${series.id}") },
                 onChannelClick = { channel -> navController.navigate("player/${channel.id}/live/${Uri.encode(channel.name)}") }

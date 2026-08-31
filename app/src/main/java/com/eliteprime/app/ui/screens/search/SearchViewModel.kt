@@ -31,10 +31,13 @@ class SearchViewModel @Inject constructor(
     private var searchJob: Job? = null
 
     fun onQueryChange(query: String) {
+        // Guard: if the query hasn't changed, do nothing (prevents re-execution on recomposition)
+        if (query == _query.value) return
         _query.value = query
+        _uiState.value = _uiState.value.copy(query = query)
         val trimmed = query.trim()
         if (trimmed.length < 2) {
-            _uiState.value = SearchUiState(isLoading = false)
+            _uiState.value = _uiState.value.copy(isLoading = false, channels = emptyList(), movies = emptyList(), series = emptyList())
             return
         }
 
@@ -55,7 +58,9 @@ class SearchViewModel @Inject constructor(
                 isLoading = false,
                 channels = results.first,
                 movies = results.second,
-                series = results.third
+                series = results.third,
+                query = trimmed,
+                activeFilter = _uiState.value.activeFilter
             )
         }
     }
@@ -124,6 +129,10 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    fun setFilter(filter: SearchResultFilter) {
+        _uiState.value = _uiState.value.copy(activeFilter = filter)
+    }
+
     fun onSearchSubmitted() {
         // Handle search submission if needed
     }
@@ -137,5 +146,9 @@ data class SearchUiState(
     val isLoading: Boolean = false,
     val channels: List<LiveStream> = emptyList(),
     val movies: List<Movie> = emptyList(),
-    val series: List<Series> = emptyList()
+    val series: List<Series> = emptyList(),
+    val query: String = "",
+    val activeFilter: SearchResultFilter = SearchResultFilter.ALL
 )
+
+enum class SearchResultFilter { ALL, MOVIES, SERIES, LIVE_TV }

@@ -88,7 +88,11 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var selectedCategory by remember { mutableStateOf(SettingCategory.ACCOUNT) }
+    val savedTab by viewModel.selectedSettingTab.collectAsState()
+    var selectedCategory by remember {
+        val initial = try { SettingCategory.valueOf(savedTab) } catch (_: Exception) { SettingCategory.ACCOUNT }
+        mutableStateOf(initial)
+    }
     val isTv = LocalContext.current.isTelevisionDevice()
 
     var showEditDialog by remember { mutableStateOf(false) }
@@ -160,7 +164,10 @@ fun SettingsScreen(
                             icon = category.icon,
                             isSelected = selectedCategory == category,
                             isTv = isTv,
-                            onClick = { selectedCategory = category }
+                            onClick = {
+                                selectedCategory = category
+                                viewModel.recordSettingTab(category.name)
+                            }
                         )
                     }
                 }
