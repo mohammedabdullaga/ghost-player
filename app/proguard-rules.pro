@@ -29,6 +29,8 @@
 -keepclasseswithmembernames class * {
     native <methods>;
 }
+# MUST keep the class name itself — native-lib.c calls FindClass("com/eliteprime/app/data/remote/proxy/SecureStreamingManager")
+-keep class com.eliteprime.app.data.remote.proxy.SecureStreamingManager { *; }
 -keepclassmembers class com.eliteprime.app.data.remote.proxy.SecureStreamingManager {
     native <methods>;
 }
@@ -78,6 +80,15 @@
 -dontwarn retrofit2.**
 -keepclassmembers,allowobfuscation interface * {
     @retrofit2.http.* <methods>;
+}
+
+# kotlinx.serialization — must keep compiler-generated $serializer classes or R8 strips them
+-keep class kotlinx.serialization.** { *; }
+-keepclassmembers class kotlinx.serialization.** { *; }
+# Keep all classes annotated with @Serializable (their companion $serializer is needed at runtime)
+-keep @kotlinx.serialization.Serializable class * { *; }
+-keepclassmembers class * {
+    @kotlinx.serialization.Serializable *;
 }
 
 -keepattributes RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
