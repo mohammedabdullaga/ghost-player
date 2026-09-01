@@ -2,6 +2,7 @@ package com.eliteprime.app.util
 
 import android.app.ActivityManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.util.Log
 import androidx.compose.runtime.compositionLocalOf
 
@@ -17,8 +18,11 @@ object DeviceRenderProfile {
     private var isLiteMode: Boolean = false
 
     fun initialize(context: Context, liteMode: Boolean = false) {
-        isLiteMode = liteMode
-        if (liteMode) {
+        // Lite mode only applies to TV devices — mobile never enters Lite mode.
+        // SharedPreferences from a TV install can leak liteMode=true to mobile.
+        val isTv = context.packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+        isLiteMode = isTv && liteMode
+        if (isLiteMode) {
             tier = RenderTier.LITE
             Log.i(TAG, "Device Profile: Tier=LITE (User configured Lite Mode)")
             return

@@ -85,22 +85,15 @@ class MasterPlayerEngine @Inject constructor(
     private var lastStreamInfo: StreamInfo? = null
 
     init {
-        // Observe preference changes to switch engines at runtime for LIVE content
+        // React to preference changes for ALL content types (Live + VOD)
         preferenceRepository.playerEngineMode
             .onEach { mode ->
-                // ONLY switch if we are currently playing/preparing LIVE content
-                // OR if we are idle (to set the default for the next Live playback)
-                val currentInfo = lastStreamInfo
-                val isCurrentlyLive = currentInfo?.isLive ?: true // Default to true so idle state sets Live engine
-                
-                if (isCurrentlyLive) {
-                    val type = if (mode == "VLC") PlayerType.VLC else PlayerType.EXO
-                    val newEngine = if (type == PlayerType.VLC) vlcEngine else media3Engine
-                    
-                    if (_activePlayer.value != newEngine) {
-                        Log.i(TAG, "Switching Live Player Engine to: $type")
-                        switchEngine(newEngine)
-                    }
+                val type = if (mode == "VLC") PlayerType.VLC else PlayerType.EXO
+                val newEngine = if (type == PlayerType.VLC) vlcEngine else media3Engine
+
+                if (_activePlayer.value != newEngine) {
+                    Log.i(TAG, "Settings-based engine switch to: $type")
+                    switchEngine(newEngine)
                 }
             }
             .launchIn(scope)
@@ -127,17 +120,12 @@ class MasterPlayerEngine @Inject constructor(
     override fun prepare(streamInfo: StreamInfo) {
         lastStreamInfo = streamInfo
         
-        val targetEngine = if (!streamInfo.isLive) {
-            // VOD ALWAYS uses VLC
-            vlcEngine
-        } else {
-            // Live uses the preference
-            val mode = preferenceRepository.playerEngineMode.value
-            if (mode == "VLC") vlcEngine else media3Engine
-        }
+        // Always respect the user's player engine preference
+        val mode = preferenceRepository.playerEngineMode.value
+        val targetEngine = if (mode == "VLC") vlcEngine else media3Engine
 
         if (_activePlayer.value != targetEngine) {
-            Log.i(TAG, "Content-based engine switch: isLive=${streamInfo.isLive} -> ${if (targetEngine == vlcEngine) "VLC" else "EXO"}")
+            Log.i(TAG, "Preference-based engine switch: mode=$mode isLive=${streamInfo.isLive} -> ${if (targetEngine == vlcEngine) "VLC" else "EXO"}")
             switchEngine(targetEngine)
         } else {
             _activePlayer.value.prepare(streamInfo)

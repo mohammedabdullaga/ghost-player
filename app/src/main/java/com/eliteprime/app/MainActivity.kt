@@ -77,8 +77,9 @@ class MainActivity : AppCompatActivity() {
         val accountBox = boxStore.boxFor(XtreamAccount::class.java)
         val hasActiveAccount = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() != null
         val startDest = if (hasActiveAccount) {
-            // Lite Hub is now default for both TV and Mobile if Lite Mode is enabled
-            if (isLite) "hub" else "home"
+            // Use the resolved DeviceRenderProfile value, not raw SharedPrefs
+            // — DeviceRenderProfile already blocks Lite mode on mobile devices.
+            if (DeviceRenderProfile.isLiteMode()) "hub" else "home"
         } else "login"
 
         _pictureInPictureModeFlow.value = isInPictureInPictureMode
@@ -86,13 +87,8 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val isTv = isTelevisionDevice()
             val currentLiteMode by preferenceRepository.isLiteModeEnabled.collectAsState()
-            
-            // LITE tier applies to all devices if the setting is enabled.
-            val renderTier = if (currentLiteMode) {
-                RenderTier.LITE
-            } else {
-                remember { DeviceRenderProfile.getTier() }
-            }
+            // Resolved tier: LITE only on TV; mobile always uses device tier.
+            val renderTier = if (isTv && currentLiteMode) RenderTier.LITE else DeviceRenderProfile.getTier()
             
             CompositionLocalProvider(LocalRenderTier provides renderTier) {
                 ArenaLiveTheme {
