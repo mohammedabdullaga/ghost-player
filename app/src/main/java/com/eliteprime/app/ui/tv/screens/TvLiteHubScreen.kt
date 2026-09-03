@@ -23,9 +23,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -176,11 +178,7 @@ fun TvLiteHubScreen(
                 }
                 Spacer(Modifier.weight(0.5f))
 
-                val isLtr = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Ltr
-
-                // Build card specs as plain data then render them in RTL-aware order.
-                // NO @Composable-typed local variables — avoids kapt "Composable is not a
-                // repeatable annotation interface" on K2 stubs.
+                // Cards defined in natural order: Live TV, Movies, Series
                 data class CardSpec(
                     val title: String,
                     val subtitle: String,
@@ -194,33 +192,34 @@ fun TvLiteHubScreen(
                     val onClick: () -> Unit
                 )
 
-                val orderedSpecs = if (isLtr) listOf(
+                val orderedSpecs = listOf(
                     CardSpec(stringResource(R.string.nav_live_tv), "تصفح جميع القنوات المباشرة", Icons.Default.LiveTv, uiState.liveCount, "قناة", "HD / 4K", true, 1.25f, firstTileRequester, onClick = { logNav("Live TV", onNavigateToLive) }),
                     CardSpec(stringResource(R.string.nav_movies), "شاهد أحدث وأفضل الأفلام", Icons.Default.Movie, uiState.movieCount, "فيلم", weight = 1f, focusRequester = null, onClick = { logNav("Movies", onNavigateToMovies) }),
                     CardSpec(stringResource(R.string.nav_series), "مجموعة كبيرة من المسلسلات", Icons.Default.VideoLibrary, uiState.seriesCount, "مسلسل", weight = 1f, focusRequester = null, onClick = { logNav("Series", onNavigateToSeries) })
-                ) else listOf(
-                    CardSpec(stringResource(R.string.nav_series), "مجموعة كبيرة من المسلسلات", Icons.Default.VideoLibrary, uiState.seriesCount, "مسلسل", weight = 1f, focusRequester = null, onClick = { logNav("Series", onNavigateToSeries) }),
-                    CardSpec(stringResource(R.string.nav_movies), "شاهد أحدث وأفضل الأفلام", Icons.Default.Movie, uiState.movieCount, "فيلم", weight = 1f, focusRequester = null, onClick = { logNav("Movies", onNavigateToMovies) }),
-                    CardSpec(stringResource(R.string.nav_live_tv), "تصفح جميع القنوات المباشرة", Icons.Default.LiveTv, uiState.liveCount, "قناة", "HD / 4K", true, 1.25f, firstTileRequester, onClick = { logNav("Live TV", onNavigateToLive) })
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp)
+                // Force LTR layout direction for card row so Live TV, Movies, Series are rendered left-to-right regardless of app language
+                CompositionLocalProvider(
+                    LocalLayoutDirection provides LayoutDirection.Ltr
                 ) {
-                    orderedSpecs.forEach { spec ->
-                        HubCard(
-                            title = spec.title,
-                            subtitle = spec.subtitle,
-                            icon = spec.icon,
-                            count = spec.count,
-                            countLabel = spec.countLabel,
-                            extraChip = spec.extraChip,
-                            featured = spec.featured,
-                            focusRequester = spec.focusRequester,
-                            modifier = Modifier.weight(spec.weight).height(280.dp),
-                            onClick = spec.onClick
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        orderedSpecs.forEach { spec ->
+                            HubCard(
+                                title = spec.title,
+                                subtitle = spec.subtitle,
+                                icon = spec.icon,
+                                count = spec.count,
+                                countLabel = spec.countLabel,
+                                extraChip = spec.extraChip,
+                                featured = spec.featured,
+                                focusRequester = spec.focusRequester,
+                                modifier = Modifier.weight(spec.weight).height(280.dp),
+                                onClick = spec.onClick
+                            )
+                        }
                     }
                 }
 
@@ -276,61 +275,65 @@ fun TvLiteHubScreen(
                     }
                 }
 
-                Column(
-                    modifier = Modifier.fillMaxWidth().weight(1f).padding(vertical = 16.dp).verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                CompositionLocalProvider(
+                    LocalLayoutDirection provides LayoutDirection.Ltr
                 ) {
-                    Row(modifier = Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        HubCard(
-                            title = stringResource(R.string.nav_live_tv), subtitle = "تصفح جميع القنوات المباشرة",
-                            icon = Icons.Default.LiveTv, count = uiState.liveCount, countLabel = "قناة",
-                            featured = false, focusRequester = null, isTv = false,
-                            modifier = Modifier.weight(1f), onClick = { logNav("Mobile Live TV", onNavigateToLive) }
-                        )
-                        HubCard(
-                            title = stringResource(R.string.nav_movies), subtitle = "شاهد أحدث وأفضل الأفلام",
-                            icon = Icons.Default.Movie, count = uiState.movieCount, countLabel = "فيلم",
-                            featured = false, focusRequester = null, isTv = false,
-                            modifier = Modifier.weight(1f), onClick = { logNav("Mobile Movies", onNavigateToMovies) }
-                        )
-                    }
-                    Row(modifier = Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        HubCard(
-                            title = stringResource(R.string.nav_series), subtitle = "مجموعة كبيرة من المسلسلات",
-                            icon = Icons.Default.VideoLibrary, count = uiState.seriesCount, countLabel = "مسلسل",
-                            featured = false, focusRequester = null, isTv = false,
-                            modifier = Modifier.weight(1f), onClick = { logNav("Mobile Series", onNavigateToSeries) }
-                        )
-                        HubCard(
-                            title = stringResource(R.string.nav_search), subtitle = "ابحث عن أي محتوى",
-                            icon = Icons.Default.Search, count = null, countLabel = null,
-                            featured = false, focusRequester = null, isTv = false,
-                            modifier = Modifier.weight(1f), onClick = { logNav("Mobile Search", onNavigateToSearch) }
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    HubUtilRow(icon = Icons.Default.Settings, label = stringResource(R.string.nav_settings), isTv = false, modifier = Modifier.height(56.dp), onClick = { logNav("Mobile Settings", onNavigateToSettings) })
-                    HubUtilRow(
-                        icon = Icons.Default.Refresh,
-                        label = if (uiState.isSyncing) stringResource(R.string.hub_syncing) else stringResource(R.string.hub_reload),
-                        isTv = false, isLoading = uiState.isSyncing,
-                        modifier = Modifier.height(56.dp),
-                        onClick = {
-                            if (!uiState.isSyncing) {
-                                viewModel.reloadData { success -> Toast.makeText(context, if (success) syncSuccessMsg else syncFailedMsg, Toast.LENGTH_SHORT).show() }
-                            }
+                    Column(
+                        modifier = Modifier.fillMaxWidth().weight(1f).padding(vertical = 16.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(modifier = Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            HubCard(
+                                title = stringResource(R.string.nav_live_tv), subtitle = "تصفح جميع القنوات المباشرة",
+                                icon = Icons.Default.LiveTv, count = uiState.liveCount, countLabel = "قناة",
+                                featured = false, focusRequester = null, isTv = false,
+                                modifier = Modifier.weight(1f), onClick = { logNav("Mobile Live TV", onNavigateToLive) }
+                            )
+                            HubCard(
+                                title = stringResource(R.string.nav_movies), subtitle = "شاهد أحدث وأفضل الأفلام",
+                                icon = Icons.Default.Movie, count = uiState.movieCount, countLabel = "فيلم",
+                                featured = false, focusRequester = null, isTv = false,
+                                modifier = Modifier.weight(1f), onClick = { logNav("Mobile Movies", onNavigateToMovies) }
+                            )
                         }
-                    )
-                    HubToggleRow(
-                        label = stringResource(R.string.hub_fast_vpn),
-                        isEnabled = uiState.isSecureConnectionEnabled,
-                        isAvailable = uiState.isByeDpiAvailable,
-                        isTv = false,
-                        modifier = Modifier.height(56.dp),
-                        onToggle = { enabled -> viewModel.setSecureConnectionEnabled(enabled) }
-                    )
+                        Row(modifier = Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            HubCard(
+                                title = stringResource(R.string.nav_series), subtitle = "مجموعة كبيرة من المسلسلات",
+                                icon = Icons.Default.VideoLibrary, count = uiState.seriesCount, countLabel = "مسلسل",
+                                featured = false, focusRequester = null, isTv = false,
+                                modifier = Modifier.weight(1f), onClick = { logNav("Mobile Series", onNavigateToSeries) }
+                            )
+                            HubCard(
+                                title = stringResource(R.string.nav_search), subtitle = "ابحث عن أي محتوى",
+                                icon = Icons.Default.Search, count = null, countLabel = null,
+                                featured = false, focusRequester = null, isTv = false,
+                                modifier = Modifier.weight(1f), onClick = { logNav("Mobile Search", onNavigateToSearch) }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        HubUtilRow(icon = Icons.Default.Settings, label = stringResource(R.string.nav_settings), isTv = false, modifier = Modifier.height(56.dp), onClick = { logNav("Mobile Settings", onNavigateToSettings) })
+                        HubUtilRow(
+                            icon = Icons.Default.Refresh,
+                            label = if (uiState.isSyncing) stringResource(R.string.hub_syncing) else stringResource(R.string.hub_reload),
+                            isTv = false, isLoading = uiState.isSyncing,
+                            modifier = Modifier.height(56.dp),
+                            onClick = {
+                                if (!uiState.isSyncing) {
+                                    viewModel.reloadData { success -> Toast.makeText(context, if (success) syncSuccessMsg else syncFailedMsg, Toast.LENGTH_SHORT).show() }
+                                }
+                            }
+                        )
+                        HubToggleRow(
+                            label = stringResource(R.string.hub_fast_vpn),
+                            isEnabled = uiState.isSecureConnectionEnabled,
+                            isAvailable = uiState.isByeDpiAvailable,
+                            isTv = false,
+                            modifier = Modifier.height(56.dp),
+                            onToggle = { enabled -> viewModel.setSecureConnectionEnabled(enabled) }
+                        )
+                    }
                 }
             }
 
