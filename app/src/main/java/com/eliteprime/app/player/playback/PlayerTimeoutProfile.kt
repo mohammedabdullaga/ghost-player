@@ -19,8 +19,8 @@ enum class PlayerTimeoutProfile(
         writeTimeoutMs = 30_000L
     ),
     PROGRESSIVE(
-        connectTimeoutMs = 5_000L,
-        readTimeoutMs = 10_000L,
+        connectTimeoutMs = 15_000L,
+        readTimeoutMs = 45_000L,
         writeTimeoutMs = 30_000L
     );
 

@@ -35,6 +35,7 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
 import androidx.media3.exoplayer.FormatHolder
 import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.audio.AudioCapabilities
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.ui.AspectRatioFrameLayout
@@ -226,7 +227,9 @@ class Media3PlayerEngine @Inject constructor(
 
         // MediaTek (TCL/Haier) devices may need float output for audio compatibility
         val isMediatek = CapabilityAwareMediaCodecSelector.isMediatek()
+        val audioCapabilities = AudioCapabilities.getCapabilities(context)
         val audioSink = DefaultAudioSink.Builder(context)
+            .setAudioCapabilities(audioCapabilities)
             .setEnableFloatOutput(isMediatek) // Mediatek: allow float; others: disable for stability
             .setAudioProcessorChain(DefaultAudioSink.DefaultAudioProcessorChain())
             .build()
@@ -339,6 +342,8 @@ class Media3PlayerEngine @Inject constructor(
                 }
                 
                 trackSelectionParameters = trackSelectionParameters.buildUpon()
+                    .setPreferredAudioLanguages("ara", "ar", "eng", "en")
+                    .setPreferredTextLanguages("ara", "ar", "eng", "en")
                     .setViewportSizeToPhysicalDisplaySize(context, true)
                     .build()
                 
