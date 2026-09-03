@@ -28,6 +28,7 @@ import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.*
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -126,7 +127,7 @@ class DownloadManagerImpl @Inject constructor(
                 }
             }
 
-            val id = "${request.contentType.name}_${request.contentId}_${System.currentTimeMillis()}"
+            val id = "${request.contentType.name}_${request.contentId}_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(8)}"
             val item = DownloadItem(
                 id = id,
                 providerId = request.providerId,

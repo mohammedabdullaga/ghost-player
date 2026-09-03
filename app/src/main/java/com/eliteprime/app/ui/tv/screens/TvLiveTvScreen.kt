@@ -216,7 +216,8 @@ fun TvLiveTvScreen(
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         TvGlassPane(
             modifier = Modifier.fillMaxSize(),
-            backgroundColor = TvColors.GlassBase,
+            backgroundColor = Color.Transparent,
+            borderColor = TvColors.GlassBorder,
             shape = RoundedCornerShape(LiveRadius.pane)
         ) {
             Row(modifier = Modifier.fillMaxSize()) {
@@ -225,7 +226,7 @@ fun TvLiveTvScreen(
                     modifier = Modifier
                         .weight(if (uiState.isCategoryReorderMode) 0.45f else CATEGORIES_PANE_WEIGHT)
                         .fillMaxHeight()
-                        .background(Color.Black.copy(alpha = 0.18f))
+                        .background(Color.Black.copy(alpha = 0.25f))
                 ) {
                     Box(
                         modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 8.dp),

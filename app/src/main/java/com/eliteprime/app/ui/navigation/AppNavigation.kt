@@ -136,7 +136,7 @@ fun AppNavigation(
                 onNavigateToMovies = { stopPlayerAndNavigate("movies") },
                 onNavigateToSeries = { stopPlayerAndNavigate("series") },
                 onPlayChannel = { channel ->
-                    navController.navigate("player/${channel.id}/live/${channel.name}")
+                    navController.navigate("player/${channel.id}/live/${Uri.encode(channel.name)}")
                 }
             )
         }
@@ -203,7 +203,7 @@ fun AppNavigation(
                 onBack = { navController.popBackStack() },
                 onMovieClick = { movie -> navController.navigate("movie_details/${movie.id}") },
                 onSeriesClick = { series -> navController.navigate("series_details/${series.id}") },
-                onChannelClick = { channel -> navController.navigate("player/${channel.id}/live/${channel.name}") }
+                onChannelClick = { channel -> navController.navigate("player/${channel.id}/live/${Uri.encode(channel.name)}") }
             )
         }
         composable("downloads") {

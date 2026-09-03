@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -73,7 +74,7 @@ fun TvDownloadsScreen(
                         horizontalArrangement = Arrangement.spacedBy(20.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
-                        items(uiState.filteredDownloads, key = { it.id }) { download ->
+                        itemsIndexed(uiState.filteredDownloads.distinctBy { it.id }, key = { index, download -> "${download.id}_$index" }) { _, download ->
                             TvDownloadItemCard(
                                 item = download,
                                 onPlay = { onPlayDownload(download) },

@@ -368,7 +368,7 @@ fun TvMovieScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    itemsIndexed(uiState.filteredMovies, key = { _, m -> m.id }) { index, movie ->
+                    itemsIndexed(uiState.filteredMovies.distinctBy { it.id }, key = { index, m -> "${m.id}_$index" }) { index, movie ->
                         val requester = if (index == 0) firstMovieRequester else movieFocusRequesters.getOrPut(movie.id) { FocusRequester() }
                         val isStartColumn = index % columns == 0
                         val totalMovies = uiState.filteredMovies.size

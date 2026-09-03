@@ -33,20 +33,21 @@ class DownloadViewModel @Inject constructor(
         downloadManager.observeAllDownloads(),
         _currentFilter
     ) { downloads, filter ->
+        val uniqueDownloads = downloads.distinctBy { it.id }
         val filtered = when (filter) {
-            DownloadFilter.ALL -> downloads
-            DownloadFilter.MOVIES -> downloads.filter { it.contentType == DownloadContentType.MOVIE }
-            DownloadFilter.SERIES -> downloads.filter { it.contentType == DownloadContentType.SERIES_EPISODE }
+            DownloadFilter.ALL -> uniqueDownloads
+            DownloadFilter.MOVIES -> uniqueDownloads.filter { it.contentType == DownloadContentType.MOVIE }
+            DownloadFilter.SERIES -> uniqueDownloads.filter { it.contentType == DownloadContentType.SERIES_EPISODE }
         }
         
         DownloadsUiState(
-            downloads = downloads,
+            downloads = uniqueDownloads,
             filteredDownloads = filtered,
             isLoading = false,
             currentFilter = filter,
-            allCount = downloads.size,
-            movieCount = downloads.count { it.contentType == DownloadContentType.MOVIE },
-            seriesCount = downloads.count { it.contentType == DownloadContentType.SERIES_EPISODE }
+            allCount = uniqueDownloads.size,
+            movieCount = uniqueDownloads.count { it.contentType == DownloadContentType.MOVIE },
+            seriesCount = uniqueDownloads.count { it.contentType == DownloadContentType.SERIES_EPISODE }
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DownloadsUiState(isLoading = true))
 

@@ -219,7 +219,7 @@ fun MobileLiveTvScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = 2.dp)
                     ) {
-                        itemsIndexed(uiState.filteredChannels, key = { _, it -> it.id }) { index, channel ->
+                        itemsIndexed(uiState.filteredChannels.distinctBy { it.id }, key = { index, c -> "${c.id}_$index" }) { index, channel ->
                             if (index >= uiState.filteredChannels.size - 10) {
                                 SideEffect {
                                     viewModel.loadMore()

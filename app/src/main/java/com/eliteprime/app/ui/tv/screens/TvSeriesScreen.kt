@@ -376,7 +376,7 @@ fun TvSeriesScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    itemsIndexed(uiState.filteredSeries, key = { _, s -> s.id }) { index, series ->
+                    itemsIndexed(uiState.filteredSeries.distinctBy { it.id }, key = { index, s -> "${s.id}_$index" }) { index, series ->
                         val requester = if (index == 0) firstSeriesRequester else seriesFocusRequesters.getOrPut(series.id) { FocusRequester() }
                         val isStartColumn = index % columns == 0
                         val totalSeries = uiState.filteredSeries.size

@@ -117,14 +117,10 @@ class ConfigRepository @Inject constructor(
     }
 
     fun getActiveHosts(): List<HostEntry> {
-        val configHosts = cachedConfig?.hosts
-            ?.filter { it.status.equals("active", ignoreCase = true) }
-            ?.sortedBy { it.priority } ?: emptyList()
-
-        if (configHosts.isEmpty()) {
-            Log.w(TAG, "No active hosts in config.")
-        }
-        return configHosts
+        val config = cachedConfig ?: return emptyList()
+        return config.hosts
+            .filter { (it.status.isBlank() || it.status.equals("active", ignoreCase = true)) && it.url.isNotBlank() }
+            .sortedBy { it.priority }
     }
 
     fun getProxyHosts(): List<String> {
