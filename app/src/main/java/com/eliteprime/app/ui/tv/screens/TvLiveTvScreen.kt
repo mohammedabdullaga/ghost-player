@@ -141,6 +141,7 @@ fun TvLiveTvScreen(
     val isLiteMode = DeviceRenderProfile.isLiteMode()
     var showExitDialog by remember { mutableStateOf(false) }
     val activity = LocalContext.current as? Activity
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
 
     if (showExitDialog) {
         TvExitDialog(
@@ -478,7 +479,7 @@ fun TvLiveTvScreen(
                                                 viewModel.recordFocusedItem(channel.id)
                                             } }
                                             .focusProperties {
-                                                right = fsButtonRequester
+                                                if (isRtl) left = fsButtonRequester else right = fsButtonRequester
                                             },
                                         onClick = {
                                             if (!isAnyPopupOpen) {
@@ -1257,6 +1258,7 @@ private fun TvPreviewActionButtons(
     onFullScreen: () -> Unit,
     onToggleFavorite: () -> Unit
 ) {
+    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     Row(
         modifier = Modifier
             .padding(horizontal = LiveSpacing.lg, vertical = 8.dp)
@@ -1271,7 +1273,7 @@ private fun TvPreviewActionButtons(
                 .focusRequester(fsFocusRequester)
                 .onFocusChanged { isFsFocused = it.isFocused }
                 .focusProperties {
-                    right = favFocusRequester
+                    if (isRtl) left = favFocusRequester else right = favFocusRequester
                 },
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
             colors = ClickableSurfaceDefaults.colors(
@@ -1303,7 +1305,7 @@ private fun TvPreviewActionButtons(
                 .focusRequester(favFocusRequester)
                 .onFocusChanged { isFavFocused = it.isFocused }
                 .focusProperties {
-                    left = fsFocusRequester
+                    if (isRtl) right = fsFocusRequester else left = fsFocusRequester
                 },
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(8.dp)),
             colors = ClickableSurfaceDefaults.colors(
