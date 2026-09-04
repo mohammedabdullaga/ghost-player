@@ -9,6 +9,9 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.util.Rational
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -19,13 +22,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.view.WindowCompat
+import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.local.entity.XtreamAccount
 import com.eliteprime.app.data.local.entity.XtreamAccount_
 import com.eliteprime.app.data.repository.PreferenceRepository
+import com.eliteprime.app.data.update.AppUpdateManager
 import com.eliteprime.app.player.GlobalPlayerState
 import com.eliteprime.app.player.PlayerEngine
 import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.MainShell
+import com.eliteprime.app.ui.components.AppUpdateDialog
 import com.eliteprime.app.ui.tv.TvMainShell
 import com.eliteprime.app.ui.theme.ArenaLiveTheme
 import com.eliteprime.app.util.DeviceRenderProfile
@@ -47,6 +53,8 @@ class MainActivity : AppCompatActivity() {
     @Inject lateinit var globalPlayerState: GlobalPlayerState
     @Inject lateinit var playerEngine: PlayerEngine
     @Inject lateinit var preferenceRepository: PreferenceRepository
+    @Inject lateinit var configRepository: ConfigRepository
+    @Inject lateinit var appUpdateManager: AppUpdateManager
 
     private val _pictureInPictureModeFlow = MutableStateFlow(false)
     val pictureInPictureModeFlow: StateFlow<Boolean> = _pictureInPictureModeFlow.asStateFlow()
@@ -87,11 +95,21 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val isTv = isTelevisionDevice()
             val currentLiteMode by preferenceRepository.isLiteModeEnabled.collectAsState()
+            val availableUpdate by configRepository.availableUpdate.collectAsState()
             // Resolved tier: LITE only on TV; mobile always uses device tier.
             val renderTier = if (isTv && currentLiteMode) RenderTier.LITE else DeviceRenderProfile.getTier()
             
             CompositionLocalProvider(LocalRenderTier provides renderTier) {
                 ArenaLiveTheme {
+                    availableUpdate?.let { updateConfig ->
+                        AppUpdateDialog(
+                            updateConfig = updateConfig,
+                            appUpdateManager = appUpdateManager,
+                            onDismissRequest = {
+                                configRepository.dismissUpdateForSession()
+                            }
+                        )
+                    }
                     if (isTv) {
                         TvMainShell(
                             playerEngine = playerEngine,
@@ -142,9 +160,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        val ts = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
+        Log.i("MainActivity", "[$ts] [Lifecycle] MainActivity onPause() - App backgrounded")
+    }
+
     override fun onResume() {
         super.onResume()
+        val ts = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
+        Log.i("MainActivity", "[$ts] [Lifecycle] MainActivity onResume() - App foregrounded")
         applyImmersiveMode()
+        appUpdateManager.recheckPermissionOnResume()
         // Ensure keyboard is hidden on resume
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
     }

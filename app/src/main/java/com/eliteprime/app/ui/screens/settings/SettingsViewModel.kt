@@ -5,8 +5,10 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil3.SingletonImageLoader
+import com.eliteprime.app.BuildConfig
 import com.eliteprime.app.data.config.ConfigRepository
 import com.eliteprime.app.data.local.entity.*
+import com.eliteprime.app.data.update.AppUpdateManager
 import com.eliteprime.app.player.PlayerSubtitleStyle
 import com.eliteprime.app.data.repository.PreferenceRepository
 import com.eliteprime.app.data.repository.XtreamRepository
@@ -64,6 +66,7 @@ class SettingsViewModel @Inject constructor(
     private val xtreamRepository: XtreamRepository,
     private val preferenceRepository: PreferenceRepository,
     private val configRepository: ConfigRepository,
+    val appUpdateManager: AppUpdateManager,
     private val downloadManager: DownloadManager,
     private val speedTestRunner: InternetSpeedTestRunner,
     private val okHttpClient: OkHttpClient,
@@ -238,26 +241,22 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _isCheckingForUpdates.value = true
             _updateStatus.value = "Checking..."
-            
-            // Simulation of update check
-            delay(2000)
-            
+
             val now = System.currentTimeMillis()
             preferenceRepository.setLastUpdateCheckTimestamp(now)
             _lastUpdateCheckTimestamp.value = now
-            
-            // Placeholder logic
-            val currentVersion = "1.0.0"
-            val latestFromServer = "1.0.0" // Replace with actual API call later
-            
-            if (currentVersion == latestFromServer) {
-                _updateStatus.value = "Up to date"
-                _latestVersion.value = latestFromServer
+
+            val config = configRepository.fetchConfig()
+            val updateConfig = configRepository.checkForAppUpdate(config)
+
+            if (updateConfig != null) {
+                _updateStatus.value = "New update available: v${updateConfig.resolvedVersionName}"
+                _latestVersion.value = updateConfig.resolvedVersionName
             } else {
-                _updateStatus.value = "New update available: $latestFromServer"
-                _latestVersion.value = latestFromServer
+                _updateStatus.value = "Up to date"
+                _latestVersion.value = BuildConfig.VERSION_NAME
             }
-            
+
             _isCheckingForUpdates.value = false
         }
     }

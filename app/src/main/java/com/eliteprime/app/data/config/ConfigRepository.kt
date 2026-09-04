@@ -3,6 +3,7 @@ package com.eliteprime.app.data.config
 import android.content.Context
 import android.util.Log
 import com.eliteprime.app.BuildConfig
+import com.eliteprime.app.domain.model.AppUpdateConfig
 import com.eliteprime.app.domain.model.ConfigResponse
 import com.eliteprime.app.domain.model.HostEntry
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -19,6 +20,7 @@ import javax.inject.Singleton
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
 
@@ -35,6 +37,9 @@ class ConfigRepository @Inject constructor(
     private val remoteConfig: FirebaseRemoteConfig = FirebaseRemoteConfig.getInstance()
     private val _isByeDpiAvailable = MutableStateFlow(true)
     val isByeDpiAvailable = _isByeDpiAvailable.asStateFlow()
+
+    private val _availableUpdate = MutableStateFlow<AppUpdateConfig?>(null)
+    val availableUpdate: StateFlow<AppUpdateConfig?> = _availableUpdate.asStateFlow()
 
     init {
         Log.d(TAG, "ConfigRepository initialized (session-only)")
@@ -96,6 +101,7 @@ class ConfigRepository @Inject constructor(
                     if (response.isSuccessful) {
                         val config = json.decodeFromString<ConfigResponse>(body)
                         cachedConfig = config
+                        checkForAppUpdate(config)
                         Log.i(TAG, "Config successfully fetched and parsed")
                         return@withContext config
                     } else {
@@ -135,5 +141,31 @@ class ConfigRepository @Inject constructor(
 
     fun getTmdbApiKey(): String? {
         return cachedConfig?.tmdb_api_key?.takeIf { it.isNotBlank() }
+    }
+
+    private var isDismissedForSession = false
+
+    fun dismissUpdateForSession() {
+        Log.i(TAG, "Update dismissed for current session")
+        isDismissedForSession = true
+        _availableUpdate.value = null
+    }
+
+    fun checkForAppUpdate(config: ConfigResponse? = cachedConfig): AppUpdateConfig? {
+        val update = config?.update ?: return null
+        val currentVersionCode = BuildConfig.VERSION_CODE
+        val isForced = update.force_update || currentVersionCode < update.min_supported_version_code
+
+        return if (update.resolvedVersionCode > currentVersionCode && update.resolvedApkUrl.isNotBlank()) {
+            Log.i(TAG, "New app update available: v${update.resolvedVersionName} (code ${update.resolvedVersionCode}) vs current code $currentVersionCode, isForced=$isForced")
+            if (!isDismissedForSession || isForced) {
+                _availableUpdate.value = update
+            }
+            update
+        } else {
+            Log.d(TAG, "No update available. Current version code $currentVersionCode is up to date (server code ${update.resolvedVersionCode}).")
+            _availableUpdate.value = null
+            null
+        }
     }
 }
