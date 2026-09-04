@@ -1,6 +1,7 @@
 package com.eliteprime.app.ui.screens.settings
 
 import android.net.Uri
+import com.eliteprime.app.BuildConfig
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -1566,9 +1567,9 @@ private fun AboutSettingsContent(
                     border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
                 ) {
                     Column(modifier = Modifier.padding(STSpacing.md), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        AboutInfoRow(label = stringResource(R.string.settings_about_app_name), value = "Elite TV")
+                        AboutInfoRow(label = stringResource(R.string.settings_about_app_name), value = "ArenaLive")
                         AboutInfoRow(label = stringResource(R.string.settings_about_developed_by), value = "Elit Bahrain")
-                        AboutInfoRow(label = stringResource(R.string.settings_about_build_version), value = "1.0.0")
+                        AboutInfoRow(label = stringResource(R.string.settings_about_build_version), value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
                     }
                 }
             }

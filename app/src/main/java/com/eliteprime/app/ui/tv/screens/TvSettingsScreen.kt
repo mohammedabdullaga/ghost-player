@@ -1,6 +1,7 @@
 package com.eliteprime.app.ui.tv.screens
 
 import androidx.activity.compose.BackHandler
+import com.eliteprime.app.BuildConfig
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1503,7 +1504,7 @@ private fun TvAboutSettingsContent(
                     Column(modifier = Modifier.padding(STSpacing.md), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         TvAboutInfoRow(label = stringResource(R.string.settings_about_app_name), value = "ArenaLive")
                         TvAboutInfoRow(label = stringResource(R.string.settings_about_developed_by), value = "Elit Bahrain")
-                        TvAboutInfoRow(label = stringResource(R.string.settings_about_build_version), value = "1.0.0")
+                        TvAboutInfoRow(label = stringResource(R.string.settings_about_build_version), value = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
                     }
                 }
             }
