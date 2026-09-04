@@ -19,8 +19,8 @@ android {
         applicationId = "com.eliteprime.app"
         minSdk = 25
         targetSdk = 37
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
