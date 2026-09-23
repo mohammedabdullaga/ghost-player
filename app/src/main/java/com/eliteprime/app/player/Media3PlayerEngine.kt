@@ -272,23 +272,12 @@ class Media3PlayerEngine @Inject constructor(
                 })
             }
 
-            override fun buildAudioRenderers(
+            override fun buildAudioSink(
                 context: Context,
-                extensionRendererMode: Int,
-                mediaCodecSelector: MediaCodecSelector,
-                enableDecoderFallback: Boolean,
-                unusedAudioSink: AudioSink,
-                eventHandler: Handler,
-                eventListener: AudioRendererEventListener,
-                out: ArrayList<Renderer>
-            ) {
-                // HW audio renderer with decoder fallback enabled.
-                // On MediaTek (TCL/Haier) devices, if a specific codec profile is rejected
-                // by the HW decoder, MediaCodec will try alternate decoders automatically.
-                out.add(MediaCodecAudioRenderer(
-                    context, mediaCodecSelector, enableDecoderFallback,
-                    eventHandler, eventListener, audioSink
-                ))
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean
+            ): AudioSink? {
+                return audioSink
             }
         }.setMediaCodecSelector(codecSelector)
          .setEnableDecoderFallback(true)
@@ -483,6 +472,7 @@ class Media3PlayerEngine @Inject constructor(
                 PlayerSurfaceResizeMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                 PlayerSurfaceResizeMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
                 PlayerSurfaceResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                PlayerSurfaceResizeMode.MATCH_PARENT -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
             }
         }
     }
@@ -495,15 +485,19 @@ class Media3PlayerEngine @Inject constructor(
             PlayerSurfaceResizeMode.FIT -> AspectRatioFrameLayout.RESIZE_MODE_FIT
             PlayerSurfaceResizeMode.FILL -> AspectRatioFrameLayout.RESIZE_MODE_FILL
             PlayerSurfaceResizeMode.ZOOM -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            PlayerSurfaceResizeMode.MATCH_PARENT -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
         }
 
         // Sync decoder-level scaling mode with the view resize mode.
         // Without this, videoScalingMode stays stuck at SCALE_TO_FIT and
         // FILL/ZOOM on the PlayerView has no visible effect.
+        // NOTE: FILL must use SCALE_TO_FIT at the decoder so the view handles
+        // stretching; using SCALE_TO_FIT_WITH_CROPPING would crop before stretch.
         exoPlayer?.videoScalingMode = when (resizeMode) {
             PlayerSurfaceResizeMode.FIT -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT
-            PlayerSurfaceResizeMode.FILL -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+            PlayerSurfaceResizeMode.FILL -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT
             PlayerSurfaceResizeMode.ZOOM -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+            PlayerSurfaceResizeMode.MATCH_PARENT -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT
         }
 
         if (exoPlayer == null) {

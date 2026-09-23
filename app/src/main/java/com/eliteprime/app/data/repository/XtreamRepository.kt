@@ -87,7 +87,9 @@ class XtreamRepository @Inject constructor(
     }
 
     suspend fun getAccount(): XtreamAccount? {
-        val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return null
+        val account = runCatching {
+            accountBox.query().equal(XtreamAccount_.isActive, true).build().use { it.findFirst() }
+        }.getOrNull() ?: return null
         
         // 100% Reliance on Remote Config: Always ensure we have a fresh host for this session.
         // If config hasn't been fetched yet this session, fetch it now.
@@ -239,13 +241,13 @@ class XtreamRepository @Inject constructor(
     /** Lightweight cleanup for VOD-only orphaned data (seasons/episodes with no matching series). */
     private fun cleanupVodOrphans() {
         try {
-            val seriesIds = seriesBox.query().build().property(Series_.id).findLongs().toSet()
+            val seriesIds = seriesBox.query().build().use { it.property(Series_.id).findLongs().toSet() }
             boxStore.runInTx {
                 val episodeBox = boxStore.boxFor(Episode::class.java)
                 val seasonBox = boxStore.boxFor(Season::class.java)
-                val orphanedEpisodes = episodeBox.query().build().find().filter { it.seriesId !in seriesIds }
+                val orphanedEpisodes = episodeBox.query().build().use { q -> q.find().filter { it.seriesId !in seriesIds } }
                 episodeBox.remove(orphanedEpisodes)
-                val orphanedSeasons = seasonBox.query().build().find().filter { it.seriesId !in seriesIds }
+                val orphanedSeasons = seasonBox.query().build().use { q -> q.find().filter { it.seriesId !in seriesIds } }
                 seasonBox.remove(orphanedSeasons)
             }
         } catch (e: Exception) {
@@ -256,8 +258,8 @@ class XtreamRepository @Inject constructor(
     private fun cleanupOrphanedData() {
         try {
             // Optimized Cleanup: Only fetch IDs
-            val liveIds = liveBox.query().build().property(LiveStream_.id).findLongs().toSet()
-            val seriesIds = seriesBox.query().build().property(Series_.id).findLongs().toSet()
+            val liveIds = liveBox.query().build().use { it.property(LiveStream_.id).findLongs().toSet() }
+            val seriesIds = seriesBox.query().build().use { it.property(Series_.id).findLongs().toSet() }
             
             boxStore.runInTx {
                 val episodeBox = boxStore.boxFor(Episode::class.java)
@@ -267,14 +269,14 @@ class XtreamRepository @Inject constructor(
                 // ObjectBox doesn't have a direct "id NOT IN (list)" for removal in a single call easily 
                 // without fetching, but we can at least minimize the data.
                 
-                val orphanedEpisodes = episodeBox.query().build().find().filter { it.seriesId !in seriesIds }
+                val orphanedEpisodes = episodeBox.query().build().use { q -> q.find().filter { it.seriesId !in seriesIds } }
                 episodeBox.remove(orphanedEpisodes)
                 
-                val orphanedSeasons = seasonBox.query().build().find().filter { it.seriesId !in seriesIds }
+                val orphanedSeasons = seasonBox.query().build().use { q -> q.find().filter { it.seriesId !in seriesIds } }
                 seasonBox.remove(orphanedSeasons)
                 
                 if (!epgBox.isEmpty) {
-                    val orphanedEpg = epgBox.query().build().find().filter { it.channelId !in liveIds }
+                    val orphanedEpg = epgBox.query().build().use { q -> q.find().filter { it.channelId !in liveIds } }
                     epgBox.remove(orphanedEpg)
                 }
             }
@@ -352,7 +354,7 @@ class XtreamRepository @Inject constructor(
                 }
                 val epgBox = boxStore.boxFor(EPGProgram::class.java)
                 boxStore.runInTx {
-                    epgBox.query().equal(EPGProgram_.channelId, channel.id).build().remove()
+                    epgBox.query().equal(EPGProgram_.channelId, channel.id).build().use { it.remove() }
                     epgBox.put(epgPrograms)
                 }
             }
@@ -404,11 +406,11 @@ class XtreamRepository @Inject constructor(
             
             boxStore.runInTx {
                 // 1. Snapshot existing progress for all episodes of this series
-                val existingEpisodes = episodeBox.query().equal(Episode_.seriesId, series.id).build().find()
+                val existingEpisodes = episodeBox.query().equal(Episode_.seriesId, series.id).build().use { it.find() }
                 val progressMap = existingEpisodes.associate { it.id to Triple(it.watchProgress, it.totalDuration, it.lastWatchedAt) }
 
                 // 2. Clear old seasons/episodes for this series
-                val oldSeasons = seasonBox.query().equal(Season_.seriesId, series.id).build().find()
+                val oldSeasons = seasonBox.query().equal(Season_.seriesId, series.id).build().use { it.find() }
                 seasonBox.remove(oldSeasons)
                 episodeBox.remove(existingEpisodes)
 

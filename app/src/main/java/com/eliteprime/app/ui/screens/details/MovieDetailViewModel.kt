@@ -81,7 +81,9 @@ class MovieDetailViewModel @Inject constructor(
     fun downloadMovie() {
         viewModelScope.launch {
             val m = movie.value ?: return@launch
-            val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@launch
+            val account = runCatching {
+                accountBox.query().equal(XtreamAccount_.isActive, true).build().use { it.findFirst() }
+            }.getOrNull() ?: return@launch
             
             val request = DownloadRequest(
                 providerId = account.id,

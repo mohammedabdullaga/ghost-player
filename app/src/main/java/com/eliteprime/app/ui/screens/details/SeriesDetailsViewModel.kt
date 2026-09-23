@@ -100,7 +100,9 @@ class SeriesDetailsViewModel @Inject constructor(
                 .flow()
                 .map { list ->
                     if (list.isEmpty()) {
-                        seriesBox.query().notEqual(Series_.id, s.id).build().find(0, 12)
+                        runCatching {
+                            seriesBox.query().notEqual(Series_.id, s.id).build().use { it.find(0, 12) }
+                        }.getOrDefault(emptyList())
                     } else {
                         list.take(12)
                     }
@@ -147,7 +149,9 @@ class SeriesDetailsViewModel @Inject constructor(
     fun downloadEpisode(episode: Episode) {
         viewModelScope.launch {
             val s = series.value ?: return@launch
-            val account = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() ?: return@launch
+            val account = runCatching {
+                accountBox.query().equal(XtreamAccount_.isActive, true).build().use { it.findFirst() }
+            }.getOrNull() ?: return@launch
             
             val request = DownloadRequest(
                 providerId = account.id,

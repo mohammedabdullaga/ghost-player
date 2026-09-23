@@ -47,7 +47,7 @@ class MovieViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow(savedHandle["search"] ?: "")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
     private val _page = MutableStateFlow(0)
-    private val PAGE_SIZE = 60
+    private val PAGE_SIZE = 120
 
     // Survive navigation: sidebar/grid state in ViewModel, not remember
     private val _isSidebarHidden = MutableStateFlow(false)
@@ -107,39 +107,43 @@ class MovieViewModel @Inject constructor(
         val limit = (page + 1) * PAGE_SIZE
 
         if (query.isNotEmpty()) {
-            movieBox.query()
-                .contains(Movie_.name, query, StringOrder.CASE_INSENSITIVE)
-                .order(Movie_.order)
-                .build()
-                .find(0, limit.toLong())
-        } else {
-            when (currentId) {
-                CAT_ID_RECENTLY_ADDED -> {
-                    movieBox.query()
-                        .order(Movie_.added, QueryBuilder.DESCENDING)
-                        .order(Movie_.id, QueryBuilder.DESCENDING)
-                        .build()
-                        .find(0, RECENTLY_ADDED_LIMIT)
-                }
-                CAT_ID_FAVORITES -> movieBox.query()
-                    .equal(Movie_.isFavorite, true)
+            runCatching {
+                movieBox.query()
+                    .contains(Movie_.name, query, StringOrder.CASE_INSENSITIVE)
                     .order(Movie_.order)
-                    .build().find(0, limit.toLong())
-                CAT_ID_CONTINUE -> {
-                    val movieIds = history.filter { it.type == "movie" }
-                        .map { it.streamId }
-                    val moviesList = movieBox.get(movieIds.toLongArray()).filterNotNull()
-                    val movieMap = moviesList.associateBy { it.id }
-                    movieIds.distinct().mapNotNull { movieMap[it] }
-                }
-                else -> {
-                    movieBox.query()
-                        .equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+                    .build()
+                    .use { it.find(0, limit.toLong()) }
+            }.getOrDefault(emptyList())
+        } else {
+            runCatching {
+                when (currentId) {
+                    CAT_ID_RECENTLY_ADDED -> {
+                        movieBox.query()
+                            .order(Movie_.added, QueryBuilder.DESCENDING)
+                            .order(Movie_.id, QueryBuilder.DESCENDING)
+                            .build()
+                            .use { it.find(0, RECENTLY_ADDED_LIMIT) }
+                    }
+                    CAT_ID_FAVORITES -> movieBox.query()
+                        .equal(Movie_.isFavorite, true)
                         .order(Movie_.order)
-                        .build()
-                        .find(0, limit.toLong())
+                        .build().use { it.find(0, limit.toLong()) }
+                    CAT_ID_CONTINUE -> {
+                        val movieIds = history.filter { it.type == "movie" }
+                            .map { it.streamId }
+                        val moviesList = movieBox.get(movieIds.toLongArray()).filterNotNull()
+                        val movieMap = moviesList.associateBy { it.id }
+                        movieIds.distinct().mapNotNull { movieMap[it] }
+                    }
+                    else -> {
+                        movieBox.query()
+                            .equal(Movie_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+                            .order(Movie_.order)
+                            .build()
+                            .use { it.find(0, limit.toLong()) }
+                    }
                 }
-            }
+            }.getOrDefault(emptyList())
         }
     }.onStart { emit(emptyList()) }.flowOn(Dispatchers.IO)
 
@@ -174,18 +178,24 @@ class MovieViewModel @Inject constructor(
     fun loadCategoryCount(category: Category) {
         if (!loadedCountIds.add(category.id)) return
         viewModelScope.launch(Dispatchers.IO) {
-            val count = when (category.id) {
-                CAT_ID_RECENTLY_ADDED -> minOf(
-                    movieBox.query().order(Movie_.added, QueryBuilder.DESCENDING).build().count(),
-                    RECENTLY_ADDED_LIMIT
-                ).toInt()
-                CAT_ID_FAVORITES -> movieBox.query()
-                    .equal(Movie_.isFavorite, true).build().count().toInt()
-                CAT_ID_CONTINUE -> playbackHistoryRepository.getRecentlyWatched(50)
-                    .first().count { it.type == "movie" }
-                else -> movieBox.query()
-                    .equal(Movie_.remoteCategoryId, category.categoryId, StringOrder.CASE_INSENSITIVE)
-                    .build().count().toInt()
+            val count = runCatching {
+                when (category.id) {
+                    CAT_ID_RECENTLY_ADDED -> movieBox.query()
+                        .order(Movie_.added, QueryBuilder.DESCENDING)
+                        .build().use { minOf(it.count(), RECENTLY_ADDED_LIMIT).toInt() }
+                    CAT_ID_FAVORITES -> movieBox.query()
+                        .equal(Movie_.isFavorite, true)
+                        .build().use { it.count().toInt() }
+                    CAT_ID_CONTINUE -> playbackHistoryRepository.getRecentlyWatched(50)
+                        .first().count { it.type == "movie" }
+                    else -> movieBox.query()
+                        .equal(Movie_.remoteCategoryId, category.categoryId, StringOrder.CASE_INSENSITIVE)
+                        .build().use { it.count().toInt() }
+                }
+            }.getOrElse { e ->
+                Log.e("MovieViewModel", "Error loading count for category ${category.categoryName}", e)
+                loadedCountIds.remove(category.id)
+                0
             }
             if (count > 0) {
                 _categoryCounts.update { it + (category.id to count) }
@@ -194,23 +204,27 @@ class MovieViewModel @Inject constructor(
     }
 
     fun selectCategory(category: Category) {
-        if (_selectedCategoryId.value != category.id) {
-            browsingTrace = FirebasePerformance.getInstance().newTrace("movie_category_load_time")
-            browsingTrace?.start()
-            _page.value = 0
-            _selectedCategoryId.value = category.id
-            savedHandle["selectedCat"] = category.id
-            _lastFocusedItemId.value = null
+        browsingTrace = FirebasePerformance.getInstance().newTrace("movie_category_load_time")
+        browsingTrace?.start()
+        _page.value = 0
+        _selectedCategoryId.value = category.id
+        savedHandle["selectedCat"] = category.id
+        if (_searchQuery.value.isNotEmpty()) {
+            _searchQuery.value = ""
+            savedHandle["search"] = ""
         }
+        _lastFocusedItemId.value = null
     }
 
     fun selectCategoryForRestore(category: Category) {
-        if (_selectedCategoryId.value != category.id) {
-            browsingTrace = FirebasePerformance.getInstance().newTrace("movie_category_load_time")
-            browsingTrace?.start()
-            _page.value = 0
-            _selectedCategoryId.value = category.id
-            savedHandle["selectedCat"] = category.id
+        browsingTrace = FirebasePerformance.getInstance().newTrace("movie_category_load_time")
+        browsingTrace?.start()
+        _page.value = 0
+        _selectedCategoryId.value = category.id
+        savedHandle["selectedCat"] = category.id
+        if (_searchQuery.value.isNotEmpty()) {
+            _searchQuery.value = ""
+            savedHandle["search"] = ""
         }
     }
     fun recordFocusedCategory(categoryId: Long) {

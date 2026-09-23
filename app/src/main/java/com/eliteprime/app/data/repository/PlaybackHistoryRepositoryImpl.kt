@@ -1,5 +1,6 @@
 package com.eliteprime.app.data.repository
 
+import android.util.Log
 import com.eliteprime.app.data.local.entity.PlaybackHistory
 import com.eliteprime.app.data.local.entity.PlaybackHistory_
 import com.eliteprime.app.data.local.entity.Movie
@@ -30,11 +31,11 @@ class PlaybackHistoryRepositoryImpl @Inject constructor(
     init {
         repositoryScope.launch {
             // Cleanup legacy/invalid records from previous bugs
-            historyBox.query().equal(PlaybackHistory_.providerId, 0L).build().remove()
+            runCatching { historyBox.query().equal(PlaybackHistory_.providerId, 0L).build().use { it.remove() } }
             
             while (true) {
                 delay(30000)
-                flushPendingUpdates()
+                runCatching { flushPendingUpdates() }
             }
         }
     }
@@ -51,7 +52,11 @@ class PlaybackHistoryRepositoryImpl @Inject constructor(
             val allItems = mutableListOf<PlaybackHistory>()
             allItems.addAll(dbList)
             
-            pending.values.forEach { pendingItem ->
+            val pendingItems = runCatching {
+                synchronized(pendingUpdates) { ArrayList(pending.values) }
+            }.getOrDefault(emptyList())
+
+            pendingItems.forEach { pendingItem ->
                 val existingIndex = allItems.indexOfFirst { it.streamId == pendingItem.streamId && it.type == pendingItem.type }
                 if (existingIndex >= 0) {
                     allItems[existingIndex] = pendingItem
@@ -86,11 +91,17 @@ class PlaybackHistoryRepositoryImpl @Inject constructor(
 
     override suspend fun getPlaybackHistory(streamId: Long, type: String, providerId: Long): PlaybackHistory? {
         val key = generateKey(streamId, type, providerId)
-        pendingUpdates[key]?.let { return it }
-        
-        return historyBox.query().build().find().firstOrNull { 
-            it.streamId == streamId && it.type == type && it.providerId == providerId 
+        synchronized(pendingUpdates) {
+            pendingUpdates[key]?.let { return it }
         }
+        
+        return runCatching {
+            historyBox.query()
+                .equal(PlaybackHistory_.streamId, streamId)
+                .build().use { q ->
+                    q.find().firstOrNull { it.type == type && it.providerId == providerId }
+                }
+        }.getOrNull()
     }
 
     override suspend fun recordPlayback(history: PlaybackHistory) = withContext(Dispatchers.IO) {
@@ -108,8 +119,10 @@ class PlaybackHistoryRepositoryImpl @Inject constructor(
         
         historyBox.put(history)
         syncProgressToContent(history)
-        pendingUpdates.remove(key)
-        _pendingUpdatesFlow.value = pendingUpdates.toMap()
+        synchronized(pendingUpdates) {
+            pendingUpdates.remove(key)
+            _pendingUpdatesFlow.value = pendingUpdates.toMap()
+        }
     }
 
     override suspend fun updateResumePosition(
@@ -136,8 +149,10 @@ class PlaybackHistoryRepositoryImpl @Inject constructor(
         }
         
         syncProgressToContent(item)
-        pendingUpdates[key] = item
-        _pendingUpdatesFlow.value = pendingUpdates.toMap()
+        synchronized(pendingUpdates) {
+            pendingUpdates[key] = item
+            _pendingUpdatesFlow.value = pendingUpdates.toMap()
+        }
     }
 
     private fun syncProgressToContent(history: PlaybackHistory) {
@@ -163,12 +178,18 @@ class PlaybackHistoryRepositoryImpl @Inject constructor(
 
     override suspend fun deleteHistory(streamId: Long, type: String, providerId: Long) = withContext(Dispatchers.IO) {
         val key = generateKey(streamId, type, providerId)
-        pendingUpdates.remove(key)
-        _pendingUpdatesFlow.value = pendingUpdates.toMap()
-        
-        val entity = historyBox.query().build().find().firstOrNull { 
-            it.streamId == streamId && it.type == type && it.providerId == providerId 
+        synchronized(pendingUpdates) {
+            pendingUpdates.remove(key)
+            _pendingUpdatesFlow.value = pendingUpdates.toMap()
         }
+        
+        val entity = runCatching {
+            historyBox.query()
+                .equal(PlaybackHistory_.streamId, streamId)
+                .build().use { q ->
+                    q.find().firstOrNull { it.type == type && it.providerId == providerId }
+                }
+        }.getOrNull()
             
         if (entity != null) {
             historyBox.remove(entity.id)
@@ -176,21 +197,36 @@ class PlaybackHistoryRepositoryImpl @Inject constructor(
     }
 
     override suspend fun clearAll() = withContext(Dispatchers.IO) {
-        pendingUpdates.clear()
-        _pendingUpdatesFlow.value = emptyMap()
+        synchronized(pendingUpdates) {
+            pendingUpdates.clear()
+            _pendingUpdatesFlow.value = emptyMap()
+        }
         historyBox.removeAll()
     }
 
     private fun flushPendingUpdates() {
         if (pendingUpdates.isEmpty()) return
         
-        val items = pendingUpdates.values.toList()
-        historyBox.put(items)
-        items.forEach { 
-            syncProgressToContent(it)
-            val key = generateKey(it.streamId, it.type, it.providerId)
-            pendingUpdates.remove(key) 
+        runCatching {
+            val items = synchronized(pendingUpdates) {
+                ArrayList(pendingUpdates.values)
+            }
+            if (items.isEmpty()) return
+            
+            historyBox.put(items)
+            items.forEach { item ->
+                syncProgressToContent(item)
+                val key = generateKey(item.streamId, item.type, item.providerId)
+                synchronized(pendingUpdates) {
+                    val current = pendingUpdates[key]
+                    if (current != null && current.lastPlayedAt <= item.lastPlayedAt) {
+                        pendingUpdates.remove(key)
+                    }
+                }
+            }
+            _pendingUpdatesFlow.value = synchronized(pendingUpdates) { pendingUpdates.toMap() }
+        }.onFailure { e ->
+            Log.e("PlaybackHistoryRepo", "Error flushing pending updates", e)
         }
-        _pendingUpdatesFlow.value = pendingUpdates.toMap()
     }
 }

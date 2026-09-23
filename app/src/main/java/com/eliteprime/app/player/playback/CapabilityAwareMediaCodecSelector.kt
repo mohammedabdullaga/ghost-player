@@ -53,36 +53,55 @@ class CapabilityAwareMediaCodecSelector(
 
         val result = allDecoders.toMutableList()
         
-        // SORTING: Combined logic from original app and current Amlogic fixes
-        result.sortWith(
-            compareBy<MediaCodecInfo> { info ->
-                // 1. Hardware preference
-                when (policy) {
-                    ActiveDecoderPolicy.AUTO -> 0
-                    ActiveDecoderPolicy.HARDWARE_PREFERRED -> if (isSoftwareCodec(info.name)) 1 else 0
-                    ActiveDecoderPolicy.SOFTWARE_PREFERRED,
-                    ActiveDecoderPolicy.COMPATIBILITY -> if (isSoftwareCodec(info.name)) 0 else 1
+        val isAudio = mimeType.startsWith("audio/", ignoreCase = true)
+
+        if (isAudio) {
+            result.sortWith(
+                compareBy<MediaCodecInfo> { info ->
+                    when (policy) {
+                        ActiveDecoderPolicy.AUTO -> 0
+                        ActiveDecoderPolicy.HARDWARE_PREFERRED -> if (isSoftwareCodec(info.name)) 1 else 0
+                        ActiveDecoderPolicy.SOFTWARE_PREFERRED,
+                        ActiveDecoderPolicy.COMPATIBILITY -> if (isSoftwareCodec(info.name)) 0 else 1
+                    }
+                }.thenBy { info ->
+                    // For audio, prefer standard system/Google decoders over flaky vendor audio decoders
+                    val name = info.name.lowercase(Locale.ROOT)
+                    if (name.startsWith("c2.android.") || name.startsWith("omx.google.")) 0 else 1
                 }
-            }.thenByDescending { info ->
-                // 2. Vendor-native decoder priority
-                val name = info.name.lowercase(Locale.ROOT)
-                // Amlogic vdec
-                val hasAmlogic = name.contains("vdec") || (name.contains("amlogic") && (name.contains("video") || name.contains("avc") || name.contains("hevc")))
-                // MediaTek (TCL, Haier, Philips, Sony Android TVs)
-                val hasMediatek = name.contains("mtk") || name.contains("mediatek")
-                // Samsung Exynos
-                val hasExynos = name.contains("exynos") || name.contains("samsung")
-                // Qualcomm
-                val hasQualcomm = name.contains("qcom") || name.contains("qualcomm")
-                hasAmlogic || hasMediatek || hasExynos || hasQualcomm
-            }.thenByDescending { info ->
-                // 3. Hardware acceleration flag
-                !info.softwareOnly
-            }.thenBy { info ->
-                // 4. Google generic wrappers (lower priority)
-                info.name.lowercase(Locale.ROOT).contains("google")
-            }
-        )
+            )
+        } else {
+            // SORTING: Combined logic for video decoders
+            result.sortWith(
+                compareBy<MediaCodecInfo> { info ->
+                    // 1. Hardware preference
+                    when (policy) {
+                        ActiveDecoderPolicy.AUTO -> 0
+                        ActiveDecoderPolicy.HARDWARE_PREFERRED -> if (isSoftwareCodec(info.name)) 1 else 0
+                        ActiveDecoderPolicy.SOFTWARE_PREFERRED,
+                        ActiveDecoderPolicy.COMPATIBILITY -> if (isSoftwareCodec(info.name)) 0 else 1
+                    }
+                }.thenByDescending { info ->
+                    // 2. Vendor-native decoder priority
+                    val name = info.name.lowercase(Locale.ROOT)
+                    // Amlogic vdec
+                    val hasAmlogic = name.contains("vdec") || (name.contains("amlogic") && (name.contains("video") || name.contains("avc") || name.contains("hevc")))
+                    // MediaTek (TCL, Haier, Philips, Sony Android TVs)
+                    val hasMediatek = name.contains("mtk") || name.contains("mediatek")
+                    // Samsung Exynos
+                    val hasExynos = name.contains("exynos") || name.contains("samsung")
+                    // Qualcomm
+                    val hasQualcomm = name.contains("qcom") || name.contains("qualcomm")
+                    hasAmlogic || hasMediatek || hasExynos || hasQualcomm
+                }.thenByDescending { info ->
+                    // 3. Hardware acceleration flag
+                    !info.softwareOnly
+                }.thenBy { info ->
+                    // 4. Google generic wrappers (lower priority)
+                    info.name.lowercase(Locale.ROOT).contains("google")
+                }
+            )
+        }
 
         val decoderName = result.firstOrNull()?.name ?: "None"
         val isHardware = result.firstOrNull()?.softwareOnly == false

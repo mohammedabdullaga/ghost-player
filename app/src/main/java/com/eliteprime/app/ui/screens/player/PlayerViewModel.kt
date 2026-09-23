@@ -21,6 +21,7 @@ import com.eliteprime.app.player.playback.PlayerErrorClassifier
 import dagger.hilt.android.lifecycle.HiltViewModel
 import io.objectbox.BoxStore
 import io.objectbox.query.QueryBuilder.StringOrder
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -72,6 +73,7 @@ class PlayerViewModel @Inject constructor(
             PlayerSurfaceResizeMode.FIT -> AspectRatio.FIT.modeName
             PlayerSurfaceResizeMode.FILL -> AspectRatio.FILL.modeName
             PlayerSurfaceResizeMode.ZOOM -> AspectRatio.ZOOM.modeName
+            PlayerSurfaceResizeMode.MATCH_PARENT -> AspectRatio.MATCH_PARENT.modeName
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AspectRatio.FIT.modeName)
 
@@ -137,7 +139,9 @@ class PlayerViewModel @Inject constructor(
     }
 
     private suspend fun loadActiveProvider() {
-        val account = boxStore.boxFor(XtreamAccount::class.java).query().equal(XtreamAccount_.isActive, true).build().findFirst()
+        val account = runCatching {
+            boxStore.boxFor(XtreamAccount::class.java).query().equal(XtreamAccount_.isActive, true).build().use { it.findFirst() }
+        }.getOrNull()
         if (account != null) {
             activeProviderId = account.id
         }
@@ -253,17 +257,48 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun loadLiveContext() {
-        viewModelScope.launch {
-            val currentChannel = boxStore.boxFor(LiveStream::class.java).get(activeStreamId)
+        viewModelScope.launch(Dispatchers.IO) {
+            val liveBox = boxStore.boxFor(LiveStream::class.java)
+            val currentChannel = runCatching { liveBox.get(activeStreamId) }.getOrNull()
             if (currentChannel != null) {
-                val allChannels = boxStore.boxFor(LiveStream::class.java)
-                    .query()
-                    .equal(LiveStream_.remoteCategoryId, currentChannel.remoteCategoryId ?: "", StringOrder.CASE_INSENSITIVE)
-                    .build()
-                    .find()
-                
-                currentChannels = allChannels
                 _channelLogoUrl.value = currentChannel.streamIcon
+                
+                // If the channel is marked as favorite, channel switching (D-pad up/down / CH+/CH-)
+                // cycles through all favorite channels.
+                val allChannels = runCatching {
+                    if (currentChannel.isFavorite) {
+                        liveBox.query()
+                            .equal(LiveStream_.isFavorite, true)
+                            .order(LiveStream_.order)
+                            .build()
+                            .use { it.find().filter { stream -> !stream.isHidden } }
+                    } else {
+                        val catId = currentChannel.remoteCategoryId
+                        if (!catId.isNullOrEmpty()) {
+                            liveBox.query()
+                                .equal(LiveStream_.remoteCategoryId, catId, StringOrder.CASE_INSENSITIVE)
+                                .order(LiveStream_.order)
+                                .build()
+                                .use { it.find().filter { stream -> !stream.isHidden } }
+                        } else emptyList()
+                    }
+                }.getOrDefault(emptyList())
+
+                // Fallback: If category query produced an empty list or doesn't contain current channel,
+                // fetch all non-hidden live channels so navigation never breaks.
+                val finalChannels = if (allChannels.none { it.id == currentChannel.id }) {
+                    runCatching {
+                        liveBox.query()
+                            .equal(LiveStream_.isHidden, false)
+                            .order(LiveStream_.order)
+                            .build()
+                            .use { it.find() }
+                    }.getOrDefault(listOf(currentChannel))
+                } else {
+                    allChannels
+                }
+
+                currentChannels = finalChannels
                 updateLiveNavigation(currentChannel)
             }
         }
@@ -276,9 +311,8 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun updateLiveNavigation(currentChannel: LiveStream) {
-        val index = currentChannels.indexOfFirst { it.id == currentChannel.id }
-        _hasNextEpisode.value = index >= 0 && index < currentChannels.size - 1
-        _hasPreviousEpisode.value = index > 0
+        _hasNextEpisode.value = currentChannels.size > 1
+        _hasPreviousEpisode.value = currentChannels.size > 1
     }
 
     fun playNextEpisode() {
@@ -290,15 +324,14 @@ class PlayerViewModel @Inject constructor(
                 _displayTitle.value = nextEp.title
                 navigateToEpisode(nextEp)
             }
-        } else if (type == "live") {
+        } else if (type == "live" && currentChannels.isNotEmpty()) {
             val index = currentChannels.indexOfFirst { it.id == activeStreamId }
-            if (index >= 0 && index < currentChannels.size - 1) {
-                val nextChannel = currentChannels[index + 1]
-                activeStreamId = nextChannel.id
-                _displayTitle.value = nextChannel.name
-                _channelLogoUrl.value = nextChannel.streamIcon
-                navigateToLive(nextChannel)
-            }
+            val nextIndex = if (index < 0 || index >= currentChannels.size - 1) 0 else index + 1
+            val nextChannel = currentChannels[nextIndex]
+            activeStreamId = nextChannel.id
+            _displayTitle.value = nextChannel.name
+            _channelLogoUrl.value = nextChannel.streamIcon
+            navigateToLive(nextChannel)
         }
     }
 
@@ -311,15 +344,14 @@ class PlayerViewModel @Inject constructor(
                 _displayTitle.value = prevEp.title
                 navigateToEpisode(prevEp)
             }
-        } else if (type == "live") {
+        } else if (type == "live" && currentChannels.isNotEmpty()) {
             val index = currentChannels.indexOfFirst { it.id == activeStreamId }
-            if (index > 0) {
-                val prevChannel = currentChannels[index - 1]
-                activeStreamId = prevChannel.id
-                _displayTitle.value = prevChannel.name
-                _channelLogoUrl.value = prevChannel.streamIcon
-                navigateToLive(prevChannel)
-            }
+            val prevIndex = if (index <= 0) currentChannels.size - 1 else index - 1
+            val prevChannel = currentChannels[prevIndex]
+            activeStreamId = prevChannel.id
+            _displayTitle.value = prevChannel.name
+            _channelLogoUrl.value = prevChannel.streamIcon
+            navigateToLive(prevChannel)
         }
     }
 
@@ -592,7 +624,8 @@ class PlayerViewModel @Inject constructor(
         val nextMode = when (globalPlayerState.resizeMode.value) {
             PlayerSurfaceResizeMode.FIT -> PlayerSurfaceResizeMode.FILL
             PlayerSurfaceResizeMode.FILL -> PlayerSurfaceResizeMode.ZOOM
-            PlayerSurfaceResizeMode.ZOOM -> PlayerSurfaceResizeMode.FIT
+            PlayerSurfaceResizeMode.ZOOM -> PlayerSurfaceResizeMode.MATCH_PARENT
+            PlayerSurfaceResizeMode.MATCH_PARENT -> PlayerSurfaceResizeMode.FIT
         }
         globalPlayerState.updateResizeMode(nextMode)
     }

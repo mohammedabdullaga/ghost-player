@@ -84,20 +84,40 @@ fun TvSearchScreen(
         }
     }
 
-    // Restore focus when returning to the screen
+    // Restore focus and scroll position when returning to search results
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        if (lastFocusedId != null) {
+        val capturedId = lastFocusedId
+        if (capturedId != null) {
             scope.launch {
-                // More intense retry loop to catch the item when it's ready
-                repeat(10) {
-                    delay(100)
-                    try {
-                        itemFocusRequesters[lastFocusedId]?.requestFocus()
-                        return@launch
-                    } catch (_: Exception) {}
+                val isMovie = uiState.movies.any { it.id == capturedId }
+                val isSeries = uiState.series.any { it.id == capturedId }
+                val isChannel = uiState.channels.any { it.id == capturedId }
+
+                val sectionIndex = when {
+                    isMovie -> 0
+                    isSeries -> if (uiState.movies.isNotEmpty() && (selectedFilter == SearchResultFilter.ALL || selectedFilter == SearchResultFilter.MOVIES)) 1 else 0
+                    isChannel -> {
+                        var idx = 0
+                        if (uiState.movies.isNotEmpty() && (selectedFilter == SearchResultFilter.ALL || selectedFilter == SearchResultFilter.MOVIES)) idx++
+                        if (uiState.series.isNotEmpty() && (selectedFilter == SearchResultFilter.ALL || selectedFilter == SearchResultFilter.SERIES)) idx++
+                        idx
+                    }
+                    else -> 0
                 }
-                // Final fallback if item never appeared
-                searchFocusRequester.requestFocus()
+
+                try { listState.scrollToItem(sectionIndex) } catch (_: Exception) {}
+                delay(120)
+
+                repeat(15) {
+                    try {
+                        val requester = itemFocusRequesters[capturedId]
+                        if (requester != null) {
+                            requester.requestFocus()
+                            return@launch
+                        }
+                    } catch (_: Exception) {}
+                    delay(60)
+                }
             }
         }
     }

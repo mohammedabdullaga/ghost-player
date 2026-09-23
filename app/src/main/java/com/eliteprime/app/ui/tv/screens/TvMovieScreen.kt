@@ -58,6 +58,9 @@ import com.eliteprime.app.player.PlayerViewMode
 import com.eliteprime.app.ui.components.VodPosterCard
 import com.eliteprime.app.ui.components.TvConfirmDialog
 import com.eliteprime.app.ui.screens.movies.MovieViewModel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import com.eliteprime.app.ui.theme.AppColors
 import com.eliteprime.app.ui.tv.core.*
 import com.eliteprime.app.ui.util.FocusRestoration
@@ -102,19 +105,30 @@ fun TvMovieScreen(
 
     LaunchedEffect(searchText) { delay(300); viewModel.setSearchQuery(searchText) }
 
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .distinctUntilChanged()
+            .filterNotNull()
+            .filter { it >= uiState.filteredMovies.size - 8 }
+            .collect { viewModel.loadMore() }
+    }
+
     var hasInitiallyFocused by remember { mutableStateOf(false) }
     LaunchedEffect(uiState.categories) {
         if (uiState.categories.isNotEmpty() && !hasInitiallyFocused) {
             delay(400)
             try {
-                // Respect persisted focus: if ViewModel has a saved category, focus that
-                val targetCatId = lastFocusedCategoryId
-                    ?: uiState.categories.find { it.id == MovieViewModel.CAT_ID_RECENTLY_ADDED }?.id
-                    ?: uiState.categories.firstOrNull()?.id
-                val targetRequester = if (targetCatId != null) {
-                    categoryFocusRequesters.getOrPut(targetCatId) { FocusRequester() }
-                } else firstCategoryRequester
-                targetRequester.requestFocus()
+                // If a grid item was previously focused (e.g. returning from details screen),
+                // do NOT force-focus the sidebar category.
+                if (lastFocusedItemId == null) {
+                    val targetCatId = lastFocusedCategoryId
+                        ?: uiState.categories.find { it.id == MovieViewModel.CAT_ID_RECENTLY_ADDED }?.id
+                        ?: uiState.categories.firstOrNull()?.id
+                    val targetRequester = if (targetCatId != null) {
+                        categoryFocusRequesters.getOrPut(targetCatId) { FocusRequester() }
+                    } else firstCategoryRequester
+                    targetRequester.requestFocus()
+                }
                 hasInitiallyFocused = true
             } catch (_: Exception) {}
         }
@@ -127,11 +141,13 @@ fun TvMovieScreen(
     val gridWeight = 1f - sidebarWeight
 
     val selectCategoryOnly: (Category?) -> Unit = { category ->
+        if (searchText.isNotEmpty()) { searchText = "" }
         if (category != null) viewModel.selectCategory(category)
         viewModel.showSidebar()
     }
 
     val enterGridFullScreen: (Category?) -> Unit = { category ->
+        if (searchText.isNotEmpty()) { searchText = "" }
         if (category != null) viewModel.selectCategory(category)
         viewModel.enterFullScreen()
         scope.launch {
@@ -344,15 +360,34 @@ fun TvMovieScreen(
                             icon = icon,
                             modifier = Modifier
                                 .focusRequester(requester)
-                                .onFocusChanged { if (it.isFocused && !isGridFocused) { lastSidebarFocusKey = category.id; viewModel.recordFocusedCategory(category.id) } }
+                                .onFocusChanged {
+                                    if (it.isFocused && !isGridFocused) {
+                                        lastSidebarFocusKey = category.id
+                                        viewModel.recordFocusedCategory(category.id)
+                                        if (searchText.isEmpty()) {
+                                            viewModel.selectCategory(category)
+                                        }
+                                    }
+                                }
                                 .onPreviewKeyEvent {
                                     if (it.type == KeyEventType.KeyDown) {
                                         val isEnterGrid = if (isRtl) it.key == Key.DirectionLeft else it.key == Key.DirectionRight
-                                        if (isEnterGrid) { enterGridFullScreen(null); return@onPreviewKeyEvent true }
+                                        if (isEnterGrid) {
+                                            if (searchText.isNotEmpty()) { searchText = "" }
+                                            enterGridFullScreen(category)
+                                            return@onPreviewKeyEvent true
+                                        }
                                     }
                                     false
                                 },
-                            onClick = { viewModel.selectCategory(category); viewModel.recordFocusedCategory(category.id); lastSidebarFocusKey = category.id; viewModel.showSidebar(); scope.launch { gridState.scrollToItem(0) } }
+                            onClick = {
+                                if (searchText.isNotEmpty()) { searchText = "" }
+                                viewModel.selectCategory(category)
+                                viewModel.recordFocusedCategory(category.id)
+                                lastSidebarFocusKey = category.id
+                                viewModel.showSidebar()
+                                scope.launch { gridState.scrollToItem(0) }
+                            }
                         )
                     }
                 }
@@ -369,7 +404,9 @@ fun TvMovieScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     itemsIndexed(uiState.filteredMovies.distinctBy { it.id }, key = { index, m -> "${m.id}_$index" }) { index, movie ->
-                        val requester = if (index == 0) firstMovieRequester else movieFocusRequesters.getOrPut(movie.id) { FocusRequester() }
+                        val requester = movieFocusRequesters.getOrPut(movie.id) {
+                            if (index == 0) firstMovieRequester else FocusRequester()
+                        }
                         val isStartColumn = index % columns == 0
                         val totalMovies = uiState.filteredMovies.size
                         val isLastRow = index >= (totalMovies - (totalMovies % columns).let { if (it == 0) columns else it })

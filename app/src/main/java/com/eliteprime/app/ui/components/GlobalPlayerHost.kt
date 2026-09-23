@@ -35,15 +35,10 @@ fun GlobalPlayerHost(
 
     var hostSize by remember { mutableStateOf(IntSize.Zero) }
 
-    // PERSISTENT MOUNT: We must stay in the composition as long as we have an active engine.
-    // Early returning here (on HIDDEN mode) is what caused the surface unmount/lag/audio loop.
-    if (engine == null) {
-        return
-    }
-
+    val activeEngine = engine
     val isFullScreen = mode == PlayerViewMode.FULLSCREEN
-    val isHidden = mode == PlayerViewMode.HIDDEN
-    
+    val isHidden = mode == PlayerViewMode.HIDDEN || activeEngine == null
+
     // Calculate target transform using graphicsLayer (scale + translation)
     // This allows the persistent PlayerView to stay full-screen in layout
     // but visually shrink/move to match the preview box.
@@ -75,13 +70,19 @@ fun GlobalPlayerHost(
                 // FORCE TOP-LEFT PIVOT
                 this.transformOrigin = TransformOrigin(0f, 0f)
                 
-                this.scaleX = animScaleX
-                this.scaleY = animScaleY
-                this.translationX = animTranslationX
-                this.translationY = animTranslationY
-                
-                // Hide completely if mode is HIDDEN but engine is still held (rare)
-                this.alpha = if (isHidden) 0f else 1f
+                if (isHidden || hostSize.width == 0 || hostSize.height == 0) {
+                    this.scaleX = 1f
+                    this.scaleY = 1f
+                    this.translationX = 0f
+                    this.translationY = 0f
+                    this.alpha = 0f
+                } else {
+                    this.scaleX = animScaleX
+                    this.scaleY = animScaleY
+                    this.translationX = animTranslationX
+                    this.translationY = animTranslationY
+                    this.alpha = 1f
+                }
                 this.clip = true
                 
                 // Final verify log
@@ -95,16 +96,18 @@ fun GlobalPlayerHost(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) {
-                globalPlayerState.enterFullScreen(engine!!)
+                activeEngine?.let { globalPlayerState.enterFullScreen(it) }
             }
     ) {
-        PlayerRenderView(
-            playerEngine = engine!!,
-            globalPlayerState = globalPlayerState,
-            isGlobalHost = true,
-            resizeMode = resizeMode,
-            surfaceType = surfaceType,
-            modifier = Modifier.fillMaxSize()
-        )
+        if (activeEngine != null) {
+            PlayerRenderView(
+                playerEngine = activeEngine,
+                globalPlayerState = globalPlayerState,
+                isGlobalHost = true,
+                resizeMode = resizeMode,
+                surfaceType = surfaceType,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }

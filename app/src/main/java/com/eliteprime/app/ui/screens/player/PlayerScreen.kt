@@ -124,12 +124,24 @@ fun PlayerScreen(
             .onPreviewKeyEvent { event ->
                 if (event.type == KeyEventType.KeyDown) {
                     viewModel.onUserAction()
+                    if (viewModel.type == "live") {
+                        when (event.key) {
+                            Key.ChannelUp, Key.PageUp -> {
+                                viewModel.playNextEpisode()
+                                return@onPreviewKeyEvent true
+                            }
+                            Key.ChannelDown, Key.PageDown -> {
+                                viewModel.playPreviousEpisode()
+                                return@onPreviewKeyEvent true
+                            }
+                        }
+                    }
                 }
                 false
             }
     ) {
         // 1. Background Key Trap (TV only, when UI is hidden)
-        // D-pad Left/Right: seek, Center: show controls, Up/Down: channel switch for live
+        // D-pad Left/Right: seek, Center: show controls, Up/Down/CH+/CH-: channel switch for live
         if (isTv && !showControls && !resumePrompt.show) {
             Box(
                 modifier = Modifier
@@ -151,7 +163,7 @@ fun PlayerScreen(
                                     viewModel.accumulateSeek(10)
                                     true
                                 }
-                                Key.DirectionUp -> {
+                                Key.DirectionUp, Key.ChannelUp, Key.PageUp -> {
                                     if (viewModel.type == "live") {
                                         viewModel.playNextEpisode()
                                     } else {
@@ -159,7 +171,7 @@ fun PlayerScreen(
                                     }
                                     true
                                 }
-                                Key.DirectionDown -> {
+                                Key.DirectionDown, Key.ChannelDown, Key.PageDown -> {
                                     if (viewModel.type == "live") {
                                         viewModel.playPreviousEpisode()
                                     } else {

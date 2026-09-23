@@ -392,6 +392,10 @@ class VlcPlayerEngine @Inject constructor(
                     player.aspectRatio = null
                     player.scale = 1.25f
                 }
+                PlayerSurfaceResizeMode.MATCH_PARENT -> {
+                    player.aspectRatio = null
+                    player.scale = 0f
+                }
             }
         }
     }

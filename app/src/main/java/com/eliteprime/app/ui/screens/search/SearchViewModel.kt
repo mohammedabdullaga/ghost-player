@@ -74,9 +74,11 @@ class SearchViewModel @Inject constructor(
         val queryLower = query.lowercase()
 
         // 1. Fetch potential matches from DB (broad contains) - Capped to 500 items
-        val allMatches = box.query()
-            .contains(nameProperty, query, StringOrder.CASE_INSENSITIVE)
-            .build().find(0, 500)
+        val allMatches = runCatching {
+            box.query()
+                .contains(nameProperty, query, StringOrder.CASE_INSENSITIVE)
+                .build().use { it.find(0, 500) }
+        }.getOrDefault(emptyList())
 
         // 2. Refine, filter and sort in memory using Sequence to avoid duplicate copies
         return allMatches.asSequence().map { entity ->

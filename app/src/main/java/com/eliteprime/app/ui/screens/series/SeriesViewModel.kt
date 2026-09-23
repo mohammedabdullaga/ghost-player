@@ -1,6 +1,7 @@
 package com.eliteprime.app.ui.screens.series
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -46,7 +47,7 @@ class SeriesViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow(savedHandle["search"] ?: "")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
     private val _page = MutableStateFlow(0)
-    private val PAGE_SIZE = 60
+    private val PAGE_SIZE = 120
 
     // Survive navigation: sidebar/grid state in ViewModel, not remember
     private val _isSidebarHidden = MutableStateFlow(false)
@@ -106,39 +107,43 @@ class SeriesViewModel @Inject constructor(
         val limit = (page + 1) * PAGE_SIZE
 
         if (query.isNotEmpty()) {
-            seriesBox.query()
-                .contains(Series_.name, query, StringOrder.CASE_INSENSITIVE)
-                .order(Series_.order)
-                .build()
-                .find(0, limit.toLong())
-        } else {
-            when (currentId) {
-                CAT_ID_RECENTLY_ADDED -> {
-                    seriesBox.query()
-                        .order(Series_.lastModified, QueryBuilder.DESCENDING)
-                        .order(Series_.id, QueryBuilder.DESCENDING)
-                        .build()
-                        .find(0, RECENTLY_ADDED_LIMIT)
-                }
-                CAT_ID_FAVORITES -> seriesBox.query()
-                    .equal(Series_.isFavorite, true)
+            runCatching {
+                seriesBox.query()
+                    .contains(Series_.name, query, StringOrder.CASE_INSENSITIVE)
                     .order(Series_.order)
-                    .build().find(0, limit.toLong())
-                CAT_ID_CONTINUE -> {
-                    val seriesIds = history.filter { it.type == "series" || it.type == "series_episode" }
-                        .mapNotNull { it.seriesId }
-                    val seriesData = seriesBox.get(seriesIds.toLongArray()).filterNotNull()
-                    val seriesMap = seriesData.associateBy { it.id }
-                    seriesIds.distinct().mapNotNull { seriesMap[it] }
-                }
-                else -> {
-                    seriesBox.query()
-                        .equal(Series_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+                    .build()
+                    .use { it.find(0, limit.toLong()) }
+            }.getOrDefault(emptyList())
+        } else {
+            runCatching {
+                when (currentId) {
+                    CAT_ID_RECENTLY_ADDED -> {
+                        seriesBox.query()
+                            .order(Series_.lastModified, QueryBuilder.DESCENDING)
+                            .order(Series_.id, QueryBuilder.DESCENDING)
+                            .build()
+                            .use { it.find(0, RECENTLY_ADDED_LIMIT) }
+                    }
+                    CAT_ID_FAVORITES -> seriesBox.query()
+                        .equal(Series_.isFavorite, true)
                         .order(Series_.order)
-                        .build()
-                        .find(0, limit.toLong())
+                        .build().use { it.find(0, limit.toLong()) }
+                    CAT_ID_CONTINUE -> {
+                        val seriesIds = history.filter { it.type == "series" || it.type == "series_episode" }
+                            .mapNotNull { it.seriesId }
+                        val seriesData = seriesBox.get(seriesIds.toLongArray()).filterNotNull()
+                        val seriesMap = seriesData.associateBy { it.id }
+                        seriesIds.distinct().mapNotNull { seriesMap[it] }
+                    }
+                    else -> {
+                        seriesBox.query()
+                            .equal(Series_.remoteCategoryId, currentSelected.categoryId, StringOrder.CASE_INSENSITIVE)
+                            .order(Series_.order)
+                            .build()
+                            .use { it.find(0, limit.toLong()) }
+                    }
                 }
-            }
+            }.getOrDefault(emptyList())
         }
     }.onStart { emit(emptyList()) }.flowOn(Dispatchers.IO)
 
@@ -173,18 +178,24 @@ class SeriesViewModel @Inject constructor(
     fun loadCategoryCount(category: Category) {
         if (!loadedCountIds.add(category.id)) return
         viewModelScope.launch(Dispatchers.IO) {
-            val count = when (category.id) {
-                CAT_ID_RECENTLY_ADDED -> minOf(
-                    seriesBox.query().order(Series_.lastModified, QueryBuilder.DESCENDING).build().count(),
-                    RECENTLY_ADDED_LIMIT
-                ).toInt()
-                CAT_ID_FAVORITES -> seriesBox.query()
-                    .equal(Series_.isFavorite, true).build().count().toInt()
-                CAT_ID_CONTINUE -> playbackHistoryRepository.getRecentlyWatched(50)
-                    .first().count { it.type == "series" || it.type == "series_episode" }
-                else -> seriesBox.query()
-                    .equal(Series_.remoteCategoryId, category.categoryId, StringOrder.CASE_INSENSITIVE)
-                    .build().count().toInt()
+            val count = runCatching {
+                when (category.id) {
+                    CAT_ID_RECENTLY_ADDED -> seriesBox.query()
+                        .order(Series_.lastModified, QueryBuilder.DESCENDING)
+                        .build().use { minOf(it.count(), RECENTLY_ADDED_LIMIT).toInt() }
+                    CAT_ID_FAVORITES -> seriesBox.query()
+                        .equal(Series_.isFavorite, true)
+                        .build().use { it.count().toInt() }
+                    CAT_ID_CONTINUE -> playbackHistoryRepository.getRecentlyWatched(50)
+                        .first().count { it.type == "series" || it.type == "series_episode" }
+                    else -> seriesBox.query()
+                        .equal(Series_.remoteCategoryId, category.categoryId, StringOrder.CASE_INSENSITIVE)
+                        .build().use { it.count().toInt() }
+                }
+            }.getOrElse { e ->
+                Log.e("SeriesViewModel", "Error loading count for category ${category.categoryName}", e)
+                loadedCountIds.remove(category.id)
+                0
             }
             if (count > 0) {
                 _categoryCounts.update { it + (category.id to count) }
@@ -193,23 +204,27 @@ class SeriesViewModel @Inject constructor(
     }
 
     fun selectCategory(category: Category) {
-        if (_selectedCategoryId.value != category.id) {
-            browsingTrace = FirebasePerformance.getInstance().newTrace("series_category_load_time")
-            browsingTrace?.start()
-            _page.value = 0
-            _selectedCategoryId.value = category.id
-            savedHandle["selectedCat"] = category.id
-            _lastFocusedItemId.value = null
+        browsingTrace = FirebasePerformance.getInstance().newTrace("series_category_load_time")
+        browsingTrace?.start()
+        _page.value = 0
+        _selectedCategoryId.value = category.id
+        savedHandle["selectedCat"] = category.id
+        if (_searchQuery.value.isNotEmpty()) {
+            _searchQuery.value = ""
+            savedHandle["search"] = ""
         }
+        _lastFocusedItemId.value = null
     }
 
     fun selectCategoryForRestore(category: Category) {
-        if (_selectedCategoryId.value != category.id) {
-            browsingTrace = FirebasePerformance.getInstance().newTrace("series_category_load_time")
-            browsingTrace?.start()
-            _page.value = 0
-            _selectedCategoryId.value = category.id
-            savedHandle["selectedCat"] = category.id
+        browsingTrace = FirebasePerformance.getInstance().newTrace("series_category_load_time")
+        browsingTrace?.start()
+        _page.value = 0
+        _selectedCategoryId.value = category.id
+        savedHandle["selectedCat"] = category.id
+        if (_searchQuery.value.isNotEmpty()) {
+            _searchQuery.value = ""
+            savedHandle["search"] = ""
         }
     }
     fun recordFocusedCategory(categoryId: Long) {

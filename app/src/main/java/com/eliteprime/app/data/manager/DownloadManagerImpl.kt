@@ -261,10 +261,15 @@ class DownloadManagerImpl @Inject constructor(
     }
 
     private fun startDownloadJob(entity: DownloadEntity) {
+        entity.status = DownloadStatus.DOWNLOADING.name
+        entity.failureReason = null
+        downloadBox.put(entity)
+
+        startService()
+
         activeJobs[entity.downloadId] = applicationScope.launch(Dispatchers.IO) {
             captureDownload(entity)
         }
-        startService()
     }
 
     private fun startService() {

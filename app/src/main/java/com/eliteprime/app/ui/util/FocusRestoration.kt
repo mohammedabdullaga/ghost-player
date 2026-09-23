@@ -58,9 +58,9 @@ fun FocusRestoration(
                     delay(50)
                 }
 
-                // Also scroll/focus the sidebar to the restored category
-                if (categoryListState != null && targetCategoryId != null) {
-                    categoryFocusRequesters[targetCategoryId]?.requestFocus()
+                // Focus sidebar category ONLY if no item in grid/list was selected
+                if (capturedItemId == null && categoryListState != null && targetCategoryId != null) {
+                    try { categoryFocusRequesters[targetCategoryId]?.requestFocus() } catch (_: Exception) {}
                 }
 
                 // 2. Scroll to and focus the target item
@@ -73,11 +73,18 @@ fun FocusRestoration(
                         delay(50)
                     }
                     if (index >= 0) {
-                        if (itemListState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
-                            itemListState.scrollToItem(index)
+                        itemListState.scrollToItem(index)
+                        delay(100)
+                        repeat(10) {
+                            try {
+                                val requester = itemFocusRequesters[capturedItemId]
+                                if (requester != null) {
+                                    requester.requestFocus()
+                                    return@launch
+                                }
+                            } catch (_: Exception) {}
+                            delay(50)
                         }
-                        delay(50)
-                        itemFocusRequesters[capturedItemId]?.requestFocus()
                     }
                 }
             }
@@ -114,9 +121,9 @@ fun FocusRestoration(
                     delay(50)
                 }
 
-                // Also scroll/focus the sidebar to the restored category
-                if (categoryListState != null && targetCategoryId != null) {
-                    categoryFocusRequesters[targetCategoryId]?.requestFocus()
+                // Focus sidebar category ONLY if no item in grid was selected
+                if (capturedItemId == null && categoryListState != null && targetCategoryId != null) {
+                    try { categoryFocusRequesters[targetCategoryId]?.requestFocus() } catch (_: Exception) {}
                 }
 
                 // 2. Scroll to and focus the target item
@@ -129,11 +136,18 @@ fun FocusRestoration(
                         delay(50)
                     }
                     if (index >= 0) {
-                        if (gridState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
-                            gridState.scrollToItem(index)
+                        gridState.scrollToItem(index)
+                        delay(100)
+                        repeat(10) {
+                            try {
+                                val requester = itemFocusRequesters[capturedItemId]
+                                if (requester != null) {
+                                    requester.requestFocus()
+                                    return@launch
+                                }
+                            } catch (_: Exception) {}
+                            delay(50)
                         }
-                        delay(50)
-                        itemFocusRequesters[capturedItemId]?.requestFocus()
                     }
                 }
             }

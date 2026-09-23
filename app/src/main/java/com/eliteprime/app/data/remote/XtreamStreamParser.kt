@@ -52,7 +52,9 @@ class XtreamStreamParser @Inject constructor(
                 try {
                     // Preserve user data (favorites, last watched) that would be overwritten by sync
                     val existingIds = batch.map { it.id }.toLongArray()
-                    val existing = liveBox.query().`in`(LiveStream_.id, existingIds).build().find()
+                    val existing = runCatching {
+                        liveBox.query().`in`(LiveStream_.id, existingIds).build().use { it.find() }
+                    }.getOrDefault(emptyList())
                     val existingMap = existing.associateBy { it.id }
                     batch.forEach { newLive ->
                         existingMap[newLive.id]?.let { old ->
@@ -143,7 +145,9 @@ class XtreamStreamParser @Inject constructor(
                 try {
                     // Preserve user data (favorites, progress) that would be overwritten by sync
                     val existingIds = batch.map { it.id }.toLongArray()
-                    val existing = movieBox.query().`in`(Movie_.id, existingIds).build().find()
+                    val existing = runCatching {
+                        movieBox.query().`in`(Movie_.id, existingIds).build().use { it.find() }
+                    }.getOrDefault(emptyList())
                     val existingMap = existing.associateBy { it.id }
                     batch.forEach { newMovie ->
                         existingMap[newMovie.id]?.let { old ->
@@ -226,7 +230,9 @@ class XtreamStreamParser @Inject constructor(
                 try {
                     // Preserve user data (favorites) that would be overwritten by sync
                     val existingIds = batch.map { it.id }.toLongArray()
-                    val existing = seriesBox.query().`in`(Series_.id, existingIds).build().find()
+                    val existing = runCatching {
+                        seriesBox.query().`in`(Series_.id, existingIds).build().use { it.find() }
+                    }.getOrDefault(emptyList())
                     val existingMap = existing.associateBy { it.id }
                     batch.forEach { newSeries ->
                         existingMap[newSeries.id]?.let { old ->

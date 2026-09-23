@@ -2,15 +2,19 @@ package com.eliteprime.app.data.manager
 
 import android.app.*
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat
 import com.eliteprime.app.MainActivity
 import com.eliteprime.app.R
 import com.eliteprime.app.domain.model.DownloadStatus
 import com.eliteprime.app.domain.repository.DownloadManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -21,24 +25,41 @@ class DownloadService : Service() {
     
     private val NOTIFICATION_ID = 1001
     private val CHANNEL_ID = "downloads_channel"
+    private var stopJob: Job? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        moveToForeground()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Immediately start foreground with a placeholder notification.
-        // This satisfies Android's 5-second deadline. The notification is replaced
-        // once observeDownloads emits real download progress.
-        startForeground(NOTIFICATION_ID, buildNotification(
+        moveToForeground()
+        observeDownloads()
+        return START_STICKY
+    }
+
+    private fun moveToForeground(notification: Notification? = null) {
+        val notif = notification ?: buildNotification(
             title = "Download starting…",
             progress = 0,
             speed = 0,
             isIndeterminate = true
-        ))
-        observeDownloads()
-        return START_STICKY
+        )
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ServiceCompat.startForeground(
+                    this,
+                    NOTIFICATION_ID,
+                    notif,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notif)
+            }
+        } catch (e: Exception) {
+            Log.e("DownloadService", "Error calling startForeground: ${e.message}", e)
+        }
     }
 
     private fun observeDownloads() {
@@ -46,9 +67,25 @@ class DownloadService : Service() {
             downloadManager.observeAllDownloads().collect { downloads ->
                 val active = downloads.filter { it.status == DownloadStatus.DOWNLOADING || it.status == DownloadStatus.PENDING }
                 if (active.isEmpty()) {
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf()
+                    if (stopJob == null || stopJob?.isActive != true) {
+                        stopJob = serviceScope.launch {
+                            delay(3000)
+                            val recheck = downloadManager.observeAllDownloads().firstOrNull()?.filter { 
+                                it.status == DownloadStatus.DOWNLOADING || it.status == DownloadStatus.PENDING 
+                            } ?: emptyList()
+                            if (recheck.isEmpty()) {
+                                try {
+                                    stopForeground(STOP_FOREGROUND_REMOVE)
+                                } catch (e: Exception) {
+                                    Log.e("DownloadService", "Error in stopForeground", e)
+                                }
+                                stopSelf()
+                            }
+                        }
+                    }
                 } else {
+                    stopJob?.cancel()
+                    stopJob = null
                     val downloading = active.find { it.status == DownloadStatus.DOWNLOADING } ?: active.first()
                     val progress = downloading.let { 
                         it.totalBytes?.let { total -> (it.bytesWritten.toFloat() / total * 100).toInt() }
@@ -60,7 +97,7 @@ class DownloadService : Service() {
                         speed = downloading.downloadSpeedBps,
                         isIndeterminate = downloading.status == DownloadStatus.PENDING || downloading.totalBytes == null
                     )
-                    startForeground(NOTIFICATION_ID, notification)
+                    moveToForeground(notification)
                 }
             }
         }

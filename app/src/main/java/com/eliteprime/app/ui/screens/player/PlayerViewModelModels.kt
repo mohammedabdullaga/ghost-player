@@ -9,6 +9,7 @@ data class ResumePromptState(
 enum class AspectRatio(val modeName: String) {
     FIT("Fit"),
     FILL("Stretch"),
-    ZOOM("Zoom")
+    ZOOM("Zoom"),
+    MATCH_PARENT("Match Parent")
 }
 

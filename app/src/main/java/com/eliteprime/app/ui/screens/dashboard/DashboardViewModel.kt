@@ -93,48 +93,56 @@ class DashboardViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun observeData() {
         viewModelScope.launch(Dispatchers.IO) {
-            combine(
-                accountBox.query().equal(XtreamAccount_.isActive, true).build().flow(),
-                playbackHistoryRepository.getRecentlyWatched(50).map { history ->
-                    history.filter { it.type != "live" }
-                },
-                downloadManager.observeAllDownloads()
-            ) { accounts, history, downloads ->
-                val activeAccount = accounts.firstOrNull()
-                val latestDownload = downloads.filter { it.status == DownloadStatus.COMPLETED }
-                    .maxByOrNull { it.completedAt ?: 0L }
-                
-                DashboardUiState(
-                    isLoading = false,
-                    liveCount = liveBox.count().toInt(),
-                    movieCount = movieBox.count().toInt(),
-                    seriesCount = seriesBox.count().toInt(),
-                    downloadsCount = downloads.size,
-                    completedDownloadsCount = downloads.count { it.status == DownloadStatus.COMPLETED },
-                    latestDownloadPoster = latestDownload?.posterUrl,
-                    providerHealth = DashboardProviderHealth(
-                        expirationDate = activeAccount?.expiryDate,
-                        status = activeAccount?.status ?: "",
-                        maxConnections = activeAccount?.maxConnections ?: 0
-                    ),
-                    continueWatching = history
-                )
-            }
-            .flowOn(Dispatchers.IO)
-            .collect { newState ->
-                _uiState.update { current ->
-                    current.copy(
+            try {
+                combine(
+                    runCatching { accountBox.query().equal(XtreamAccount_.isActive, true).build().flow() }
+                        .getOrDefault(flowOf(emptyList())),
+                    playbackHistoryRepository.getRecentlyWatched(50).map { history ->
+                        history.filter { it.type != "live" }
+                    },
+                    downloadManager.observeAllDownloads()
+                ) { accounts, history, downloads ->
+                    val activeAccount = accounts.firstOrNull()
+                    val latestDownload = downloads.filter { it.status == DownloadStatus.COMPLETED }
+                        .maxByOrNull { it.completedAt ?: 0L }
+                    
+                    DashboardUiState(
                         isLoading = false,
-                        liveCount = newState.liveCount,
-                        movieCount = newState.movieCount,
-                        seriesCount = newState.seriesCount,
-                        downloadsCount = newState.downloadsCount,
-                        completedDownloadsCount = newState.completedDownloadsCount,
-                        latestDownloadPoster = newState.latestDownloadPoster,
-                        providerHealth = newState.providerHealth,
-                        continueWatching = newState.continueWatching
+                        liveCount = runCatching { liveBox.count().toInt() }.getOrDefault(0),
+                        movieCount = runCatching { movieBox.count().toInt() }.getOrDefault(0),
+                        seriesCount = runCatching { seriesBox.count().toInt() }.getOrDefault(0),
+                        downloadsCount = downloads.size,
+                        completedDownloadsCount = downloads.count { it.status == DownloadStatus.COMPLETED },
+                        latestDownloadPoster = latestDownload?.posterUrl,
+                        providerHealth = DashboardProviderHealth(
+                            expirationDate = activeAccount?.expiryDate,
+                            status = activeAccount?.status ?: "",
+                            maxConnections = activeAccount?.maxConnections ?: 0
+                        ),
+                        continueWatching = history
                     )
                 }
+                .flowOn(Dispatchers.IO)
+                .catch { e ->
+                    Log.e("DashboardVM", "Error in observeData flow", e)
+                }
+                .collect { newState ->
+                    _uiState.update { current ->
+                        current.copy(
+                            isLoading = false,
+                            liveCount = newState.liveCount,
+                            movieCount = newState.movieCount,
+                            seriesCount = newState.seriesCount,
+                            downloadsCount = newState.downloadsCount,
+                            completedDownloadsCount = newState.completedDownloadsCount,
+                            latestDownloadPoster = newState.latestDownloadPoster,
+                            providerHealth = newState.providerHealth,
+                            continueWatching = newState.continueWatching
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("DashboardVM", "Error in observeData coroutine", e)
             }
         }
     }
@@ -153,21 +161,25 @@ class DashboardViewModel @Inject constructor(
                 val seriesTitles = cachedSeries.map { it.title }
                 
                 val localMovies = if (movieTitles.isNotEmpty()) {
-                    val qb = movieBox.query()
-                    movieTitles.forEachIndexed { index, title ->
-                        qb.equal(Movie_.name, title, StringOrder.CASE_INSENSITIVE)
-                        if (index < movieTitles.size - 1) qb.or()
-                    }
-                    qb.build().find()
+                    runCatching {
+                        val qb = movieBox.query()
+                        movieTitles.forEachIndexed { index, title ->
+                            qb.equal(Movie_.name, title, StringOrder.CASE_INSENSITIVE)
+                            if (index < movieTitles.size - 1) qb.or()
+                        }
+                        qb.build().use { it.find() }
+                    }.getOrDefault(emptyList())
                 } else emptyList<Movie>()
 
                 val localSeries = if (seriesTitles.isNotEmpty()) {
-                    val qb = seriesBox.query()
-                    seriesTitles.forEachIndexed { index, title ->
-                        qb.equal(Series_.name, title, StringOrder.CASE_INSENSITIVE)
-                        if (index < seriesTitles.size - 1) qb.or()
-                    }
-                    qb.build().find()
+                    runCatching {
+                        val qb = seriesBox.query()
+                        seriesTitles.forEachIndexed { index, title ->
+                            qb.equal(Series_.name, title, StringOrder.CASE_INSENSITIVE)
+                            if (index < seriesTitles.size - 1) qb.or()
+                        }
+                        qb.build().use { it.find() }
+                    }.getOrDefault(emptyList())
                 } else emptyList<Series>()
                 
                 val localMovieMap = localMovies.associateBy { it.name.lowercase() }
@@ -260,23 +272,29 @@ class DashboardViewModel @Inject constructor(
                         val displayTitle = resultEn?.title ?: resultAr.title ?: ""
                         val originalTitle = resultAr.original_title ?: ""
                         
-                        var matched = movieBox.query()
-                            .equal(Movie_.name, displayTitle, StringOrder.CASE_INSENSITIVE)
-                            .build()
-                            .findFirst()
+                        var matched = runCatching {
+                            movieBox.query()
+                                .equal(Movie_.name, displayTitle, StringOrder.CASE_INSENSITIVE)
+                                .build()
+                                .use { it.findFirst() }
+                        }.getOrNull()
                         
                         if (matched == null && resultAr.title != null) {
-                            matched = movieBox.query()
-                                .equal(Movie_.name, resultAr.title!!, StringOrder.CASE_INSENSITIVE)
-                                .build()
-                                .findFirst()
+                            matched = runCatching {
+                                movieBox.query()
+                                    .equal(Movie_.name, resultAr.title!!, StringOrder.CASE_INSENSITIVE)
+                                    .build()
+                                    .use { it.findFirst() }
+                            }.getOrNull()
                         }
 
                         if (matched == null && originalTitle.isNotBlank()) {
-                            matched = movieBox.query()
-                                .contains(Movie_.name, originalTitle.lowercase(), StringOrder.CASE_INSENSITIVE)
-                                .build()
-                                .findFirst()
+                            matched = runCatching {
+                                movieBox.query()
+                                    .contains(Movie_.name, originalTitle.lowercase(), StringOrder.CASE_INSENSITIVE)
+                                    .build()
+                                    .use { it.findFirst() }
+                            }.getOrNull()
                         }
 
                         matched?.apply { 
@@ -314,23 +332,29 @@ class DashboardViewModel @Inject constructor(
                         val displayName = resultEn?.name ?: resultAr.name ?: ""
                         val originalName = resultAr.original_name ?: ""
 
-                        var matched = seriesBox.query()
-                            .equal(Series_.name, displayName, StringOrder.CASE_INSENSITIVE)
-                            .build()
-                            .findFirst()
+                        var matched = runCatching {
+                            seriesBox.query()
+                                .equal(Series_.name, displayName, StringOrder.CASE_INSENSITIVE)
+                                .build()
+                                .use { it.findFirst() }
+                        }.getOrNull()
 
                         if (matched == null && resultAr.name != null) {
-                            matched = seriesBox.query()
-                                .equal(Series_.name, resultAr.name!!, StringOrder.CASE_INSENSITIVE)
-                                .build()
-                                .findFirst()
+                            matched = runCatching {
+                                seriesBox.query()
+                                    .equal(Series_.name, resultAr.name!!, StringOrder.CASE_INSENSITIVE)
+                                    .build()
+                                    .use { it.findFirst() }
+                            }.getOrNull()
                         }
 
                         if (matched == null && originalName.isNotBlank()) {
-                            matched = seriesBox.query()
-                                .contains(Series_.name, originalName.lowercase(), StringOrder.CASE_INSENSITIVE)
-                                .build()
-                                .findFirst()
+                            matched = runCatching {
+                                seriesBox.query()
+                                    .contains(Series_.name, originalName.lowercase(), StringOrder.CASE_INSENSITIVE)
+                                    .build()
+                                    .use { it.findFirst() }
+                            }.getOrNull()
                         }
                         
                         matched?.apply {

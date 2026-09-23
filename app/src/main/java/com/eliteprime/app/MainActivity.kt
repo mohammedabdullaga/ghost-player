@@ -83,7 +83,9 @@ class MainActivity : AppCompatActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         val accountBox = boxStore.boxFor(XtreamAccount::class.java)
-        val hasActiveAccount = accountBox.query().equal(XtreamAccount_.isActive, true).build().findFirst() != null
+        val hasActiveAccount = runCatching {
+            accountBox.query().equal(XtreamAccount_.isActive, true).build().use { it.findFirst() } != null
+        }.getOrDefault(false)
         val startDest = if (hasActiveAccount) {
             // Use the resolved DeviceRenderProfile value, not raw SharedPrefs
             // — DeviceRenderProfile already blocks Lite mode on mobile devices.

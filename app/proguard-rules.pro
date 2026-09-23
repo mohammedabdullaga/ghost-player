@@ -69,6 +69,12 @@
 -keep class com.eliteprime.app.data.remote.** { *; }
 -keepclassmembers class com.eliteprime.app.data.remote.** { *; }
 
+# Keep all Repositories & Data Managers
+-keep class com.eliteprime.app.data.repository.** { *; }
+-keepclassmembers class com.eliteprime.app.data.repository.** { *; }
+-keep class com.eliteprime.app.data.manager.** { *; }
+-keepclassmembers class com.eliteprime.app.data.manager.** { *; }
+
 # Keep all Domain models and ObjectBox entities
 -keep class com.eliteprime.app.domain.model.** { *; }
 -keepclassmembers class com.eliteprime.app.domain.model.** { *; }
@@ -115,3 +121,29 @@
 # -------------------------------------------------------------------------
 -keep class com.google.firebase.** { *; }
 -keepclassmembers class com.google.firebase.** { *; }
+
+# -------------------------------------------------------------------------
+# 8. Jetpack Compose UI Node, Graphics Layer & View Interop Protection
+# Prevents R8/Proguard from stripping or over-obfuscating internal Compose UI
+# nodes, OwnedLayer interfaces, RenderNodeLayer/ViewLayer, and AndroidComposeView
+# dispatchDraw references.
+# -------------------------------------------------------------------------
+-keep class androidx.compose.ui.node.OwnedLayer { *; }
+-keep interface androidx.compose.ui.node.OwnedLayer { *; }
+-keep class androidx.compose.ui.node.NodeCoordinator { *; }
+-keep class androidx.compose.ui.node.LayoutNode { *; }
+-keep class androidx.compose.ui.node.DrawModifierNode { *; }
+-keep class androidx.compose.ui.node.DelegatableNode { *; }
+-keep class androidx.compose.ui.platform.RenderNodeLayer { *; }
+-keep class androidx.compose.ui.platform.ViewLayer { *; }
+-keep class androidx.compose.ui.platform.AndroidComposeView { *; }
+-keep class androidx.compose.ui.platform.AndroidComposeView$* { *; }
+-keep class androidx.compose.ui.graphics.layer.** { *; }
+-keep class androidx.compose.ui.viewinterop.** { *; }
+-keep class androidx.compose.ui.platform.LayerMatrixCache { *; }
+
+-keepclassmembers class androidx.compose.ui.node.** { *; }
+-keepclassmembers class androidx.compose.ui.platform.** { *; }
+-keepclassmembers class androidx.compose.ui.graphics.layer.** { *; }
+-keepclassmembers class androidx.compose.ui.viewinterop.** { *; }
+

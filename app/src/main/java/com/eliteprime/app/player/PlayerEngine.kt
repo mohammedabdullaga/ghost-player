@@ -94,7 +94,7 @@ data class PlayerRetryStatus(
 )
 
 enum class PlayerSurfaceResizeMode {
-    FIT, FILL, ZOOM
+    FIT, FILL, ZOOM, MATCH_PARENT
 }
 
 enum class PlaybackState {
