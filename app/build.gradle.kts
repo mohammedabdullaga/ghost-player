@@ -19,8 +19,8 @@ android {
         applicationId = "com.eliteprime.app"
         minSdk = 25
         targetSdk = 37
-        versionCode = 8
-        versionName = "1.0.8"
+        versionCode = 9
+        versionName = "1.0.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -114,6 +114,7 @@ dependencies {
     // REMOVED: ObjectBox manual dependencies. The plugin handles this for you!
 
     // Media3
+    implementation(files("libs/media3-decoder-ffmpeg-1.11.0.aar"))
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.exoplayer.hls)
     implementation(libs.media3.exoplayer.dash)
