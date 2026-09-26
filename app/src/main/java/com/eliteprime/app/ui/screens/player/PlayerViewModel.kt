@@ -393,15 +393,30 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val account = xtreamRepository.getAccount()
             if (account != null) {
-                val url = XtreamUrlFactory.buildPlaybackUrl(
+                val allHostUrls = xtreamRepository.getActiveHostUrls()
+                val accountBase = account.serverUrl.trimEnd('/') + "/"
+                val primaryUrl = XtreamUrlFactory.buildPlaybackUrl(
                     serverUrl = account.serverUrl,
                     username = account.username,
                     password = account.password,
                     kind = "live",
                     streamId = channel.id
                 )
+                val fallbacks = allHostUrls
+                    .filter { it != accountBase }
+                    .map { hostUrl ->
+                        XtreamUrlFactory.buildPlaybackUrl(hostUrl, account.username, account.password, "live", channel.id)
+                    }
+                Log.w("PlayerVM", "navigateToLive: ${fallbacks.size} fallbacks from ${allHostUrls.size} hosts. Account=$accountBase. Hosts=$allHostUrls")
                 
-                playerEngine.prepare(StreamInfo(channel.id, channel.name, url, StreamType.MPEG_TS, isLive = true))
+                playerEngine.prepare(StreamInfo(
+                    streamId = channel.id,
+                    name = channel.name,
+                    url = primaryUrl,
+                    streamType = StreamType.MPEG_TS,
+                    isLive = true,
+                    fallbackUrls = fallbacks
+                ))
                 playerEngine.play()
                 
                 updateLiveNavigation(channel)
@@ -410,8 +425,10 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun resolveAndPlay(targetStreamId: Long, targetTitle: String, resumeAt: Long? = null) {
+        Log.e("PlayerVM", "resolveAndPlay CALLED: id=$targetStreamId type=$type overrideUrl=$overrideUrl")
         viewModelScope.launch {
             val account = xtreamRepository.getAccount()
+            Log.e("PlayerVM", "resolveAndPlay account=$account")
             if (account != null) {
                 activeProviderId = account.id
                 var extension: String? = null
@@ -486,12 +503,30 @@ class PlayerViewModel @Inject constructor(
                 }
 
                 if (url.isNotEmpty()) {
+                    val streamType = if (type == "live") StreamType.MPEG_TS else StreamType.fromContainerExtension(extension)
+                    // Build fallback URLs directly from all active hosts
+                    Log.e("PlayerVM", "BUILDING FALLBACKS overrideUrl=$overrideUrl directUrl=$directUrl")
+                    val fallbackUrls = if (overrideUrl.isNullOrBlank() && directUrl.isNullOrBlank()) {
+                        val allHostUrls = xtreamRepository.getActiveHostUrls()
+                        Log.e("PlayerVM", "Hosts from repo: ${allHostUrls.size} -> $allHostUrls")
+                        val accountBase = account.serverUrl.trimEnd('/') + "/"
+                        val kind = if (type == "series") "series" else type
+                        val result = allHostUrls
+                            .filter { it != accountBase }
+                            .map { hostUrl ->
+                                XtreamUrlFactory.buildPlaybackUrl(hostUrl, account.username, account.password, kind, targetStreamId, extension)
+                            }
+                        Log.e("PlayerVM", "Fallback URLs: ${result.size} (filtered from ${allHostUrls.size})")
+                        result
+                    } else emptyList()
+
                     playerEngine.prepare(StreamInfo(
                         streamId = targetStreamId, 
                         name = targetTitle, 
                         url = url, 
-                        streamType = if (type == "live") StreamType.MPEG_TS else StreamType.fromContainerExtension(extension),
-                        isLive = (type == "live")
+                        streamType = streamType,
+                        isLive = (type == "live"),
+                        fallbackUrls = fallbackUrls
                     ))
                     
                     if (resumeAt != null) {

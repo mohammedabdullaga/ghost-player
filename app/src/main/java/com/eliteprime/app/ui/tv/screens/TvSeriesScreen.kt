@@ -358,7 +358,7 @@ fun TvSeriesScreen(
                             modifier = Modifier
                                 .focusRequester(requester)
                                 .onFocusChanged {
-                                    if (it.isFocused && !isGridFocused) {
+                                    if (it.isFocused && !isGridFocused && lastFocusedItemId == null) {
                                         lastSidebarFocusKey = category.id
                                         viewModel.recordFocusedCategory(category.id)
                                         if (searchText.isEmpty()) {
@@ -400,7 +400,7 @@ fun TvSeriesScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    itemsIndexed(uiState.filteredSeries.distinctBy { it.id }, key = { index, s -> "${s.id}_$index" }) { index, series ->
+                    itemsIndexed(uiState.filteredSeries.distinctBy { it.id }, key = { _, s -> s.id }) { index, series ->
                         val requester = seriesFocusRequesters.getOrPut(series.id) {
                             if (index == 0) firstSeriesRequester else FocusRequester()
                         }

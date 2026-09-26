@@ -213,7 +213,7 @@ fun SeriesScreen(
                             horizontalArrangement = Arrangement.spacedBy(VodSpacing.md),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            itemsIndexed(uiState.filteredSeries.distinctBy { it.id }, key = { index, s -> "${s.id}_$index" }) { index, series ->
+                            itemsIndexed(uiState.filteredSeries.distinctBy { it.id }, key = { _, s -> s.id }) { index, series ->
                                 if (index >= uiState.filteredSeries.size - 12) {
                                     SideEffect {
                                         viewModel.loadMore()

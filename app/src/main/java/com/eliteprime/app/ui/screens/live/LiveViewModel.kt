@@ -245,6 +245,9 @@ class LiveViewModel @Inject constructor(
     private var browsingTrace: Trace? = null
 
     fun selectCategory(category: Category) {
+        if (_selectedCategoryId.value == category.id && _lastFocusedItemId.value != null) {
+            return
+        }
         browsingTrace = FirebasePerformance.getInstance().newTrace("live_category_load_time")
         browsingTrace?.start()
         

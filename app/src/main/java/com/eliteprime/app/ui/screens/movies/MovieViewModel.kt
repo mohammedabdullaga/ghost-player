@@ -204,6 +204,9 @@ class MovieViewModel @Inject constructor(
     }
 
     fun selectCategory(category: Category) {
+        if (_selectedCategoryId.value == category.id && _lastFocusedItemId.value != null) {
+            return
+        }
         browsingTrace = FirebasePerformance.getInstance().newTrace("movie_category_load_time")
         browsingTrace?.start()
         _page.value = 0

@@ -7,6 +7,7 @@ import com.eliteprime.app.data.remote.TmdbApiService
 import com.eliteprime.app.data.remote.XtreamApi
 import com.eliteprime.app.data.remote.XtreamSeasonResponse
 import com.eliteprime.app.data.remote.XtreamStreamParser
+import com.eliteprime.app.data.remote.XtreamUrlFactory
 import io.objectbox.BoxStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -91,27 +92,11 @@ class XtreamRepository @Inject constructor(
             accountBox.query().equal(XtreamAccount_.isActive, true).build().use { it.findFirst() }
         }.getOrNull() ?: return null
         
-        // 100% Reliance on Remote Config: Always ensure we have a fresh host for this session.
-        // If config hasn't been fetched yet this session, fetch it now.
-        var activeHosts = configRepository.getActiveHosts()
+        // Ensure config is loaded; resolveWorkingAccount() handles failover.
+        val activeHosts = configRepository.getActiveHosts()
         if (activeHosts.isEmpty()) {
             Log.d(TAG, "No session hosts available, forcing fresh config fetch...")
             configRepository.fetchConfig()
-            activeHosts = configRepository.getActiveHosts()
-        }
-
-        // Always prioritize the host from Remote Config over what's stored in DB.
-        // This ensures mirrors can be swapped remotely without user intervention.
-        if (activeHosts.isNotEmpty()) {
-            val bestHost = activeHosts.first().url
-            val normalizedHost = if (bestHost.endsWith("/")) bestHost else "$bestHost/"
-            
-            if (account.serverUrl != normalizedHost) {
-                Log.i(TAG, "Session Host Update: Redirecting to $normalizedHost")
-                account.serverUrl = normalizedHost
-                // We update the DB so that other components (ViewModels) also see the new host.
-                accountBox.put(account)
-            }
         }
         
         return account
@@ -119,22 +104,96 @@ class XtreamRepository @Inject constructor(
 
     private suspend fun getActiveAccountOrRefresh(): XtreamAccount? = getAccount()
 
+    /**
+     * Tries the stored account first. If the primary host fails, iterates through
+     * all active hosts from remote config to find a working one, and updates
+     * the stored account's serverUrl on success.
+     */
+    private suspend fun resolveWorkingAccount(): XtreamAccount? {
+        val account = getAccount() ?: return null
+
+        // Quick probe of the current host
+        if (isUrlWorking("${account.serverUrl}player_api.php")) {
+            return account
+        }
+
+        Log.w(TAG, "Primary host ${account.serverUrl} is unreachable. Attempting failover...")
+        val allHosts = configRepository.getActiveHosts()
+        for (host in allHosts) {
+            val baseUrl = if (host.url.endsWith("/")) host.url else "${host.url}/"
+            if (baseUrl == account.serverUrl) continue // already tried
+
+            val probeUrl = "${baseUrl}player_api.php?username=${account.username}&password=${account.password}&action=get_live_categories"
+            if (isUrlWorking(probeUrl)) {
+                Log.i(TAG, "Failover successful! Switching from ${account.serverUrl} to $baseUrl")
+                account.serverUrl = baseUrl
+                accountBox.put(account)
+                return account
+            }
+        }
+
+        Log.e(TAG, "All hosts exhausted. No working server found.")
+        return account // return original anyway, let callers handle the error
+    }
+
+    /**
+     * Returns ALL possible playback URLs for a stream across every active host
+     * in the remote config, with the current account's host listed first.
+     * The caller should iterate through these on playback failure.
+     */
+    /** Returns all active host URLs from remote config (not suspend, cached). */
+    fun getActiveHostUrls(): List<String> {
+        return configRepository.getActiveHosts().map { h ->
+            if (h.url.endsWith("/")) h.url else "${h.url}/"
+        }
+    }
+
+    suspend fun getPlaybackUrlCandidates(
+        kind: String,
+        streamId: Long,
+        extension: String? = null
+    ): List<String> {
+        val account = getAccount() ?: return emptyList()
+        val allHosts = configRepository.getActiveHosts()
+        val urls = mutableListOf<String>()
+
+        // Current host first
+        urls.add(
+            XtreamUrlFactory.buildPlaybackUrl(account.serverUrl, account.username, account.password, kind, streamId, extension)
+        )
+
+        // Then all other active hosts
+        for (host in allHosts) {
+            val baseUrl = if (host.url.endsWith("/")) host.url else "${host.url}/"
+            if (baseUrl == account.serverUrl) continue
+            urls.add(
+                XtreamUrlFactory.buildPlaybackUrl(baseUrl, account.username, account.password, kind, streamId, extension)
+            )
+        }
+
+        Log.i(TAG, "Playback URL candidates for $kind/$streamId: ${urls.size} URLs from ${allHosts.size} other hosts. Account host=${account.serverUrl}. Hosts=${allHosts.map { it.url }}")
+        return urls
+    }
+
     private suspend fun isUrlWorking(url: String?): Boolean {
         if (url.isNullOrBlank()) return false
         return withContext(Dispatchers.IO) {
             try {
                 val request = Request.Builder().url(url).head().build()
-                okHttpClient.newCall(request).execute().use { response ->
-                    response.isSuccessful
-                }
+                val response = okHttpClient.newCall(request).execute()
+                val result = response.isSuccessful
+                Log.d(TAG, "isUrlWorking HEAD $url -> ${response.code} ($result)")
+                response.close()
+                result
             } catch (e: Exception) {
+                Log.w(TAG, "isUrlWorking HEAD $url -> EXCEPTION: ${e.message}")
                 false
             }
         }
     }
 
     suspend fun syncCategories() = withContext(Dispatchers.IO) {
-        val account = getActiveAccountOrRefresh() ?: return@withContext
+        val account = resolveWorkingAccount() ?: return@withContext
         val fullUrl = "${account.serverUrl}player_api.php"
         val trace = FirebasePerformance.getInstance().newTrace("sync_categories")
         trace.start()
@@ -171,7 +230,7 @@ class XtreamRepository @Inject constructor(
         val syncTrace = FirebasePerformance.getInstance().newTrace("full_catalog_sync")
         syncTrace.start()
         try {
-            val account = getActiveAccountOrRefresh() ?: return@withContext
+            val account = resolveWorkingAccount() ?: return@withContext
             
             Log.i(TAG, "Starting full catalog sync. Initial counts: Live=${liveBox.count()}, Movie=${movieBox.count()}, Series=${seriesBox.count()}")
             
@@ -212,7 +271,7 @@ class XtreamRepository @Inject constructor(
         val syncTrace = FirebasePerformance.getInstance().newTrace("vod_silent_sync")
         syncTrace.start()
         try {
-            val account = getActiveAccountOrRefresh() ?: return@withContext
+            val account = resolveWorkingAccount() ?: return@withContext
 
             Log.i(TAG, "Starting silent VOD sync. Current counts: Movie=${movieBox.count()}, Series=${seriesBox.count()}")
 
@@ -287,47 +346,70 @@ class XtreamRepository @Inject constructor(
     }
 
     private suspend fun syncStreamType(account: XtreamAccount, action: String, parseAction: suspend (InputStream) -> Unit) {
-        val url = "${account.serverUrl}player_api.php?username=${account.username}&password=${account.password}&action=$action"
-        val request = Request.Builder()
-            .url(url)
-            .cacheControl(CacheControl.Builder().noCache().noStore().build())
-            .build()
-        
-        var attempts = 0
-        val maxAttempts = 3
-        while (attempts < maxAttempts) {
-            try {
-                withContext(Dispatchers.IO) {
-                    okHttpClient.newCall(request).execute().use { response ->
-                        if (!response.isSuccessful) {
-                            Log.w(TAG, "syncStreamType ($action) returned HTTP ${response.code}")
-                            return@use
+        // Build an ordered list of host URLs: current account host first, then all other active hosts.
+        val accountBase = account.serverUrl.trimEnd('/') + "/"
+        val allHosts = configRepository.getActiveHosts()
+            .map { h -> if (h.url.endsWith("/")) h.url else "${h.url}/" }
+            .distinct()
+        val orderedHosts = buildList {
+            add(accountBase)
+            addAll(allHosts.filter { it != accountBase })
+        }
+
+        var lastError: Exception? = null
+        for (host in orderedHosts) {
+            val url = "${host}player_api.php?username=${account.username}&password=${account.password}&action=$action"
+            val request = Request.Builder()
+                .url(url)
+                .cacheControl(CacheControl.Builder().noCache().noStore().build())
+                .build()
+
+            var attempts = 0
+            val maxAttempts = 2
+            var succeeded = false
+            while (attempts < maxAttempts) {
+                try {
+                    withContext(Dispatchers.IO) {
+                        okHttpClient.newCall(request).execute().use { response ->
+                            if (!response.isSuccessful) {
+                                Log.w(TAG, "syncStreamType ($action) returned HTTP ${response.code} from $host")
+                                return@use
+                            }
+                            val contentLength = response.header("Content-Length")
+                            Log.i(TAG, "Syncing $action from $host: Content-Length=$contentLength")
+                            response.body?.byteStream()?.let { parseAction(it) }
                         }
-                        val contentLength = response.header("Content-Length")
-                        Log.i(TAG, "Syncing $action: Content-Length=$contentLength")
-                        response.body?.byteStream()?.let { parseAction(it) }
                     }
-                }
-                return // Success
-            } catch (e: Exception) {
-                attempts++
-                Log.w(TAG, "syncStreamType ($action) attempt $attempts failed: ${e.message}")
-                if (attempts >= maxAttempts) {
-                    // Only record to Crashlytics after all retries are exhausted
-                    FirebaseCrashlytics.getInstance().log("syncStreamType exhausted retries for $action on host ${account.serverUrl}")
-                    FirebaseCrashlytics.getInstance().recordException(e)
-                } else {
-                    delay(1000L * attempts)
+                    succeeded = true
+                    break
+                } catch (e: Exception) {
+                    lastError = e
+                    attempts++
+                    Log.w(TAG, "syncStreamType ($action) attempt $attempts on $host failed: ${e.message}")
+                    if (attempts < maxAttempts) delay(1000L * attempts)
                 }
             }
+            if (succeeded) {
+                // Update account host to the working one so subsequent syncs start here.
+                if (account.serverUrl != host) {
+                    Log.i(TAG, "syncStreamType: updating account host from ${account.serverUrl} to $host")
+                    account.serverUrl = host
+                    accountBox.put(account)
+                }
+                return
+            }
+            Log.w(TAG, "syncStreamType ($action) host $host exhausted. Trying next host...")
         }
+
+        Log.e(TAG, "syncStreamType ($action) failed on all ${orderedHosts.size} hosts")
+        lastError?.let { FirebaseCrashlytics.getInstance().recordException(it) }
     }
 
     suspend fun fetchEpgForChannel(channel: LiveStream) = withContext(Dispatchers.IO) {
         // EPG fetching disabled as per user request
         return@withContext
 
-        val account = getActiveAccountOrRefresh() ?: return@withContext
+        val account = resolveWorkingAccount() ?: return@withContext
         val fullUrl = "${account.serverUrl}player_api.php"
         try {
             // 1. First, cleanup OLD EPG data for ALL channels to keep DB size small
@@ -365,7 +447,7 @@ class XtreamRepository @Inject constructor(
     }
 
     suspend fun fetchSeriesDetails(series: Series) = withContext(Dispatchers.IO) {
-        val account = getActiveAccountOrRefresh() ?: return@withContext
+        val account = resolveWorkingAccount() ?: return@withContext
         val fullUrl = "${account.serverUrl}player_api.php"
         val trace = FirebasePerformance.getInstance().newTrace("fetch_series_details")
         trace.start()
@@ -437,13 +519,13 @@ class XtreamRepository @Inject constructor(
 
                         val episode = Episode(
                             id = epId,
-                            title = eDto.title ?: eDto.info?.name ?: "Episode ${eDto.episodeNum}",
+                            title = eDto.title ?: eDto.infoMetadata?.name ?: "Episode ${eDto.episodeNum}",
                             containerExtension = eDto.containerExtension,
                             seasonNumber = eDto.season,
                             episodeNumber = eDto.episodeNum,
-                            duration = eDto.info?.duration,
-                            plot = eDto.info?.plot,
-                            coverUrl = eDto.info?.movieImage,
+                            duration = eDto.infoMetadata?.duration,
+                            plot = eDto.infoMetadata?.plot,
+                            coverUrl = eDto.infoMetadata?.movieImage,
                             seriesId = series.id,
                             watchProgress = progress?.first ?: 0L,
                             totalDuration = progress?.second ?: 0L,
@@ -463,7 +545,7 @@ class XtreamRepository @Inject constructor(
     }
 
     suspend fun fetchMovieDetails(movie: Movie) = withContext(Dispatchers.IO) {
-        val account = getActiveAccountOrRefresh() ?: return@withContext
+        val account = resolveWorkingAccount() ?: return@withContext
         val fullUrl = "${account.serverUrl}player_api.php"
         val trace = FirebasePerformance.getInstance().newTrace("fetch_movie_details")
         trace.start()

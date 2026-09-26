@@ -46,10 +46,9 @@ fun FocusRestoration(
 ) {
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(trigger) {
+    LaunchedEffect(trigger, targetItemId, targetCategoryId) {
         if (!trigger) return@LaunchedEffect
         if (targetItemId != null || targetCategoryId != null) {
-            // Capture itemId before category switch which may clear it
             val capturedItemId = targetItemId
             scope.launch {
                 // 1. Switch category if needed
@@ -65,17 +64,16 @@ fun FocusRestoration(
 
                 // 2. Scroll to and focus the target item
                 if (capturedItemId != null) {
-                    // Retry loop: the item list may not have updated yet
                     var index = -1
-                    repeat(15) {
+                    repeat(20) {
                         index = findItemIndex(capturedItemId)
                         if (index >= 0) return@repeat
                         delay(50)
                     }
                     if (index >= 0) {
                         itemListState.scrollToItem(index)
-                        delay(100)
-                        repeat(10) {
+                        delay(50)
+                        repeat(15) {
                             try {
                                 val requester = itemFocusRequesters[capturedItemId]
                                 if (requester != null) {
@@ -109,10 +107,9 @@ fun FocusRestoration(
 ) {
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(trigger) {
+    LaunchedEffect(trigger, targetItemId, targetCategoryId) {
         if (!trigger) return@LaunchedEffect
         if (targetItemId != null || targetCategoryId != null) {
-            // Capture itemId before category switch which may clear it
             val capturedItemId = targetItemId
             scope.launch {
                 // 1. Switch category if needed
@@ -128,17 +125,16 @@ fun FocusRestoration(
 
                 // 2. Scroll to and focus the target item
                 if (capturedItemId != null) {
-                    // Retry loop: the item list may not have updated yet
                     var index = -1
-                    repeat(15) {
+                    repeat(20) {
                         index = findItemIndex(capturedItemId)
                         if (index >= 0) return@repeat
                         delay(50)
                     }
                     if (index >= 0) {
                         gridState.scrollToItem(index)
-                        delay(100)
-                        repeat(10) {
+                        delay(50)
+                        repeat(15) {
                             try {
                                 val requester = itemFocusRequesters[capturedItemId]
                                 if (requester != null) {

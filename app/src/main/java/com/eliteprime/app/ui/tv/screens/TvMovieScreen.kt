@@ -337,15 +337,6 @@ fun TvMovieScreen(
 
                         LaunchedEffect(category.id) { viewModel.loadCategoryCount(category) }
 
-                        if (index == 0) {
-                            LaunchedEffect(Unit) {
-                                if (!hasInitiallyFocused) {
-                                    delay(400); try { requester.requestFocus() } catch(_: Exception) {}
-                                    hasInitiallyFocused = true
-                                }
-                            }
-                        }
-
                         val icon = when (category.id) {
                             MovieViewModel.CAT_ID_RECENTLY_ADDED -> Icons.Default.FiberNew
                             MovieViewModel.CAT_ID_FAVORITES -> Icons.Default.Star
@@ -361,7 +352,7 @@ fun TvMovieScreen(
                             modifier = Modifier
                                 .focusRequester(requester)
                                 .onFocusChanged {
-                                    if (it.isFocused && !isGridFocused) {
+                                    if (it.isFocused && !isGridFocused && lastFocusedItemId == null) {
                                         lastSidebarFocusKey = category.id
                                         viewModel.recordFocusedCategory(category.id)
                                         if (searchText.isEmpty()) {
@@ -403,7 +394,7 @@ fun TvMovieScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    itemsIndexed(uiState.filteredMovies.distinctBy { it.id }, key = { index, m -> "${m.id}_$index" }) { index, movie ->
+                    itemsIndexed(uiState.filteredMovies.distinctBy { it.id }, key = { _, m -> m.id }) { index, movie ->
                         val requester = movieFocusRequesters.getOrPut(movie.id) {
                             if (index == 0) firstMovieRequester else FocusRequester()
                         }

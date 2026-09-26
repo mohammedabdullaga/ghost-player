@@ -16,6 +16,7 @@ import androidx.media3.common.util.ExperimentalApi
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DecoderCounters
 import androidx.media3.exoplayer.DefaultLivePlaybackSpeedControl
@@ -42,6 +43,7 @@ import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.eliteprime.app.R
 import com.eliteprime.app.data.repository.PreferenceRepository
+import com.eliteprime.app.data.repository.XtreamRepository
 import com.eliteprime.app.domain.model.StreamInfo
 import com.eliteprime.app.domain.model.StreamType
 import com.eliteprime.app.domain.model.VideoFormat
@@ -58,6 +60,10 @@ import okio.BufferedSource
 import okio.ForwardingSource
 import okio.Source
 import okio.buffer
+import java.net.ConnectException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -68,7 +74,8 @@ class Media3PlayerEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     private val okHttpClient: OkHttpClient,
     private val preferenceRepository: PreferenceRepository,
-    private val globalPlayerState: GlobalPlayerState
+    private val globalPlayerState: GlobalPlayerState,
+    private val xtreamRepository: XtreamRepository
 ) : PlayerEngine {
 
     private val TAG = "Media3PlayerEngine"
@@ -225,15 +232,6 @@ class Media3PlayerEngine @Inject constructor(
         val newTrackSelector = DefaultTrackSelector(context)
         currentTrackSelector = newTrackSelector
 
-        // MediaTek (TCL/Haier) devices may need float output for audio compatibility
-        val isMediatek = CapabilityAwareMediaCodecSelector.isMediatek()
-        val audioCapabilities = AudioCapabilities.getCapabilities(context)
-        val audioSink = DefaultAudioSink.Builder(context)
-            .setAudioCapabilities(audioCapabilities)
-            .setEnableFloatOutput(isMediatek) // Mediatek: allow float; others: disable for stability
-            .setAudioProcessorChain(DefaultAudioSink.DefaultAudioProcessorChain())
-            .build()
-
         val renderersFactory = object : DefaultRenderersFactory(context) {
             override fun buildVideoRenderers(
                 context: Context,
@@ -277,7 +275,8 @@ class Media3PlayerEngine @Inject constructor(
                 enableFloatOutput: Boolean,
                 enableAudioTrackPlaybackParams: Boolean
             ): AudioSink? {
-                return audioSink
+                // Enable float output for all devices to support FFmpeg PCM float output & wide audio compatibility
+                return super.buildAudioSink(context, true, enableAudioTrackPlaybackParams)
             }
         }.setMediaCodecSelector(codecSelector)
          .setEnableDecoderFallback(true)
@@ -605,6 +604,51 @@ class Media3PlayerEngine @Inject constructor(
                 Log.e(TAG, "CRITICAL: Audio sink initialization failed. Triggering hardware reset recovery.")
                 handleStall()
                 return
+            }
+
+            // FALLBACK HOST RETRY: If the stream source fails for ANY reason
+            // (HTTP error, DNS failure, timeout, connection refused, etc.),
+            // build fallback URLs from all active hosts and try the next one.
+            val errMsgs = chain.mapNotNull { it::class.simpleName + ": " + (it.message ?: "") }
+            val hasSourceError = chain.any { cause ->
+                cause is HttpDataSource.HttpDataSourceException ||
+                cause is UnknownHostException ||
+                cause is SocketTimeoutException ||
+                cause is ConnectException ||
+                cause is SocketException ||
+                errMsgs.any { msg ->
+                    msg.contains("HttpDataSourceException") ||
+                    msg.contains("InvalidResponseCodeException") ||
+                    msg.contains("Response code: 5") ||
+                    msg.contains("Response code: 4")
+                }
+            }
+            val fallbacks = activeStreamInfo?.fallbackUrls
+            Log.w(TAG, "onPlayerError: hasSourceError=$hasSourceError fallbackCount=${fallbacks?.size ?: 0} errors=$errMsgs")
+            if (hasSourceError) {
+                // Build new fallback list from all active hosts if the current one is empty
+                var effectiveFallbacks = fallbacks
+                if (effectiveFallbacks.isNullOrEmpty()) {
+                    val currentUrl = activeStreamInfo?.url ?: ""
+                    val allHostUrls = xtreamRepository.getActiveHostUrls()
+                    Log.w(TAG, "onPlayerError: Building fallbacks from ${allHostUrls.size} hosts. Current URL=$currentUrl. Hosts=$allHostUrls")
+                    effectiveFallbacks = allHostUrls.mapNotNull { hostUrl ->
+                        currentUrl.replace(Regex("https?://[^/]+"), hostUrl.trimEnd('/'))
+                            .takeIf { it != currentUrl }
+                    }
+                    Log.w(TAG, "onPlayerError: Generated ${effectiveFallbacks.size} fallback URLs: $effectiveFallbacks")
+                }
+                if (!effectiveFallbacks.isNullOrEmpty()) {
+                    val nextUrl = effectiveFallbacks.first()
+                    Log.w(TAG, "Falling back to next host: $nextUrl (${effectiveFallbacks.size - 1} remaining)")
+                    val updatedStream = activeStreamInfo!!.copy(
+                        url = nextUrl,
+                        fallbackUrls = effectiveFallbacks.drop(1)
+                    )
+                    activeStreamInfo = updatedStream
+                    renewStreamUrl(updatedStream)
+                    return
+                }
             }
 
             FirebaseCrashlytics.getInstance().recordException(e)

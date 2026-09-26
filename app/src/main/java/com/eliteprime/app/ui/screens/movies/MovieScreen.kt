@@ -215,7 +215,7 @@ fun MovieScreen(
                             horizontalArrangement = Arrangement.spacedBy(VodSpacing.md),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            itemsIndexed(uiState.filteredMovies.distinctBy { it.id }, key = { index, m -> "${m.id}_$index" }) { index, movie ->
+                            itemsIndexed(uiState.filteredMovies.distinctBy { it.id }, key = { _, m -> m.id }) { index, movie ->
                                 if (index >= uiState.filteredMovies.size - 12) {
                                     SideEffect {
                                         viewModel.loadMore()

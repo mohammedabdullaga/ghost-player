@@ -1,5 +1,9 @@
 package com.eliteprime.app.data.remote
 
+import com.google.gson.Gson
+import com.google.gson.JsonArray
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
 import com.google.gson.annotations.SerializedName
 import retrofit2.http.GET
 import retrofit2.http.Query
@@ -105,8 +109,30 @@ data class XtreamEpisodeDto(
     val title: String?,
     @SerializedName("container_extension") val containerExtension: String?,
     val season: Int,
-    val info: XtreamEpisodeMetadata?
-)
+    val info: JsonElement?
+) {
+    /**
+     * Xtream panels are inconsistent: `info` is usually an object, but some
+     * panels return an empty/one-element ARRAY. This safely extracts the
+     * metadata object regardless of which shape the server used.
+     */
+    val infoMetadata: XtreamEpisodeMetadata?
+        get() = when (info) {
+            null -> null
+            is JsonObject -> runCatching {
+                Gson().fromJson(info, XtreamEpisodeMetadata::class.java)
+            }.getOrNull()
+            is JsonArray -> {
+                val first = info.firstOrNull()
+                if (first is JsonObject) {
+                    runCatching { Gson().fromJson(first, XtreamEpisodeMetadata::class.java) }.getOrNull()
+                } else {
+                    null
+                }
+            }
+            else -> null
+        }
+}
 
 data class XtreamEpisodeMetadata(
     val name: String?,
