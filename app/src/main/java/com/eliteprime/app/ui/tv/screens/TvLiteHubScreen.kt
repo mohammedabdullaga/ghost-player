@@ -207,17 +207,33 @@ fun TvLiteHubScreen(
 
                             if (!uiState.formattedExpiryDate.isNullOrBlank()) {
                                 Surface(
-                                    color = HubBrand.PanelDark.copy(alpha = 0.85f),
-                                    shape = RoundedCornerShape(9.dp),
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.09f))
-                                ) {
-                                    Text(
-                                        text = stringResource(R.string.hub_expires_format, uiState.formattedExpiryDate!!),
-                                        color = Color.White.copy(alpha = 0.7f),
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp)
+                                    color = Color(0xFF0F172A).copy(alpha = 0.70f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(
+                                        1.2.dp,
+                                        Brush.horizontalGradient(
+                                            listOf(Color(0xFF00E5FF).copy(alpha = 0.5f), Color.White.copy(alpha = 0.2f))
+                                        )
                                     )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(8.dp)
+                                                .clip(RoundedCornerShape(50))
+                                                .background(Color(0xFF00E676))
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.hub_expires_format, uiState.formattedExpiryDate!!),
+                                            color = Color.White,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                 }
                             }
                             Column(horizontalAlignment = Alignment.End) {
@@ -598,81 +614,95 @@ private fun HubToggleRow(
     val iconVector = if (isEnabled && isAvailable) Icons.Default.Shield else Icons.Default.ShieldMoon
 
     if (isTv) {
+        val scale by animateFloatAsState(if (isFocused) 1.04f else 1.0f, label = "toggle_row_scale")
+        val glassBg = if (isFocused) {
+            AppColors.ArenaOrange
+        } else {
+            Color(0xFF0F172A).copy(alpha = if (isAvailable) 0.65f else 0.35f)
+        }
+        val glassBorder = if (isFocused) {
+            BorderStroke(2.5.dp, Color.White)
+        } else {
+            BorderStroke(
+                1.2.dp,
+                if (isEnabled && isAvailable) AppColors.ArenaOrange.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.22f)
+            )
+        }
+
         TvSurface(
             onClick = { if (isAvailable) onToggle(!isEnabled) },
             modifier = modifier
                 .height(72.dp)
-                .onFocusChanged { isFocused = it.isFocused },
+                .onFocusChanged { isFocused = it.isFocused }
+                .graphicsLayer { scaleX = scale; scaleY = scale },
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = HubBrand.PanelDark.copy(alpha = if (isAvailable) 0.55f else 0.3f),
-                focusedContainerColor = AppColors.ArenaOrange
-            ),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f),
-            border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(3.dp, Color.White)),
-                border = Border(
-                    BorderStroke(
-                        1.dp,
-                        if (isEnabled && isAvailable) AppColors.ArenaOrange.copy(alpha = 0.4f) else Color.White.copy(alpha = 0.16f)
-                    )
-                )
+                containerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent
             )
         ) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(glassBg)
+                    .border(glassBorder, RoundedCornerShape(16.dp))
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.weight(1f, fill = false)
-                ) {
-                    Icon(
-                        iconVector,
-                        contentDescription = null,
-                        tint = if (isFocused) Color.Black else if (isEnabled && isAvailable) AppColors.ArenaOrange else Color.White.copy(alpha = 0.55f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = label,
-                        color = if (isFocused) Color.Black else if (isAvailable) Color.White else Color.White.copy(alpha = 0.4f),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-
-                Spacer(Modifier.width(8.dp))
-
-                // Track + thumb switch — the actual on/off indicator
-                Box(
                     modifier = Modifier
-                        .width(42.dp)
-                        .height(22.dp)
-                        .clip(RoundedCornerShape(11.dp))
-                        .background(
-                            when {
-                                !isAvailable -> Color.White.copy(alpha = 0.08f)
-                                isFocused -> Color.Black.copy(alpha = 0.25f)
-                                isEnabled -> AppColors.ArenaOrange
-                                else -> Color.White.copy(alpha = 0.14f)
-                            }
-                        )
-                        .padding(2.dp)
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Icon(
+                            iconVector,
+                            contentDescription = null,
+                            tint = if (isFocused) Color.Black else if (isEnabled && isAvailable) AppColors.ArenaOrange else Color.White.copy(alpha = 0.55f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = label,
+                            color = if (isFocused) Color.Black else if (isAvailable) Color.White else Color.White.copy(alpha = 0.4f),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Spacer(Modifier.width(8.dp))
+
+                    // Track + thumb switch — the actual on/off indicator
                     Box(
                         modifier = Modifier
-                            .fillMaxHeight()
-                            .aspectRatio(1f)
-                            .align(if (isEnabled && isAvailable) Alignment.CenterEnd else Alignment.CenterStart)
-                            .clip(RoundedCornerShape(50))
-                            .background(if (isFocused) Color.Black else Color.White)
-                    )
+                            .width(42.dp)
+                            .height(22.dp)
+                            .clip(RoundedCornerShape(11.dp))
+                            .background(
+                                when {
+                                    !isAvailable -> Color.White.copy(alpha = 0.08f)
+                                    isFocused -> Color.Black.copy(alpha = 0.25f)
+                                    isEnabled -> Color.Black.copy(alpha = 0.2f)
+                                    else -> Color.White.copy(alpha = 0.14f)
+                                }
+                            )
+                            .padding(2.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .aspectRatio(1f)
+                                .align(if (isEnabled && isAvailable) Alignment.CenterEnd else Alignment.CenterStart)
+                                .clip(RoundedCornerShape(50))
+                                .background(if (isFocused) Color.Black else Color.White)
+                        )
+                    }
                 }
             }
         }
@@ -745,32 +775,60 @@ private fun HubUtilRow(
     var isFocused by remember { mutableStateOf(false) }
 
     if (isTv) {
+        val scale by animateFloatAsState(if (isFocused) 1.04f else 1.0f, label = "util_row_scale")
+        val glassBg = if (isFocused) Color.White else Color(0xFF0F172A).copy(alpha = 0.65f)
+        val glassBorder = if (isFocused) {
+            BorderStroke(2.5.dp, Color(0xFFFFC107))
+        } else {
+            BorderStroke(1.2.dp, Color.White.copy(alpha = 0.22f))
+        }
+
         TvSurface(
             onClick = onClick,
-            modifier = modifier.height(72.dp).onFocusChanged { isFocused = it.isFocused },
+            modifier = modifier
+                .height(72.dp)
+                .onFocusChanged { isFocused = it.isFocused }
+                .graphicsLayer { scaleX = scale; scaleY = scale },
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = HubBrand.PanelDark,
-                focusedContainerColor = AppColors.ArenaOrange
-            ),
-            scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f),
-            border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(3.dp, Color.White)),
-                border = Border(BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)))
+                containerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent
             )
         ) {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(glassBg)
+                    .border(glassBorder, RoundedCornerShape(16.dp))
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = if (isFocused) Color.Black else AppColors.ArenaOrange, strokeWidth = 2.dp)
-                } else {
-                    Icon(icon, null, tint = if (isFocused) Color.Black else accentColor, modifier = Modifier.size(20.dp))
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = if (isFocused) Color.Black else Color(0xFFFFC107),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            icon,
+                            null,
+                            tint = if (isFocused) Color.Black else accentColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = label,
+                        color = if (isFocused) Color.Black else Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                 }
-                Spacer(Modifier.width(10.dp))
-                Text(text = label, color = if (isFocused) Color.Black else Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
     } else {
