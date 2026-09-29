@@ -160,6 +160,7 @@ fun TvLiteHubScreen(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             // Dedicated Orange Glass "Sports" (رياضة) focusable card (matching 56dp height of Settings icon)
                             var isSportsFocused by remember { mutableStateOf(false) }
@@ -183,6 +184,7 @@ fun TvLiteHubScreen(
                                 onClick = { logNav("Sports", onNavigateToSports) },
                                 modifier = Modifier
                                     .height(56.dp)
+                                    .width(160.dp)
                                     .onFocusChanged { isSportsFocused = it.isFocused }
                                     .graphicsLayer { scaleX = sportsScale; scaleY = sportsScale },
                                 shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
@@ -193,7 +195,7 @@ fun TvLiteHubScreen(
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxHeight()
+                                        .fillMaxSize()
                                         .clip(RoundedCornerShape(16.dp))
                                         .background(sportsGlassBg)
                                         .border(
@@ -217,9 +219,11 @@ fun TvLiteHubScreen(
                                     )
 
                                     Row(
-                                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 16.dp),
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        horizontalArrangement = Arrangement.Center
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.EmojiEvents,
@@ -227,11 +231,13 @@ fun TvLiteHubScreen(
                                             tint = Color.Black,
                                             modifier = Modifier.size(22.dp)
                                         )
+                                        Spacer(Modifier.width(8.dp))
                                         Text(
                                             text = stringResource(R.string.nav_sports),
                                             color = Color.Black,
                                             fontSize = 16.sp,
-                                            fontWeight = FontWeight.Black
+                                            fontWeight = FontWeight.Black,
+                                            maxLines = 1
                                         )
                                     }
                                 }
@@ -292,9 +298,25 @@ fun TvLiteHubScreen(
                                     }
                                 }
                             }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(text = time, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-                                Text(text = date, color = Color.White.copy(alpha = 0.4f), fontSize = 13.sp)
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                modifier = Modifier.wrapContentWidth()
+                            ) {
+                                Text(
+                                    text = time,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 22.sp,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                                Text(
+                                    text = date,
+                                    color = Color.White.copy(alpha = 0.4f),
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
                             }
                         }
                     }
