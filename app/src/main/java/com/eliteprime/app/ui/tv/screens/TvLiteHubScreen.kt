@@ -170,12 +170,12 @@ fun TvLiteHubScreen(
                                 colors = if (isSportsFocused) {
                                     listOf(
                                         Color.White,
-                                        Color.White.copy(alpha = 0.90f)
+                                        Color(0xFFFFF3E0)
                                     )
                                 } else {
                                     listOf(
-                                        Color.White.copy(alpha = 0.28f),
-                                        AppColors.ArenaOrange
+                                        Color(0xFFFF7D00),
+                                        Color(0xFFFF3D00)
                                     )
                                 }
                             )
@@ -321,7 +321,7 @@ fun TvLiteHubScreen(
                         }
                     }
                 }
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.weight(1f))
 
                 // Cards defined in natural priority order: Live TV (Start), Movies, Series
                 data class CardSpec(
@@ -364,6 +364,8 @@ fun TvLiteHubScreen(
                         )
                     }
                 }
+
+                Spacer(Modifier.weight(1f))
 
                 Spacer(Modifier.weight(0.5f))
             } else {
