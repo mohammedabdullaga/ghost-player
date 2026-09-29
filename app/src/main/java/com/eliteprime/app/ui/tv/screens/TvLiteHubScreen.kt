@@ -448,7 +448,7 @@ private fun HubCard(
                 Box(
                     modifier = Modifier
                         .size(
-                            if (iconRes != null) (if (isTv) 78.dp else 56.dp)
+                            if (iconRes != null) (if (isTv) 90.dp else 58.dp)
                             else (if (isTv) 52.dp else 38.dp)
                         )
                         .clip(RoundedCornerShape(if (isTv) 13.dp else 9.dp))
@@ -464,7 +464,7 @@ private fun HubCard(
                             painter = painterResource(id = iconRes),
                             contentDescription = null,
                             contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(if (isTv) 51.dp else 36.dp) // 150% size (34.dp -> 51.dp)
+                            modifier = Modifier.size(if (isTv) 76.dp else 50.dp) // Much larger icon size
                         )
                     } else {
                         Icon(
@@ -496,9 +496,9 @@ private fun HubCard(
 
             if (count != null && countLabel != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    HubChip(text = "$count $countLabel", featured = featured)
+                    HubChip(text = "$count $countLabel")
                     if (extraChip != null) {
-                        HubChip(text = extraChip, featured = featured)
+                        HubChip(text = extraChip)
                     }
                 }
             }
@@ -547,14 +547,15 @@ private fun HubCard(
 }
 
 @Composable
-private fun HubChip(text: String, featured: Boolean) {
+private fun HubChip(text: String) {
     Surface(
-        color = if (featured) AppColors.ArenaOrange.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.06f),
-        shape = RoundedCornerShape(9.dp)
+        color = Color.Black.copy(alpha = 0.65f),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
     ) {
         Text(
             text = text,
-            color = if (featured) AppColors.ArenaOrange else Color.White.copy(alpha = 0.75f),
+            color = Color.White,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
