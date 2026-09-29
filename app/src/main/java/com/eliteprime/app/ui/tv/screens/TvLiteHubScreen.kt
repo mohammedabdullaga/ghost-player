@@ -227,58 +227,72 @@ fun TvLiteHubScreen(
                 }
                 Spacer(Modifier.height(32.dp))
 
-                // Cards defined in natural priority order: Live TV (Start), Movies, Series
-                data class CardSpec(
-                    val title: String,
-                    val subtitle: String,
-                    val icon: ImageVector,
-                    val count: Int,
-                    val countLabel: String,
-                    val extraChip: String? = null,
-                    val featured: Boolean = false,
-                    val weight: Float,
-                    val focusRequester: FocusRequester?,
-                    val iconRes: Int? = null,
-                    val onClick: () -> Unit
-                )
-
-                val orderedSpecs = listOf(
-                    CardSpec(stringResource(R.string.nav_live_tv), "تصفح جميع القنوات المباشرة", Icons.Default.LiveTv, uiState.liveCount, "قناة", "HD / 4K", true, 1.25f, firstTileRequester, iconRes = R.drawable.arena_tv_icon, onClick = { logNav("Live TV", onNavigateToLive) }),
-                    CardSpec(stringResource(R.string.nav_movies), "شاهد أحدث وأفضل الأفلام", Icons.Default.Movie, uiState.movieCount, "فيلم", weight = 1f, focusRequester = null, onClick = { logNav("Movies", onNavigateToMovies) }),
-                    CardSpec(stringResource(R.string.nav_series), "مجموعة كبيرة من المسلسلات", Icons.Default.VideoLibrary, uiState.seriesCount, "مسلسل", weight = 1f, focusRequester = null, onClick = { logNav("Series", onNavigateToSeries) })
-                )
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    orderedSpecs.forEach { spec ->
+                    // Column 1: Live TV (Top) + Sports Card (Placed directly below Live TV)
+                    Column(
+                        modifier = Modifier.weight(1.25f),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
                         HubCard(
-                            title = spec.title,
-                            subtitle = spec.subtitle,
-                            icon = spec.icon,
-                            iconRes = spec.iconRes,
-                            count = spec.count,
-                            countLabel = spec.countLabel,
-                            extraChip = spec.extraChip,
-                            featured = spec.featured,
-                            focusRequester = spec.focusRequester,
-                            modifier = Modifier.weight(spec.weight).height(250.dp),
-                            onClick = spec.onClick
+                            title = stringResource(R.string.nav_live_tv),
+                            subtitle = "تصفح جميع القنوات المباشرة",
+                            icon = Icons.Default.LiveTv,
+                            iconRes = R.drawable.arena_tv_icon,
+                            count = uiState.liveCount,
+                            countLabel = "قناة",
+                            extraChip = "HD / 4K",
+                            featured = true,
+                            focusRequester = firstTileRequester,
+                            modifier = Modifier.fillMaxWidth().height(160.dp),
+                            onClick = { logNav("Live TV", onNavigateToLive) }
+                        )
+                        HubCard(
+                            title = stringResource(R.string.nav_sports),
+                            subtitle = "شاهد الفعاليات والمباريات المباشرة",
+                            icon = Icons.Default.EmojiEvents,
+                            count = null,
+                            countLabel = null,
+                            extraChip = "مباشر",
+                            featured = true,
+                            focusRequester = null,
+                            modifier = Modifier.fillMaxWidth().height(160.dp),
+                            onClick = { logNav("Sports", onNavigateToSports) }
                         )
                     }
+
+                    // Column 2: Movies Card
+                    HubCard(
+                        title = stringResource(R.string.nav_movies),
+                        subtitle = "شاهد أحدث وأفضل الأفلام",
+                        icon = Icons.Default.Movie,
+                        count = uiState.movieCount,
+                        countLabel = "فيلم",
+                        featured = false,
+                        focusRequester = null,
+                        modifier = Modifier.weight(1f).height(336.dp),
+                        onClick = { logNav("Movies", onNavigateToMovies) }
+                    )
+
+                    // Column 3: Series Card
+                    HubCard(
+                        title = stringResource(R.string.nav_series),
+                        subtitle = "مجموعة كبيرة من المسلسلات",
+                        icon = Icons.Default.VideoLibrary,
+                        count = uiState.seriesCount,
+                        countLabel = "مسلسل",
+                        featured = false,
+                        focusRequester = null,
+                        modifier = Modifier.weight(1f).height(336.dp),
+                        onClick = { logNav("Series", onNavigateToSeries) }
+                    )
                 }
-
-                Spacer(Modifier.height(18.dp))
-
-                // Prominent Bottom Sports Feature Banner
-                SportsBannerCard(
-                    onClick = { logNav("Sports", onNavigateToSports) }
-                )
 
                 Spacer(Modifier.weight(0.5f))
             } else {
-                // Top Bar (mobile — unchanged from before)
+                // Top Bar (mobile)
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                     if (!uiState.formattedExpiryDate.isNullOrBlank()) {
                         Surface(
@@ -309,10 +323,10 @@ fun TvLiteHubScreen(
                             modifier = Modifier.weight(1f), onClick = { logNav("Mobile Live TV", onNavigateToLive) }
                         )
                         HubCard(
-                            title = stringResource(R.string.nav_movies), subtitle = "شاهد أحدث وأفضل الأفلام",
-                            icon = Icons.Default.Movie, count = uiState.movieCount, countLabel = "فيلم",
+                            title = stringResource(R.string.nav_sports), subtitle = "شاهد الفعاليات والمباريات المباشرة",
+                            icon = Icons.Default.EmojiEvents, count = null, countLabel = null,
                             featured = false, focusRequester = null, isTv = false,
-                            modifier = Modifier.weight(1f), onClick = { logNav("Mobile Movies", onNavigateToMovies) }
+                            modifier = Modifier.weight(1f), onClick = { logNav("Mobile Sports", onNavigateToSports) }
                         )
                     }
                     Row(modifier = Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -715,156 +729,7 @@ private fun HubToggleRow(
     }
 }
 
-@Composable
-private fun SportsBannerCard(
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    var isFocused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (isFocused) 1.03f else 1.0f, label = "sports_banner_scale")
 
-    val glassBg = Brush.horizontalGradient(
-        colors = if (isFocused) {
-            listOf(
-                AppColors.ArenaOrange.copy(alpha = 0.25f),
-                Color(0xFF0F172A).copy(alpha = 0.75f)
-            )
-        } else {
-            listOf(
-                Color(0xFF0F172A).copy(alpha = 0.65f),
-                Color(0xFF0B101D).copy(alpha = 0.50f)
-            )
-        }
-    )
-
-    val glassBorder = if (isFocused) {
-        BorderStroke(2.5.dp, AppColors.ArenaOrange)
-    } else {
-        BorderStroke(1.2.dp, AppColors.ArenaOrange.copy(alpha = 0.50f))
-    }
-
-    TvSurface(
-        onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(105.dp)
-            .onFocusChanged { isFocused = it.isFocused }
-            .graphicsLayer { scaleX = scale; scaleY = scale },
-        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
-        colors = ClickableSurfaceDefaults.colors(
-            containerColor = Color.Transparent,
-            focusedContainerColor = Color.Transparent
-        )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clip(RoundedCornerShape(18.dp))
-                .background(glassBg)
-                .border(glassBorder, RoundedCornerShape(18.dp))
-        ) {
-            // Orange Radial Glow Sheen
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(AppColors.ArenaOrange.copy(alpha = 0.20f), Color.Transparent),
-                            radius = 500f
-                        )
-                    )
-            )
-
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Left/Start side: Trophy Icon + Title & Copywriting Description
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(AppColors.ArenaOrange.copy(alpha = 0.20f))
-                            .border(BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.5f)), RoundedCornerShape(14.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.EmojiEvents,
-                            contentDescription = null,
-                            tint = AppColors.ArenaOrange,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-
-                    Column(
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = stringResource(R.string.hub_sports_banner_title),
-                                color = Color.White,
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Black
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(5.dp))
-                                    .background(Color(0xFFE50914))
-                                    .padding(horizontal = 7.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.sports_live_badge),
-                                    color = Color.White,
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.Black
-                                )
-                            }
-                        }
-
-                        Spacer(Modifier.height(2.dp))
-
-                        Text(
-                            text = stringResource(R.string.hub_sports_banner_desc),
-                            color = Color.White.copy(alpha = 0.75f),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-
-                Spacer(Modifier.width(12.dp))
-
-                // Right/End side: Orange Action Button
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isFocused) AppColors.ArenaOrange else Color.White.copy(alpha = 0.12f))
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(
-                        text = if (isFocused) "دخول القسم" else "رياضة مباشر",
-                        color = if (isFocused) Color.Black else Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun HubIconButton(
