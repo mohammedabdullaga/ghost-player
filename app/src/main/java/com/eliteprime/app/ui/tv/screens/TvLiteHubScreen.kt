@@ -3,6 +3,7 @@ package com.eliteprime.app.ui.tv.screens
 import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -22,7 +23,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -237,11 +240,12 @@ fun TvLiteHubScreen(
                     val featured: Boolean = false,
                     val weight: Float,
                     val focusRequester: FocusRequester?,
+                    val iconRes: Int? = null,
                     val onClick: () -> Unit
                 )
 
                 val orderedSpecs = listOf(
-                    CardSpec(stringResource(R.string.nav_live_tv), "تصفح جميع القنوات المباشرة", Icons.Default.LiveTv, uiState.liveCount, "قناة", "HD / 4K", true, 1.25f, firstTileRequester, onClick = { logNav("Live TV", onNavigateToLive) }),
+                    CardSpec(stringResource(R.string.nav_live_tv), "تصفح جميع القنوات المباشرة", Icons.Default.LiveTv, uiState.liveCount, "قناة", "HD / 4K", true, 1.25f, firstTileRequester, iconRes = R.drawable.orange_live_tv_icon, onClick = { logNav("Live TV", onNavigateToLive) }),
                     CardSpec(stringResource(R.string.nav_movies), "شاهد أحدث وأفضل الأفلام", Icons.Default.Movie, uiState.movieCount, "فيلم", weight = 1f, focusRequester = null, onClick = { logNav("Movies", onNavigateToMovies) }),
                     CardSpec(stringResource(R.string.nav_series), "مجموعة كبيرة من المسلسلات", Icons.Default.VideoLibrary, uiState.seriesCount, "مسلسل", weight = 1f, focusRequester = null, onClick = { logNav("Series", onNavigateToSeries) })
                 )
@@ -255,6 +259,7 @@ fun TvLiteHubScreen(
                             title = spec.title,
                             subtitle = spec.subtitle,
                             icon = spec.icon,
+                            iconRes = spec.iconRes,
                             count = spec.count,
                             countLabel = spec.countLabel,
                             extraChip = spec.extraChip,
@@ -325,7 +330,7 @@ fun TvLiteHubScreen(
                     Row(modifier = Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         HubCard(
                             title = stringResource(R.string.nav_live_tv), subtitle = "تصفح جميع القنوات المباشرة",
-                            icon = Icons.Default.LiveTv, count = uiState.liveCount, countLabel = "قناة",
+                            icon = Icons.Default.LiveTv, iconRes = R.drawable.orange_live_tv_icon, count = uiState.liveCount, countLabel = "قناة",
                             featured = false, focusRequester = null, isTv = false,
                             modifier = Modifier.weight(1f), onClick = { logNav("Mobile Live TV", onNavigateToLive) }
                         )
@@ -395,6 +400,7 @@ private fun HubCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
+    iconRes: Int? = null,
     count: Int?,
     countLabel: String?,
     featured: Boolean = false,
@@ -449,12 +455,21 @@ private fun HubCard(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = if (featured) AppColors.ArenaOrange else Color.White,
-                        modifier = Modifier.size(if (isTv) 24.dp else 18.dp)
-                    )
+                    if (iconRes != null) {
+                        Image(
+                            painter = painterResource(id = iconRes),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(if (isTv) 34.dp else 24.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = if (featured) AppColors.ArenaOrange else Color.White,
+                            modifier = Modifier.size(if (isTv) 24.dp else 18.dp)
+                        )
+                    }
                 }
                 Spacer(Modifier.height(if (isTv) 16.dp else 8.dp))
                 Text(
