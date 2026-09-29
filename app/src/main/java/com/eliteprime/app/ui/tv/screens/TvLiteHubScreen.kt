@@ -163,7 +163,52 @@ fun TvLiteHubScreen(
                         ArenaLiveLogo(textSize = 24.sp)
 
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            // Top Header Utilities (Search, Settings, Reload)
+                            // Dedicated "Sports" (رياضة) focusable pill button/card beside search
+                            var isSportsFocused by remember { mutableStateOf(false) }
+                            val sportsScale by animateFloatAsState(if (isSportsFocused) 1.05f else 1.0f, label = "sports_btn_scale")
+
+                            TvSurface(
+                                onClick = { logNav("Sports", onNavigateToSports) },
+                                modifier = Modifier
+                                    .onFocusChanged { isSportsFocused = it.isFocused }
+                                    .graphicsLayer { scaleX = sportsScale; scaleY = sportsScale },
+                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
+                                border = ClickableSurfaceDefaults.border(
+                                    focusedBorder = Border(
+                                        border = BorderStroke(2.dp, Color(0xFFFFC107)),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ),
+                                    border = Border(
+                                        border = BorderStroke(1.2.dp, Color.White.copy(alpha = 0.22f)),
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                ),
+                                colors = ClickableSurfaceDefaults.colors(
+                                    containerColor = Color(0xFF0F172A).copy(alpha = 0.70f),
+                                    focusedContainerColor = Color.White
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.EmojiEvents,
+                                        contentDescription = null,
+                                        tint = if (isSportsFocused) Color.Black else Color(0xFFFFC107),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.nav_sports),
+                                        color = if (isSportsFocused) Color.Black else Color.White,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            // Top Header Action Icon Buttons: Search, Settings, Reload
                             HubIconButton(
                                 icon = Icons.Default.Search,
                                 contentDescription = stringResource(R.string.nav_search),
@@ -227,67 +272,46 @@ fun TvLiteHubScreen(
                 }
                 Spacer(Modifier.height(32.dp))
 
+                // Cards defined in natural priority order: Live TV (Start), Movies, Series
+                data class CardSpec(
+                    val title: String,
+                    val subtitle: String,
+                    val icon: ImageVector,
+                    val count: Int,
+                    val countLabel: String,
+                    val extraChip: String? = null,
+                    val featured: Boolean = false,
+                    val weight: Float,
+                    val focusRequester: FocusRequester?,
+                    val iconRes: Int? = null,
+                    val onClick: () -> Unit
+                )
+
+                val orderedSpecs = listOf(
+                    CardSpec(stringResource(R.string.nav_live_tv), "تصفح جميع القنوات المباشرة", Icons.Default.LiveTv, uiState.liveCount, "قناة", "HD / 4K", true, 1.25f, firstTileRequester, iconRes = R.drawable.arena_tv_icon, onClick = { logNav("Live TV", onNavigateToLive) }),
+                    CardSpec(stringResource(R.string.nav_movies), "شاهد أحدث وأفضل الأفلام", Icons.Default.Movie, uiState.movieCount, "فيلم", weight = 1f, focusRequester = null, onClick = { logNav("Movies", onNavigateToMovies) }),
+                    CardSpec(stringResource(R.string.nav_series), "مجموعة كبيرة من المسلسلات", Icons.Default.VideoLibrary, uiState.seriesCount, "مسلسل", weight = 1f, focusRequester = null, onClick = { logNav("Series", onNavigateToSeries) })
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    // Column 1: Live TV (Top) + Sports Card (Placed directly below Live TV)
-                    Column(
-                        modifier = Modifier.weight(1.25f),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
+                    orderedSpecs.forEach { spec ->
                         HubCard(
-                            title = stringResource(R.string.nav_live_tv),
-                            subtitle = "تصفح جميع القنوات المباشرة",
-                            icon = Icons.Default.LiveTv,
-                            iconRes = R.drawable.arena_tv_icon,
-                            count = uiState.liveCount,
-                            countLabel = "قناة",
-                            extraChip = "HD / 4K",
-                            featured = true,
-                            focusRequester = firstTileRequester,
-                            modifier = Modifier.fillMaxWidth().height(160.dp),
-                            onClick = { logNav("Live TV", onNavigateToLive) }
-                        )
-                        HubCard(
-                            title = stringResource(R.string.nav_sports),
-                            subtitle = "شاهد الفعاليات والمباريات المباشرة",
-                            icon = Icons.Default.EmojiEvents,
-                            count = null,
-                            countLabel = null,
-                            extraChip = "مباشر",
-                            featured = true,
-                            focusRequester = null,
-                            modifier = Modifier.fillMaxWidth().height(160.dp),
-                            onClick = { logNav("Sports", onNavigateToSports) }
+                            title = spec.title,
+                            subtitle = spec.subtitle,
+                            icon = spec.icon,
+                            iconRes = spec.iconRes,
+                            count = spec.count,
+                            countLabel = spec.countLabel,
+                            extraChip = spec.extraChip,
+                            featured = spec.featured,
+                            focusRequester = spec.focusRequester,
+                            modifier = Modifier.weight(spec.weight).height(280.dp),
+                            onClick = spec.onClick
                         )
                     }
-
-                    // Column 2: Movies Card
-                    HubCard(
-                        title = stringResource(R.string.nav_movies),
-                        subtitle = "شاهد أحدث وأفضل الأفلام",
-                        icon = Icons.Default.Movie,
-                        count = uiState.movieCount,
-                        countLabel = "فيلم",
-                        featured = false,
-                        focusRequester = null,
-                        modifier = Modifier.weight(1f).height(336.dp),
-                        onClick = { logNav("Movies", onNavigateToMovies) }
-                    )
-
-                    // Column 3: Series Card
-                    HubCard(
-                        title = stringResource(R.string.nav_series),
-                        subtitle = "مجموعة كبيرة من المسلسلات",
-                        icon = Icons.Default.VideoLibrary,
-                        count = uiState.seriesCount,
-                        countLabel = "مسلسل",
-                        featured = false,
-                        focusRequester = null,
-                        modifier = Modifier.weight(1f).height(336.dp),
-                        onClick = { logNav("Series", onNavigateToSeries) }
-                    )
                 }
 
                 Spacer(Modifier.weight(0.5f))
