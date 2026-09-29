@@ -162,51 +162,30 @@ fun TvLiteHubScreen(
                     ) {
                         ArenaLiveLogo(textSize = 24.sp)
 
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                            // Dedicated "Sports" (رياضة) focusable button
-                            var isSportsFocused by remember { mutableStateOf(false) }
-                            val sportsScale by animateFloatAsState(if (isSportsFocused) 1.05f else 1.0f, label = "sports_btn_scale")
-
-                            TvSurface(
-                                onClick = { logNav("Sports", onNavigateToSports) },
-                                modifier = Modifier
-                                    .onFocusChanged { isSportsFocused = it.isFocused }
-                                    .graphicsLayer { scaleX = sportsScale; scaleY = sportsScale },
-                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(9.dp)),
-                                border = ClickableSurfaceDefaults.border(
-                                    focusedBorder = Border(
-                                        border = BorderStroke(2.dp, Color(0xFFFFC107)),
-                                        shape = RoundedCornerShape(9.dp)
-                                    ),
-                                    border = Border(
-                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
-                                        shape = RoundedCornerShape(9.dp)
-                                    )
-                                ),
-                                colors = ClickableSurfaceDefaults.colors(
-                                    containerColor = HubBrand.PanelDark.copy(alpha = 0.85f),
-                                    focusedContainerColor = Color.White
-                                )
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.EmojiEvents,
-                                        contentDescription = null,
-                                        tint = if (isSportsFocused) Color.Black else Color(0xFFFFC107),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Text(
-                                        text = stringResource(R.string.nav_sports),
-                                        color = if (isSportsFocused) Color.Black else Color.White,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                            // Top Header Utilities (Search, Settings, Reload)
+                            HubIconButton(
+                                icon = Icons.Default.Search,
+                                contentDescription = stringResource(R.string.nav_search),
+                                onClick = { logNav("Search", onNavigateToSearch) }
+                            )
+                            HubIconButton(
+                                icon = Icons.Default.Settings,
+                                contentDescription = stringResource(R.string.nav_settings),
+                                onClick = { logNav("Settings", onNavigateToSettings) }
+                            )
+                            HubIconButton(
+                                icon = Icons.Default.Refresh,
+                                contentDescription = stringResource(R.string.hub_reload),
+                                isLoading = uiState.isSyncing,
+                                onClick = {
+                                    if (!uiState.isSyncing) {
+                                        viewModel.reloadData { success ->
+                                            Toast.makeText(context, if (success) syncSuccessMsg else syncFailedMsg, Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                 }
-                            }
+                            )
 
                             if (!uiState.formattedExpiryDate.isNullOrBlank()) {
                                 Surface(
@@ -292,50 +271,10 @@ fun TvLiteHubScreen(
 
                 Spacer(Modifier.height(20.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        HubIconButton(
-                            icon = Icons.Default.Search,
-                            contentDescription = stringResource(R.string.nav_search),
-                            onClick = { logNav("Search", onNavigateToSearch) }
-                        )
-                        HubIconButton(
-                            icon = Icons.Default.Settings,
-                            contentDescription = stringResource(R.string.nav_settings),
-                            onClick = { logNav("Settings", onNavigateToSettings) }
-                        )
-                        HubIconButton(
-                            icon = Icons.Default.Refresh,
-                            contentDescription = stringResource(R.string.hub_reload),
-                            isLoading = uiState.isSyncing,
-                            onClick = {
-                                if (!uiState.isSyncing) {
-                                    viewModel.reloadData { success ->
-                                        Toast.makeText(context, if (success) syncSuccessMsg else syncFailedMsg, Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            }
-                        )
-
-                        if (SHOW_FAST_VPN_ON_DASHBOARD) {
-                            HubToggleRow(
-                                label = stringResource(R.string.hub_fast_vpn),
-                                isEnabled = uiState.isSecureConnectionEnabled,
-                                isAvailable = uiState.isByeDpiAvailable,
-                                isTv = true,
-                                modifier = Modifier.width(220.dp),
-                                onToggle = { enabled -> viewModel.setSecureConnectionEnabled(enabled) }
-                            )
-                        }
-                    }
-                }
+                // Prominent Bottom Sports Feature Banner
+                SportsBannerCard(
+                    onClick = { logNav("Sports", onNavigateToSports) }
+                )
 
                 Spacer(Modifier.weight(0.5f))
             } else {
@@ -771,6 +710,161 @@ private fun HubToggleRow(
                         uncheckedTrackColor = Color.White.copy(alpha = 0.14f)
                     )
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SportsBannerCard(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isFocused) 1.03f else 1.0f, label = "sports_banner_scale")
+
+    val glassBg = Brush.horizontalGradient(
+        colors = if (isFocused) {
+            listOf(
+                Color(0xFF1E293B).copy(alpha = 0.85f),
+                Color(0xFF0F172A).copy(alpha = 0.70f)
+            )
+        } else {
+            listOf(
+                Color(0xFF0F172A).copy(alpha = 0.65f),
+                Color(0xFF0B101D).copy(alpha = 0.50f)
+            )
+        }
+    )
+
+    val glassBorder = if (isFocused) {
+        BorderStroke(2.5.dp, Color(0xFFFFC107))
+    } else {
+        BorderStroke(1.2.dp, Color(0xFFFFC107).copy(alpha = 0.45f))
+    }
+
+    TvSurface(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(130.dp)
+            .onFocusChanged { isFocused = it.isFocused }
+            .graphicsLayer { scaleX = scale; scaleY = scale },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.Transparent,
+            focusedContainerColor = Color.Transparent
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(18.dp))
+                .background(glassBg)
+                .border(glassBorder, RoundedCornerShape(18.dp))
+        ) {
+            // Radial Sheen & Ambient Glow
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(Color(0xFFFFC107).copy(alpha = 0.12f), Color.Transparent),
+                            radius = 600f
+                        )
+                    )
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left/Start side: Trophy Icon + Title & Copywriting Description
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(Color(0xFFFFC107).copy(alpha = 0.25f), Color(0xFFFF9800).copy(alpha = 0.15f))
+                                )
+                            )
+                            .border(BorderStroke(1.dp, Color(0xFFFFC107).copy(alpha = 0.4f)), RoundedCornerShape(16.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.EmojiEvents,
+                            contentDescription = null,
+                            tint = Color(0xFFFFC107),
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+
+                    Column(
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.hub_sports_banner_title),
+                                color = Color.White,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFFE50914))
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.sports_live_badge),
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(4.dp))
+
+                        Text(
+                            text = stringResource(R.string.hub_sports_banner_desc),
+                            color = Color.White.copy(alpha = 0.75f),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Spacer(Modifier.width(16.dp))
+
+                // Right/End side: Action Pill Button
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (isFocused) Color(0xFFFFC107) else Color.White.copy(alpha = 0.12f))
+                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = if (isFocused) "دخول القسم" else "رياضة مباشر",
+                        color = if (isFocused) Color.Black else Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

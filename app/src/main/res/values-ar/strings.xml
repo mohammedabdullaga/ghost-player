@@ -283,6 +283,8 @@
     <string name="sports_today">اليوم</string>
     <string name="sports_tomorrow">غداً</string>
     <string name="channel_not_found">القناة غير متوفرة في اشتراكك الحالي</string>
+    <string name="hub_sports_banner_title">قسم الرياضة المباشرة</string>
+    <string name="hub_sports_banner_desc">استعرض المباريات والفعاليات الرياضية المباشرة وشاهدها فوراً دون الحاجة للبحث في القنوات</string>
     <string name="settings_clear_all">مسح الكل</string>
     <string name="settings_edit_account_desc">تعديل بيانات الحساب</string>
     <string name="settings_edit_account_btn">تعديل</string>

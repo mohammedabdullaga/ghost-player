@@ -283,6 +283,8 @@
     <string name="sports_today">Today</string>
     <string name="sports_tomorrow">Tomorrow</string>
     <string name="channel_not_found">Channel not found in active playlist</string>
+    <string name="hub_sports_banner_title">Live Sports Hub</string>
+    <string name="hub_sports_banner_desc">Discover live sports events and stream matches instantly without browsing channel lists</string>
     <string name="settings_clear_all">Clear all</string>
     <string name="settings_edit_account_desc">Edit account credentials</string>
     <string name="settings_edit_account_btn">EDIT</string>
