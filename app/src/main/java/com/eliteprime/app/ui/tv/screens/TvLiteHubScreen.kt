@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,7 +36,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
@@ -409,93 +412,116 @@ private fun HubCard(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    // Deliberately NO full-color fill anywhere — not on focus, not on
-    // the "featured" card. A large saturated block (a full-white focus
-    // fill, or a full-orange gradient sitting there constantly) is
-    // genuinely fatiguing on a TV screen in a dim room, confirmed on
-    // device. Every card keeps the SAME calm dark background at all
-    // times; the only accent is a colored BORDER, which is far cheaper
-    // on the eyes over a long viewing session while still being
-    // perfectly clear as an indicator. A faint (6% alpha) tint layer
-    // adds gentle per-card color variety on top of that same dark base
-    // — nowhere near the intensity of a full saturated fill.
+    val glassBackground = Brush.verticalGradient(
+        colors = if (isFocused) {
+            listOf(
+                Color.White.copy(alpha = 0.28f),
+                Color(0xFF1E293B).copy(alpha = 0.60f)
+            )
+        } else {
+            listOf(
+                Color.White.copy(alpha = 0.12f),
+                Color(0xFF0F172A).copy(alpha = 0.40f)
+            )
+        }
+    )
+
+    val glassBorderBrush = Brush.linearGradient(
+        colors = if (isFocused) {
+            listOf(Color(0xFFFFC107), Color(0xFFFF9800))
+        } else {
+            listOf(
+                Color.White.copy(alpha = 0.45f),
+                Color.White.copy(alpha = 0.12f)
+            )
+        }
+    )
+
     val content = @Composable {
-        // One shared "glass" treatment for every card — a soft white
-        // sheen fading from the top corner, same on all three, instead
-        // of a different hue per card. Distinction between "featured"
-        // (Live TV) and the others comes entirely from the border
-        // accent below, not from a mismatched color per tile.
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(Color.White.copy(alpha = 0.08f), Color.Transparent),
-                        radius = 420f
-                    )
+                .clip(RoundedCornerShape(if (isTv) 18.dp else 16.dp))
+                .background(glassBackground)
+                .border(
+                    border = BorderStroke(if (isFocused) 2.5.dp else 1.2.dp, glassBorderBrush),
+                    shape = RoundedCornerShape(if (isTv) 18.dp else 16.dp)
                 )
-        )
-
-        Column(
-            modifier = Modifier.fillMaxSize().padding(if (isTv) 26.dp else 16.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Box(
-                    modifier = Modifier
-                        .size(
-                            if (iconRes != null) (if (isTv) 98.dp else 64.dp)
-                            else (if (isTv) 52.dp else 38.dp)
+            // Top diagonal glass reflection sheen
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(Color.White.copy(alpha = 0.15f), Color.Transparent),
+                            start = Offset(0f, 0f),
+                            end = androidx.compose.ui.geometry.Offset(400f, 400f)
                         )
-                        .clip(RoundedCornerShape(if (isTv) 13.dp else 9.dp))
-                        .background(
-                            if (iconRes != null) Color.Transparent
-                            else if (featured) AppColors.ArenaOrange.copy(alpha = 0.18f)
-                            else Color.White.copy(alpha = 0.08f)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (iconRes != null) {
-                        Image(
-                            painter = painterResource(id = iconRes),
-                            contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(if (isTv) 85.dp else 56.dp) // Prominent 85dp icon size
-                        )
-                    } else {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = if (featured) AppColors.ArenaOrange else Color.White,
-                            modifier = Modifier.size(if (isTv) 24.dp else 18.dp)
-                        )
-                    }
-                }
-                Spacer(Modifier.height(if (isTv) 16.dp else 8.dp))
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontWeight = FontWeight.Black,
-                    fontSize = if (isTv) 26.sp else 17.sp
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = subtitle,
-                    color = Color.White.copy(alpha = 0.70f),
-                    fontSize = if (isTv) 15.sp else 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                )
-            }
+                    )
+            )
 
-            if (count != null && countLabel != null) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    HubChip(text = "$count $countLabel")
-                    if (extraChip != null) {
-                        HubChip(text = extraChip)
+            Column(
+                modifier = Modifier.fillMaxSize().padding(if (isTv) 26.dp else 16.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(
+                                if (iconRes != null) (if (isTv) 98.dp else 64.dp)
+                                else (if (isTv) 52.dp else 38.dp)
+                            )
+                            .clip(RoundedCornerShape(if (isTv) 13.dp else 9.dp))
+                            .background(
+                                if (iconRes != null) Color.Transparent
+                                else if (featured) AppColors.ArenaOrange.copy(alpha = 0.18f)
+                                else Color.White.copy(alpha = 0.08f)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (iconRes != null) {
+                            Image(
+                                painter = painterResource(id = iconRes),
+                                contentDescription = null,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.size(if (isTv) 85.dp else 56.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                tint = if (featured) AppColors.ArenaOrange else Color.White,
+                                modifier = Modifier.size(if (isTv) 24.dp else 18.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(if (isTv) 16.dp else 8.dp))
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = if (isTv) 26.sp else 17.sp
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = subtitle,
+                        color = Color.White.copy(alpha = 0.75f),
+                        fontSize = if (isTv) 15.sp else 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                if (count != null && countLabel != null) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        HubChip(text = "$count $countLabel")
+                        if (extraChip != null) {
+                            HubChip(text = extraChip)
+                        }
                     }
                 }
             }
@@ -503,29 +529,25 @@ private fun HubCard(
     }
 
     if (isTv) {
+        val scale by animateFloatAsState(if (isFocused) 1.04f else 1.0f, label = "hub_card_scale")
         TvSurface(
             onClick = onClick,
             modifier = modifier
                 .onFocusChanged { isFocused = it.isFocused }
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
             colors = ClickableSurfaceDefaults.colors(
-                // Genuinely translucent (not opaque) — the app's own
-                // backdrop (the diagonal red-line brand pattern) shows
-                // through faintly, giving a real glass effect rather
-                // than a decorative sheen on a solid panel.
-                containerColor = HubBrand.PanelDark.copy(alpha = 0.55f),
-                focusedContainerColor = HubBrand.PanelDark.copy(alpha = 0.55f)
+                containerColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent
             ),
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.0f),
             border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(3.dp, AppColors.ArenaOrange)),
-                border = Border(
-                    BorderStroke(
-                        if (featured) 1.5.dp else 1.dp,
-                        if (featured) AppColors.ArenaOrange.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.16f)
-                    )
-                )
+                focusedBorder = Border(BorderStroke(0.dp, Color.Transparent)),
+                border = Border(BorderStroke(0.dp, Color.Transparent))
             )
         ) {
             content()
@@ -535,8 +557,7 @@ private fun HubCard(
             onClick = onClick,
             modifier = modifier,
             shape = RoundedCornerShape(16.dp),
-            color = HubBrand.PanelDark,
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f))
+            color = Color.Transparent
         ) {
             Box(modifier = Modifier.fillMaxSize()) { content() }
         }

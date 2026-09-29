@@ -52,16 +52,12 @@ fun AppBackground(
                 contentScale = ContentScale.Crop
             )
             
-            // Commercial Grade Overlay: Opaque Black Layer with Transparency
-            // This ensures backdrops on top show clearly without blending with the mesh
+            // Glassmorphic Transparent Background Layer
+            // Light dimming layer so the background artwork/mesh shines through
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        if (isLite) Color.Black.copy(alpha = 0.2f) // Light dimming for Lite mode
-                        else if (shouldBlur) Color.Black.copy(alpha = 0.6f) 
-                        else Color.Black.copy(alpha = 0.82f)
-                    )
+                    .background(Color.Black.copy(alpha = 0.25f))
             )
         }
         content()
