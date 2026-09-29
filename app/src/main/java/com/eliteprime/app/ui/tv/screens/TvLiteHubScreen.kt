@@ -221,7 +221,7 @@ fun TvLiteHubScreen(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .padding(horizontal = 16.dp),
+                                            .padding(horizontal = 12.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.Center
                                     ) {
@@ -229,15 +229,16 @@ fun TvLiteHubScreen(
                                             imageVector = Icons.Default.EmojiEvents,
                                             contentDescription = null,
                                             tint = Color.Black,
-                                            modifier = Modifier.size(22.dp)
+                                            modifier = Modifier.size(24.dp)
                                         )
-                                        Spacer(Modifier.width(8.dp))
+                                        Spacer(Modifier.width(6.dp))
                                         Text(
-                                            text = stringResource(R.string.nav_sports),
+                                            text = stringResource(R.string.nav_sports).uppercase(Locale.getDefault()),
                                             color = Color.Black,
-                                            fontSize = 16.sp,
+                                            fontSize = 18.sp,
                                             fontWeight = FontWeight.Black,
-                                            maxLines = 1
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
                                 }
