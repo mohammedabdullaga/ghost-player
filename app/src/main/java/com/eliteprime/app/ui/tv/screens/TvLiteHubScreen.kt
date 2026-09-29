@@ -62,6 +62,9 @@ private object HubBrand {
     val GlassBorder = Color.White.copy(alpha = 0.18f)
 }
 
+// Control dashboard visibility of Fast VPN (set to true to restore anytime)
+private const val SHOW_FAST_VPN_ON_DASHBOARD = false
+
 /**
  * Live-ticking clock, driven by real system time — not fabricated data.
  * Matches the reference mockup's top-bar clock.
@@ -291,31 +294,47 @@ fun TvLiteHubScreen(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    HubUtilRow(icon = Icons.Default.Search, label = stringResource(R.string.nav_search), modifier = Modifier.weight(1f), onClick = { logNav("Search", onNavigateToSearch) })
-                    HubUtilRow(icon = Icons.Default.Settings, label = stringResource(R.string.nav_settings), modifier = Modifier.weight(1f), onClick = { logNav("Settings", onNavigateToSettings) })
-                    HubUtilRow(
-                        icon = Icons.Default.Refresh,
-                        label = if (uiState.isSyncing) stringResource(R.string.hub_syncing) else stringResource(R.string.hub_reload),
-                        isLoading = uiState.isSyncing,
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            if (!uiState.isSyncing) {
-                                viewModel.reloadData { success ->
-                                    Toast.makeText(context, if (success) syncSuccessMsg else syncFailedMsg, Toast.LENGTH_SHORT).show()
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        HubIconButton(
+                            icon = Icons.Default.Search,
+                            contentDescription = stringResource(R.string.nav_search),
+                            onClick = { logNav("Search", onNavigateToSearch) }
+                        )
+                        HubIconButton(
+                            icon = Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.nav_settings),
+                            onClick = { logNav("Settings", onNavigateToSettings) }
+                        )
+                        HubIconButton(
+                            icon = Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.hub_reload),
+                            isLoading = uiState.isSyncing,
+                            onClick = {
+                                if (!uiState.isSyncing) {
+                                    viewModel.reloadData { success ->
+                                        Toast.makeText(context, if (success) syncSuccessMsg else syncFailedMsg, Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             }
+                        )
+
+                        if (SHOW_FAST_VPN_ON_DASHBOARD) {
+                            HubToggleRow(
+                                label = stringResource(R.string.hub_fast_vpn),
+                                isEnabled = uiState.isSecureConnectionEnabled,
+                                isAvailable = uiState.isByeDpiAvailable,
+                                isTv = true,
+                                modifier = Modifier.width(220.dp),
+                                onToggle = { enabled -> viewModel.setSecureConnectionEnabled(enabled) }
+                            )
                         }
-                    )
-                    HubToggleRow(
-                        label = stringResource(R.string.hub_fast_vpn),
-                        isEnabled = uiState.isSecureConnectionEnabled,
-                        isAvailable = uiState.isByeDpiAvailable,
-                        isTv = true,
-                        modifier = Modifier.weight(1.8f),
-                        onToggle = { enabled -> viewModel.setSecureConnectionEnabled(enabled) }
-                    )
+                    }
                 }
 
                 Spacer(Modifier.weight(0.5f))
@@ -751,6 +770,63 @@ private fun HubToggleRow(
                         uncheckedThumbColor = Color.White.copy(alpha = 0.4f),
                         uncheckedTrackColor = Color.White.copy(alpha = 0.14f)
                     )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HubIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    isLoading: Boolean = false,
+    accentColor: Color = Color.White,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (isFocused) 1.08f else 1.0f, label = "icon_btn_scale")
+
+    val glassBg = if (isFocused) Color.White else Color(0xFF0F172A).copy(alpha = 0.65f)
+    val glassBorder = if (isFocused) {
+        BorderStroke(2.5.dp, Color(0xFFFFC107))
+    } else {
+        BorderStroke(1.2.dp, Color.White.copy(alpha = 0.22f))
+    }
+
+    TvSurface(
+        onClick = onClick,
+        modifier = modifier
+            .size(56.dp)
+            .onFocusChanged { isFocused = it.isFocused }
+            .graphicsLayer { scaleX = scale; scaleY = scale },
+        shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
+        colors = ClickableSurfaceDefaults.colors(
+            containerColor = Color.Transparent,
+            focusedContainerColor = Color.Transparent
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(16.dp))
+                .background(glassBg)
+                .border(glassBorder, RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    color = if (isFocused) Color.Black else Color(0xFFFFC107),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = contentDescription,
+                    tint = if (isFocused) Color.Black else accentColor,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
