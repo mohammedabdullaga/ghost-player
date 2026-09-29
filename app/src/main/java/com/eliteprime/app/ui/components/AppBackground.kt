@@ -40,7 +40,7 @@ fun AppBackground(
                 Modifier.fillMaxSize()
             }
 
-            val resId = if (isLite) R.drawable.lite_mode_background else R.drawable.app_background
+            val resId = R.drawable.new_tv_background
 
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
