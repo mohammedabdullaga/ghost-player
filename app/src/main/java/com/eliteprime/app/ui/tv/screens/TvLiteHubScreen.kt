@@ -447,10 +447,14 @@ private fun HubCard(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(
                     modifier = Modifier
-                        .size(if (isTv) 52.dp else 38.dp)
+                        .size(
+                            if (iconRes != null) (if (isTv) 78.dp else 56.dp)
+                            else (if (isTv) 52.dp else 38.dp)
+                        )
                         .clip(RoundedCornerShape(if (isTv) 13.dp else 9.dp))
                         .background(
-                            if (featured) AppColors.ArenaOrange.copy(alpha = 0.18f)
+                            if (iconRes != null) Color.Transparent
+                            else if (featured) AppColors.ArenaOrange.copy(alpha = 0.18f)
                             else Color.White.copy(alpha = 0.08f)
                         ),
                     contentAlignment = Alignment.Center
@@ -460,7 +464,7 @@ private fun HubCard(
                             painter = painterResource(id = iconRes),
                             contentDescription = null,
                             contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(if (isTv) 34.dp else 24.dp)
+                            modifier = Modifier.size(if (isTv) 51.dp else 36.dp) // 150% size (34.dp -> 51.dp)
                         )
                     } else {
                         Icon(
