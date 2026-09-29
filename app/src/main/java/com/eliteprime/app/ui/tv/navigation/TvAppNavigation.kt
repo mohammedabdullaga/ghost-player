@@ -20,6 +20,7 @@ import com.eliteprime.app.ui.screens.login.LoginViewModel
 import com.eliteprime.app.ui.screens.player.PlayerScreen
 import com.eliteprime.app.ui.screens.player.PlayerViewModel
 import com.eliteprime.app.ui.tv.screens.*
+import com.eliteprime.app.ui.tv.screens.sports.SportsScreen
 import com.eliteprime.app.util.DeviceRenderProfile
 
 /**
@@ -81,8 +82,18 @@ fun TvAppNavigation(
                 onNavigateToLive = { navigateFromHubToLeaf("live") },
                 onNavigateToMovies = { navigateFromHubToLeaf("movies") },
                 onNavigateToSeries = { navigateFromHubToLeaf("series") },
+                onNavigateToSports = { navigateFromHubToLeaf("sports") },
                 onNavigateToSearch = { navigateFromHubToLeaf("search") },
                 onNavigateToSettings = { navigateFromHubToLeaf("settings") }
+            )
+        }
+
+        composable("sports") {
+            SportsScreen(
+                onBack = { navController.popBackStack() },
+                onPlayChannel = { channel ->
+                    navController.navigate("player/${channel.id}/live/${Uri.encode(channel.name)}?from=sports")
+                }
             )
         }
 
@@ -121,7 +132,7 @@ fun TvAppNavigation(
             TvLiveTvScreen(
                 onBack = { navController.popBackStack() },
                 onPlayChannel = { channel ->
-                    navController.navigate("player/${channel.id}/live/${Uri.encode(channel.name)}")
+                    navController.navigate("player/${channel.id}/live/${Uri.encode(channel.name)}?from=live_guide")
                 }
             )
         }
@@ -217,12 +228,17 @@ fun TvAppNavigation(
         }
 
         composable(
-            "player/{id}/{type}/{title}?url={url}",
+            "player/{id}/{type}/{title}?url={url}&from={from}",
             arguments = listOf(
                 navArgument("id") { type = NavType.LongType },
                 navArgument("type") { type = NavType.StringType },
                 navArgument("title") { type = NavType.StringType },
                 navArgument("url") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("from") {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null

@@ -1,5 +1,6 @@
 package com.eliteprime.app.di
 
+import com.eliteprime.app.data.remote.SportsApiService
 import com.eliteprime.app.data.remote.TmdbApiService
 import com.eliteprime.app.data.remote.XtreamApi
 import com.eliteprime.app.data.remote.util.RateLimitInterceptor
@@ -182,6 +183,17 @@ object NetworkModule {
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
             .create(XtreamApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSportsApiService(client: OkHttpClient, gson: Gson): SportsApiService {
+        return Retrofit.Builder()
+            .baseUrl("https://cms.ghosttvs.com/")
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create(gson))
+            .build()
+            .create(SportsApiService::class.java)
     }
 }
 

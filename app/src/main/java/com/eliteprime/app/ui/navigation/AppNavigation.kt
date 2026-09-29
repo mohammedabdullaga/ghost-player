@@ -237,12 +237,17 @@ fun AppNavigation(
             )
         }
         composable(
-            "player/{id}/{type}/{title}?url={url}",
+            "player/{id}/{type}/{title}?url={url}&from={from}",
             arguments = listOf(
                 navArgument("id") { type = NavType.LongType },
                 navArgument("type") { type = NavType.StringType },
                 navArgument("title") { type = NavType.StringType },
                 navArgument("url") { 
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+                navArgument("from") {
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null

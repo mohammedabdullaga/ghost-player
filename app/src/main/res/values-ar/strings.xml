@@ -278,6 +278,11 @@
     <string name="settings_syncing">جاري التحميل...</string>
     <string name="settings_sync_data">تحديث البيانات</string>
     <string name="settings_refresh_data_desc">تحديث القنوات وقوائم الفيديو</string>
+    <string name="nav_sports">رياضة</string>
+    <string name="sports_live_badge">مباشر</string>
+    <string name="sports_today">اليوم</string>
+    <string name="sports_tomorrow">غداً</string>
+    <string name="channel_not_found">القناة غير متوفرة في اشتراكك الحالي</string>
     <string name="settings_clear_all">مسح الكل</string>
     <string name="settings_edit_account_desc">تعديل بيانات الحساب</string>
     <string name="settings_edit_account_btn">تعديل</string>

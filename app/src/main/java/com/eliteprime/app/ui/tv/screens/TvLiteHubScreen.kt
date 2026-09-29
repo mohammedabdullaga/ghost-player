@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.tv.material3.Border
 import androidx.tv.material3.ClickableSurfaceDefaults
 import androidx.tv.material3.Surface as TvSurface
@@ -80,6 +82,7 @@ fun TvLiteHubScreen(
     onNavigateToLive: () -> Unit,
     onNavigateToMovies: () -> Unit,
     onNavigateToSeries: () -> Unit,
+    onNavigateToSports: () -> Unit = {},
     onNavigateToSearch: () -> Unit,
     onNavigateToSettings: () -> Unit,
     viewModel: TvLiteHubViewModel = hiltViewModel()
@@ -154,6 +157,51 @@ fun TvLiteHubScreen(
                         ArenaLiveLogo(textSize = 24.sp)
 
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            // Dedicated "Sports" (رياضة) focusable button
+                            var isSportsFocused by remember { mutableStateOf(false) }
+                            val sportsScale by animateFloatAsState(if (isSportsFocused) 1.05f else 1.0f, label = "sports_btn_scale")
+
+                            TvSurface(
+                                onClick = { logNav("Sports", onNavigateToSports) },
+                                modifier = Modifier
+                                    .onFocusChanged { isSportsFocused = it.isFocused }
+                                    .graphicsLayer { scaleX = sportsScale; scaleY = sportsScale },
+                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(9.dp)),
+                                border = ClickableSurfaceDefaults.border(
+                                    focusedBorder = Border(
+                                        border = BorderStroke(2.dp, Color(0xFFFFC107)),
+                                        shape = RoundedCornerShape(9.dp)
+                                    ),
+                                    border = Border(
+                                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.14f)),
+                                        shape = RoundedCornerShape(9.dp)
+                                    )
+                                ),
+                                colors = ClickableSurfaceDefaults.colors(
+                                    containerColor = HubBrand.PanelDark.copy(alpha = 0.85f),
+                                    focusedContainerColor = Color.White
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.EmojiEvents,
+                                        contentDescription = null,
+                                        tint = if (isSportsFocused) Color.Black else Color(0xFFFFC107),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.nav_sports),
+                                        color = if (isSportsFocused) Color.Black else Color.White,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
                             if (!uiState.formattedExpiryDate.isNullOrBlank()) {
                                 Surface(
                                     color = HubBrand.PanelDark.copy(alpha = 0.85f),

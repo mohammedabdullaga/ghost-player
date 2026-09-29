@@ -64,7 +64,7 @@ fun TvMainShell(
         emptyList()
     } else {
         listOf(
-            "home", "live", "movies", "series", "search", "settings", 
+            "home", "sports", "live", "movies", "series", "search", "settings", 
             "trending", "continue_watching", "downloads",
             "movie_details/{id}", "series_details/{id}"
         )
@@ -300,6 +300,11 @@ private fun TvTopNavBar(
                 isSelected = currentRoute == "live",
                 modifier = if (isLiteMode) Modifier.focusRequester(navHomeFocusRequester) else Modifier
             ) { onNavigate("live") }
+            TvTopNavItem(
+                label = stringResource(R.string.nav_sports),
+                icon = Icons.Default.EmojiEvents,
+                isSelected = currentRoute == "sports"
+            ) { onNavigate("sports") }
             TvTopNavItem(stringResource(R.string.nav_movies), Icons.Default.Movie, currentRoute == "movies") { onNavigate("movies") }
             TvTopNavItem(stringResource(R.string.nav_series), Icons.Default.VideoLibrary, currentRoute == "series") { onNavigate("series") }
         }

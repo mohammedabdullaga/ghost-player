@@ -45,6 +45,7 @@ class PlayerViewModel @Inject constructor(
 
     private val streamId: Long = savedStateHandle.get<Long>("id") ?: 0
     val type: String = savedStateHandle.get<String>("type") ?: "live"
+    private val from: String? = savedStateHandle.get<String>("from")
     private var initialTitle: String = savedStateHandle.get<String>("title") ?: ""
     private val overrideUrl: String? = savedStateHandle.get<String>("url")
 
@@ -679,15 +680,15 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun onPlayerScreenDisposed() {
-        Log.d("FullscreenTransition", "Player screen disposed (leaving fullscreen) at elapsed=${SystemClock.elapsedRealtime()}")
+        Log.d("FullscreenTransition", "Player screen disposed (leaving fullscreen) at elapsed=${SystemClock.elapsedRealtime()} | type=$type | from=$from")
         
-        // POC FIX: Direct transition from FULLSCREEN to PREVIEW for Live TV.
-        // This avoids the intermediate HIDDEN state that unmounts the surface.
-        if (type == "live") {
+        // Direct transition from FULLSCREEN to PREVIEW is ONLY for Live TV guide
+        // where an embedded preview player window is rendered on screen.
+        if (type == "live" && (from == "live_guide" || from == "live_preview")) {
             globalPlayerState.enterPreview(playerEngine)
         } else {
-            // Stop the engine and clear its surface so VOD doesn't keep
-            // playing audio / hold a dangling surface after leaving fullscreen.
+            // Stop the engine and clear its surface so audio/video stops
+            // completely when returning to Sports, Home, Search, VOD, etc.
             playerEngine.stop()
             playerEngine.clearRenderBinding()
             globalPlayerState.hide()
@@ -696,8 +697,10 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        if (type != "live") {
+        if (type != "live" || (from != "live_guide" && from != "live_preview")) {
             playerEngine.stop()
+            playerEngine.clearRenderBinding()
+            globalPlayerState.hide()
         }
     }
 }

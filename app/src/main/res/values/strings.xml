@@ -278,6 +278,11 @@
     <string name="settings_syncing">Syncing...</string>
     <string name="settings_sync_data">SYNC DATA</string>
     <string name="settings_refresh_data_desc">Update channels and VOD lists</string>
+    <string name="nav_sports">Sports</string>
+    <string name="sports_live_badge">LIVE</string>
+    <string name="sports_today">Today</string>
+    <string name="sports_tomorrow">Tomorrow</string>
+    <string name="channel_not_found">Channel not found in active playlist</string>
     <string name="settings_clear_all">Clear all</string>
     <string name="settings_edit_account_desc">Edit account credentials</string>
     <string name="settings_edit_account_btn">EDIT</string>
