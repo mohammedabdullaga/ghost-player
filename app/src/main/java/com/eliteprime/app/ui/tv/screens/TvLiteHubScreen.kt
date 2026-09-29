@@ -245,7 +245,7 @@ fun TvLiteHubScreen(
                 )
 
                 val orderedSpecs = listOf(
-                    CardSpec(stringResource(R.string.nav_live_tv), "تصفح جميع القنوات المباشرة", Icons.Default.LiveTv, uiState.liveCount, "قناة", "HD / 4K", true, 1.25f, firstTileRequester, iconRes = R.drawable.orange_live_tv_icon, onClick = { logNav("Live TV", onNavigateToLive) }),
+                    CardSpec(stringResource(R.string.nav_live_tv), "تصفح جميع القنوات المباشرة", Icons.Default.LiveTv, uiState.liveCount, "قناة", "HD / 4K", true, 1.25f, firstTileRequester, iconRes = R.drawable.arena_tv_icon, onClick = { logNav("Live TV", onNavigateToLive) }),
                     CardSpec(stringResource(R.string.nav_movies), "شاهد أحدث وأفضل الأفلام", Icons.Default.Movie, uiState.movieCount, "فيلم", weight = 1f, focusRequester = null, onClick = { logNav("Movies", onNavigateToMovies) }),
                     CardSpec(stringResource(R.string.nav_series), "مجموعة كبيرة من المسلسلات", Icons.Default.VideoLibrary, uiState.seriesCount, "مسلسل", weight = 1f, focusRequester = null, onClick = { logNav("Series", onNavigateToSeries) })
                 )
@@ -330,7 +330,7 @@ fun TvLiteHubScreen(
                     Row(modifier = Modifier.fillMaxWidth().height(150.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         HubCard(
                             title = stringResource(R.string.nav_live_tv), subtitle = "تصفح جميع القنوات المباشرة",
-                            icon = Icons.Default.LiveTv, iconRes = R.drawable.orange_live_tv_icon, count = uiState.liveCount, countLabel = "قناة",
+                            icon = Icons.Default.LiveTv, iconRes = R.drawable.arena_tv_icon, count = uiState.liveCount, countLabel = "قناة",
                             featured = false, focusRequester = null, isTv = false,
                             modifier = Modifier.weight(1f), onClick = { logNav("Mobile Live TV", onNavigateToLive) }
                         )
