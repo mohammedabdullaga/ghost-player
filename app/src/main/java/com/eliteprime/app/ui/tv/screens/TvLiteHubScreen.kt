@@ -225,7 +225,7 @@ fun TvLiteHubScreen(
                         }
                     }
                 }
-                Spacer(Modifier.weight(0.5f))
+                Spacer(Modifier.height(32.dp))
 
                 // Cards defined in natural priority order: Live TV (Start), Movies, Series
                 data class CardSpec(
@@ -263,13 +263,13 @@ fun TvLiteHubScreen(
                             extraChip = spec.extraChip,
                             featured = spec.featured,
                             focusRequester = spec.focusRequester,
-                            modifier = Modifier.weight(spec.weight).height(280.dp),
+                            modifier = Modifier.weight(spec.weight).height(250.dp),
                             onClick = spec.onClick
                         )
                     }
                 }
 
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(18.dp))
 
                 // Prominent Bottom Sports Feature Banner
                 SportsBannerCard(
@@ -726,8 +726,8 @@ private fun SportsBannerCard(
     val glassBg = Brush.horizontalGradient(
         colors = if (isFocused) {
             listOf(
-                Color(0xFF1E293B).copy(alpha = 0.85f),
-                Color(0xFF0F172A).copy(alpha = 0.70f)
+                AppColors.ArenaOrange.copy(alpha = 0.25f),
+                Color(0xFF0F172A).copy(alpha = 0.75f)
             )
         } else {
             listOf(
@@ -738,16 +738,16 @@ private fun SportsBannerCard(
     )
 
     val glassBorder = if (isFocused) {
-        BorderStroke(2.5.dp, Color(0xFFFFC107))
+        BorderStroke(2.5.dp, AppColors.ArenaOrange)
     } else {
-        BorderStroke(1.2.dp, Color(0xFFFFC107).copy(alpha = 0.45f))
+        BorderStroke(1.2.dp, AppColors.ArenaOrange.copy(alpha = 0.50f))
     }
 
     TvSurface(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(130.dp)
+            .height(105.dp)
             .onFocusChanged { isFocused = it.isFocused }
             .graphicsLayer { scaleX = scale; scaleY = scale },
         shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(18.dp)),
@@ -763,14 +763,14 @@ private fun SportsBannerCard(
                 .background(glassBg)
                 .border(glassBorder, RoundedCornerShape(18.dp))
         ) {
-            // Radial Sheen & Ambient Glow
+            // Orange Radial Glow Sheen
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.radialGradient(
-                            colors = listOf(Color(0xFFFFC107).copy(alpha = 0.12f), Color.Transparent),
-                            radius = 600f
+                            colors = listOf(AppColors.ArenaOrange.copy(alpha = 0.20f), Color.Transparent),
+                            radius = 500f
                         )
                     )
             )
@@ -778,33 +778,29 @@ private fun SportsBannerCard(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Left/Start side: Trophy Icon + Title & Copywriting Description
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(64.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(Color(0xFFFFC107).copy(alpha = 0.25f), Color(0xFFFF9800).copy(alpha = 0.15f))
-                                )
-                            )
-                            .border(BorderStroke(1.dp, Color(0xFFFFC107).copy(alpha = 0.4f)), RoundedCornerShape(16.dp)),
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(AppColors.ArenaOrange.copy(alpha = 0.20f))
+                            .border(BorderStroke(1.dp, AppColors.ArenaOrange.copy(alpha = 0.5f)), RoundedCornerShape(14.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.EmojiEvents,
                             contentDescription = null,
-                            tint = Color(0xFFFFC107),
-                            modifier = Modifier.size(36.dp)
+                            tint = AppColors.ArenaOrange,
+                            modifier = Modifier.size(28.dp)
                         )
                     }
 
@@ -813,55 +809,55 @@ private fun SportsBannerCard(
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
                                 text = stringResource(R.string.hub_sports_banner_title),
                                 color = Color.White,
-                                fontSize = 22.sp,
+                                fontSize = 19.sp,
                                 fontWeight = FontWeight.Black
                             )
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .clip(RoundedCornerShape(5.dp))
                                     .background(Color(0xFFE50914))
-                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    .padding(horizontal = 7.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = stringResource(R.string.sports_live_badge),
                                     color = Color.White,
-                                    fontSize = 10.sp,
+                                    fontSize = 9.5.sp,
                                     fontWeight = FontWeight.Black
                                 )
                             }
                         }
 
-                        Spacer(Modifier.height(4.dp))
+                        Spacer(Modifier.height(2.dp))
 
                         Text(
                             text = stringResource(R.string.hub_sports_banner_desc),
                             color = Color.White.copy(alpha = 0.75f),
-                            fontSize = 14.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            maxLines = 2,
+                            maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                Spacer(Modifier.width(16.dp))
+                Spacer(Modifier.width(12.dp))
 
-                // Right/End side: Action Pill Button
+                // Right/End side: Orange Action Button
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isFocused) Color(0xFFFFC107) else Color.White.copy(alpha = 0.12f))
-                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isFocused) AppColors.ArenaOrange else Color.White.copy(alpha = 0.12f))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = if (isFocused) "دخول القسم" else "رياضة مباشر",
                         color = if (isFocused) Color.Black else Color.White,
-                        fontSize = 14.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
