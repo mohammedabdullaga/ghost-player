@@ -157,54 +157,83 @@ fun TvLiteHubScreen(
                     val (time, date) = rememberNowStrings()
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        ArenaLiveLogo(textSize = 24.sp)
-
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            // Dedicated "Sports" (رياضة) focusable pill button/card beside search
+                            // Dedicated Orange Glass "Sports" (رياضة) focusable card (matching 56dp height of Settings icon)
                             var isSportsFocused by remember { mutableStateOf(false) }
                             val sportsScale by animateFloatAsState(if (isSportsFocused) 1.05f else 1.0f, label = "sports_btn_scale")
+
+                            val sportsGlassBg = Brush.verticalGradient(
+                                colors = if (isSportsFocused) {
+                                    listOf(
+                                        Color.White,
+                                        Color.White.copy(alpha = 0.90f)
+                                    )
+                                } else {
+                                    listOf(
+                                        Color.White.copy(alpha = 0.28f),
+                                        AppColors.ArenaOrange
+                                    )
+                                }
+                            )
 
                             TvSurface(
                                 onClick = { logNav("Sports", onNavigateToSports) },
                                 modifier = Modifier
+                                    .height(56.dp)
                                     .onFocusChanged { isSportsFocused = it.isFocused }
                                     .graphicsLayer { scaleX = sportsScale; scaleY = sportsScale },
-                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
-                                border = ClickableSurfaceDefaults.border(
-                                    focusedBorder = Border(
-                                        border = BorderStroke(2.dp, Color(0xFFFFC107)),
-                                        shape = RoundedCornerShape(10.dp)
-                                    ),
-                                    border = Border(
-                                        border = BorderStroke(1.2.dp, Color.White.copy(alpha = 0.22f)),
-                                        shape = RoundedCornerShape(10.dp)
-                                    )
-                                ),
+                                shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
                                 colors = ClickableSurfaceDefaults.colors(
-                                    containerColor = Color(0xFF0F172A).copy(alpha = 0.70f),
-                                    focusedContainerColor = Color.White
+                                    containerColor = Color.Transparent,
+                                    focusedContainerColor = Color.Transparent
                                 )
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(sportsGlassBg)
+                                        .border(
+                                            border = BorderStroke(
+                                                if (isSportsFocused) 2.5.dp else 1.2.dp,
+                                                if (isSportsFocused) Color.White else Color.White.copy(alpha = 0.40f)
+                                            ),
+                                            shape = RoundedCornerShape(16.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.EmojiEvents,
-                                        contentDescription = null,
-                                        tint = if (isSportsFocused) Color.Black else Color(0xFFFFC107),
-                                        modifier = Modifier.size(18.dp)
+                                    // Glass reflection sheen
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(
+                                                Brush.linearGradient(
+                                                    colors = listOf(Color.White.copy(alpha = 0.20f), Color.Transparent)
+                                                )
+                                            )
                                     )
-                                    Text(
-                                        text = stringResource(R.string.nav_sports),
-                                        color = if (isSportsFocused) Color.Black else Color.White,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
+
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.EmojiEvents,
+                                            contentDescription = null,
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                        Text(
+                                            text = stringResource(R.string.nav_sports),
+                                            color = Color.Black,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Black
+                                        )
+                                    }
                                 }
                             }
 
