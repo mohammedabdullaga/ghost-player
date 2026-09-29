@@ -54,12 +54,9 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 private object HubBrand {
-    // Neutral gray, not brownish — the previous 0xFF141010 had a red
-    // channel bias that read as "dark brown" rather than a clean
-    // neutral tone.
-    val PanelDark = Color(0xFF1B1C1F)
-    val Background = Color(0xFF0C0F14)
-    val GlassBorder = Color.White.copy(alpha = 0.14f)
+    val PanelDark = Color(0xFF0C101A) // Deep Midnight Obsidian Glass
+    val Background = Color(0xFF070A12)
+    val GlassBorder = Color.White.copy(alpha = 0.18f)
 }
 
 /**
@@ -448,7 +445,7 @@ private fun HubCard(
                 Box(
                     modifier = Modifier
                         .size(
-                            if (iconRes != null) (if (isTv) 90.dp else 58.dp)
+                            if (iconRes != null) (if (isTv) 98.dp else 64.dp)
                             else (if (isTv) 52.dp else 38.dp)
                         )
                         .clip(RoundedCornerShape(if (isTv) 13.dp else 9.dp))
@@ -464,7 +461,7 @@ private fun HubCard(
                             painter = painterResource(id = iconRes),
                             contentDescription = null,
                             contentScale = ContentScale.Fit,
-                            modifier = Modifier.size(if (isTv) 76.dp else 50.dp) // Much larger icon size
+                            modifier = Modifier.size(if (isTv) 85.dp else 56.dp) // Prominent 85dp icon size
                         )
                     } else {
                         Icon(
@@ -485,7 +482,7 @@ private fun HubCard(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = subtitle,
-                    color = Color.White.copy(alpha = 0.55f),
+                    color = Color.White.copy(alpha = 0.70f),
                     fontSize = if (isTv) 15.sp else 12.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
