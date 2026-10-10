@@ -31,7 +31,7 @@ void reset_params(void) {
 }
 
 JNIEXPORT jint JNICALL
-Java_com_eliteprime_app_data_remote_proxy_SecureStreamingManager_jniStartProxy(JNIEnv *env, jobject thiz, jobjectArray args) {
+Java_com_ghost_tv_data_remote_proxy_SecureStreamingManager_jniStartProxy(JNIEnv *env, jobject thiz, jobjectArray args) {
     if (g_proxy_running) return -1;
     int argc = (*env)->GetArrayLength(env, args);
     char **argv = calloc(argc, sizeof(char *));
@@ -53,7 +53,7 @@ Java_com_eliteprime_app_data_remote_proxy_SecureStreamingManager_jniStartProxy(J
 }
 
 JNIEXPORT jint JNICALL
-Java_com_eliteprime_app_data_remote_proxy_SecureStreamingManager_jniStopProxy(JNIEnv *env, jobject thiz) {
+Java_com_ghost_tv_data_remote_proxy_SecureStreamingManager_jniStopProxy(JNIEnv *env, jobject thiz) {
     if (!g_proxy_running) return -1;
     shutdown(server_fd, SHUT_RDWR);
     g_proxy_running = 0;
@@ -61,7 +61,7 @@ Java_com_eliteprime_app_data_remote_proxy_SecureStreamingManager_jniStopProxy(JN
 }
 
 JNIEXPORT jint JNICALL
-Java_com_eliteprime_app_data_remote_proxy_SecureStreamingManager_jniForceClose(JNIEnv *env, jobject thiz) {
+Java_com_ghost_tv_data_remote_proxy_SecureStreamingManager_jniForceClose(JNIEnv *env, jobject thiz) {
     if (close(server_fd) == -1) return -1;
     g_proxy_running = 0;
     return 0;

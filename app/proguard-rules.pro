@@ -1,5 +1,5 @@
 # -------------------------------------------------------------------------
-# ArenaLive - Minimum Safe Protection (Mixed Device Compatibility)
+# GHOST TV - Minimum Safe Protection (Mixed Device Compatibility)
 # -------------------------------------------------------------------------
 
 # Disable aggressive bytecode optimizations to prevent ART/JIT compiler bugs on budget TV boxes
@@ -29,9 +29,9 @@
 -keepclasseswithmembernames class * {
     native <methods>;
 }
-# MUST keep the class name itself — native-lib.c calls FindClass("com/eliteprime/app/data/remote/proxy/SecureStreamingManager")
--keep class com.eliteprime.app.data.remote.proxy.SecureStreamingManager { *; }
--keepclassmembers class com.eliteprime.app.data.remote.proxy.SecureStreamingManager {
+# MUST keep the class name itself — native-lib.c calls FindClass("com/ghost/tv/data/remote/proxy/SecureStreamingManager")
+-keep class com.ghost.tv.data.remote.proxy.SecureStreamingManager { *; }
+-keepclassmembers class com.ghost.tv.data.remote.proxy.SecureStreamingManager {
     native <methods>;
 }
 
@@ -40,9 +40,9 @@
 # -------------------------------------------------------------------------
 -keep class io.objectbox.** { *; }
 -keep interface io.objectbox.** { *; }
--keep class com.eliteprime.app.data.local.entity.** { *; }
--keepclassmembers class com.eliteprime.app.data.local.entity.** { *; }
--keep class com.eliteprime.app.data.local.entity.MyObjectBox { *; }
+-keep class com.ghost.tv.data.local.entity.** { *; }
+-keepclassmembers class com.ghost.tv.data.local.entity.** { *; }
+-keep class com.ghost.tv.data.local.entity.MyObjectBox { *; }
 
 # -------------------------------------------------------------------------
 # 4. Media Players (Media3 ExoPlayer & libVLC)
@@ -52,8 +52,8 @@
 -keepclassmembers class org.videolan.libvlc.** { *; }
 
 -keep class androidx.media3.** { *; }
--keep class com.eliteprime.app.player.** { *; }
--keepclassmembers class com.eliteprime.app.player.** { *; }
+-keep class com.ghost.tv.player.** { *; }
+-keepclassmembers class com.ghost.tv.player.** { *; }
 
 # -------------------------------------------------------------------------
 # 5. Serialization, Network DTOs & Data Models
@@ -66,20 +66,20 @@
 }
 
 # Keep all Remote API models, responses, and DTOs
--keep class com.eliteprime.app.data.remote.** { *; }
--keepclassmembers class com.eliteprime.app.data.remote.** { *; }
+-keep class com.ghost.tv.data.remote.** { *; }
+-keepclassmembers class com.ghost.tv.data.remote.** { *; }
 
 # Keep all Repositories & Data Managers
--keep class com.eliteprime.app.data.repository.** { *; }
--keepclassmembers class com.eliteprime.app.data.repository.** { *; }
--keep class com.eliteprime.app.data.manager.** { *; }
--keepclassmembers class com.eliteprime.app.data.manager.** { *; }
+-keep class com.ghost.tv.data.repository.** { *; }
+-keepclassmembers class com.ghost.tv.data.repository.** { *; }
+-keep class com.ghost.tv.data.manager.** { *; }
+-keepclassmembers class com.ghost.tv.data.manager.** { *; }
 
 # Keep all Domain models and ObjectBox entities
--keep class com.eliteprime.app.domain.model.** { *; }
--keepclassmembers class com.eliteprime.app.domain.model.** { *; }
+-keep class com.ghost.tv.domain.model.** { *; }
+-keepclassmembers class com.ghost.tv.domain.model.** { *; }
 
--keep class com.eliteprime.app.data.remote.util.FlexibleStringAdapter { *; }
+-keep class com.ghost.tv.data.remote.util.FlexibleStringAdapter { *; }
 
 # Retrofit
 -keep class retrofit2.** { *; }
@@ -109,7 +109,7 @@
 # 6. Dependency Injection (Hilt / Dagger)
 # -------------------------------------------------------------------------
 -keep class dagger.hilt.** { *; }
--keep class com.eliteprime.app.di.** { *; }
+-keep class com.ghost.tv.di.** { *; }
 -keepclassmembers class * {
     @javax.inject.Inject <init>(...);
     @jakarta.inject.Inject <init>(...);
@@ -146,4 +146,3 @@
 -keepclassmembers class androidx.compose.ui.platform.** { *; }
 -keepclassmembers class androidx.compose.ui.graphics.layer.** { *; }
 -keepclassmembers class androidx.compose.ui.viewinterop.** { *; }
-

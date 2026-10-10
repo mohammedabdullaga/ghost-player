@@ -1,0 +1,116 @@
+package com.ghost.tv.player.playback
+
+import androidx.media3.common.C
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.HttpDataSource
+import androidx.media3.exoplayer.source.BehindLiveWindowException
+import androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+
+private const val FAST_TRANSIENT_RETRY_DELAY_MS = 500L
+private const val LIVE_TRANSIENT_RETRY_ATTEMPTS = 10
+private const val LIVE_HLS_MALFORMED_RETRY_ATTEMPTS_AFTER_START = 12
+
+@UnstableApi
+data class PlaybackRetryContext(
+    val resolvedStreamType: ResolvedStreamType,
+    val timeoutProfile: PlayerTimeoutProfile
+) {
+    val isLive: Boolean
+        get() = resolvedStreamType.isLive
+}
+
+@UnstableApi
+class PlayerRetryPolicy(
+    private val streamContext: PlaybackRetryContext,
+    private val isReady: () -> Boolean
+) : LoadErrorHandlingPolicy {
+
+    override fun getFallbackSelectionFor(
+        fallbackOptions: LoadErrorHandlingPolicy.FallbackOptions,
+        loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo
+    ): LoadErrorHandlingPolicy.FallbackSelection? = null
+
+    override fun getMinimumLoadableRetryCount(dataType: Int): Int {
+        return when {
+            streamContext.isLive && dataType == C.DATA_TYPE_MANIFEST -> LIVE_TRANSIENT_RETRY_ATTEMPTS
+            streamContext.isLive && dataType == C.DATA_TYPE_MEDIA -> LIVE_TRANSIENT_RETRY_ATTEMPTS
+            dataType == C.DATA_TYPE_MANIFEST -> 3
+            dataType == C.DATA_TYPE_MEDIA -> if (streamContext.resolvedStreamType == ResolvedStreamType.PROGRESSIVE) 2 else 2
+            else -> 1
+        }
+    }
+
+    override fun getRetryDelayMsFor(loadErrorInfo: LoadErrorHandlingPolicy.LoadErrorInfo): Long {
+        val attempt = loadErrorInfo.errorCount
+        val error = loadErrorInfo.exception
+        
+        if (!shouldRetry(error, attempt)) {
+            return C.TIME_UNSET
+        }
+        
+        return when (attempt) {
+            1 -> 1_000L
+            2 -> 2_500L
+            else -> 5_000L
+        }.coerceAtMost(5_000L)
+    }
+
+    private fun shouldRetry(error: Throwable, attempt: Int): Boolean {
+        val category = PlayerErrorClassifier.classify(error)
+        val ready = isReady()
+        
+        if (ready && category in setOf(PlaybackErrorCategory.DECODER, PlaybackErrorCategory.DRM)) {
+            return false
+        }
+        
+        val maxAttempts = maxAttemptsFor(error, ready)
+        return attempt <= maxAttempts && maxAttempts > 0
+    }
+
+    private fun maxAttemptsFor(error: Throwable, playbackStarted: Boolean): Int {
+        return when (PlayerErrorClassifier.classify(error)) {
+            PlaybackErrorCategory.DRM,
+            PlaybackErrorCategory.DECODER,
+            PlaybackErrorCategory.CLEAR_TEXT_BLOCKED,
+            PlaybackErrorCategory.SSL,
+            PlaybackErrorCategory.HTTP_AUTH -> 0
+
+            PlaybackErrorCategory.FORMAT_UNSUPPORTED -> if (playbackStarted) 1 else 0
+
+            PlaybackErrorCategory.LIVE_WINDOW -> 1
+            PlaybackErrorCategory.HTTP_SERVER -> {
+                if (streamContext.isLive) LIVE_TRANSIENT_RETRY_ATTEMPTS else 2
+            }
+            PlaybackErrorCategory.PROVIDER_LIMIT,
+            PlaybackErrorCategory.EMPTY_RESPONSE -> 0
+            PlaybackErrorCategory.NETWORK -> when {
+                error.hasCause<UnknownHostException>() -> 1
+                error.hasCause<SocketTimeoutException>() || error.hasCause<ConnectException>() ->
+                    if (streamContext.isLive) LIVE_TRANSIENT_RETRY_ATTEMPTS else 2
+                !playbackStarted -> if (streamContext.isLive) LIVE_TRANSIENT_RETRY_ATTEMPTS else 2
+                else -> 1
+            }
+
+            PlaybackErrorCategory.SOURCE_MALFORMED -> when {
+                streamContext.resolvedStreamType == ResolvedStreamType.HLS && playbackStarted ->
+                    LIVE_HLS_MALFORMED_RETRY_ATTEMPTS_AFTER_START
+                playbackStarted -> 0
+                else -> 1
+            }
+            PlaybackErrorCategory.UNKNOWN -> when {
+                streamContext.isLive && playbackStarted -> LIVE_TRANSIENT_RETRY_ATTEMPTS
+                playbackStarted -> 0
+                else -> 1
+            }
+        }
+    }
+
+    override fun onLoadTaskConcluded(loadTaskId: Long) = Unit
+
+    private inline fun <reified T : Throwable> Throwable.hasCause(): Boolean {
+        return generateSequence(this) { it.cause }.any { it is T }
+    }
+}

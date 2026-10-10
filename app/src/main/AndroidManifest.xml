@@ -15,7 +15,7 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <application
-        android:name=".ElitePrimeApp"
+        android:name=".GhostTvApp"
         android:allowBackup="true"
         android:largeHeap="true"
         android:usesCleartextTraffic="true"

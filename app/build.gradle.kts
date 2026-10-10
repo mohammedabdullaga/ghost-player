@@ -12,11 +12,11 @@ plugins {
 }
 
 android {
-    namespace = "com.eliteprime.app"
+    namespace = "com.ghost.tv"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.eliteprime.app"
+        applicationId = "com.ghost.tv"
         minSdk = 25
         targetSdk = 37
         versionCode = 13
