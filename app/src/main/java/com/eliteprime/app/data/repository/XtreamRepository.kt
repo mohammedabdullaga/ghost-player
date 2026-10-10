@@ -483,6 +483,12 @@ class XtreamRepository @Inject constructor(
 
                 info.rating?.toDoubleOrNull()?.let { if (it > 0) series.rating = it }
                 series.backdropUrl = info.backdropPath?.firstOrNull() ?: info.movieImage ?: info.cover
+                
+                // Re-read existing series from ObjectBox to preserve user flags (e.g. isFavorite)
+                seriesBox.get(series.id)?.let { existing ->
+                    series.isFavorite = existing.isFavorite
+                    series.lastWatchedAt = existing.lastWatchedAt
+                }
                 seriesBox.put(series)
             }
             
@@ -579,6 +585,14 @@ class XtreamRepository @Inject constructor(
                 }
 
                 info.rating?.toDoubleOrNull()?.let { if (it > 0) movie.rating = it }
+                
+                // Re-read existing movie from ObjectBox to preserve user flags (e.g. isFavorite, progress)
+                movieBox.get(movie.id)?.let { existing ->
+                    movie.isFavorite = existing.isFavorite
+                    movie.lastWatchedAt = existing.lastWatchedAt
+                    movie.watchProgress = existing.watchProgress
+                    movie.totalDuration = existing.totalDuration
+                }
                 movieBox.put(movie)
             }
         } catch (e: Exception) {

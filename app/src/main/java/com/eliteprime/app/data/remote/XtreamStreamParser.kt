@@ -47,18 +47,25 @@ class XtreamStreamParser @Inject constructor(
         var count = 0
         val writeChannel = Channel<List<LiveStream>>(capacity = 50) // More headroom for writes
         
+        val favoriteLiveIds = runCatching {
+            liveBox.query().equal(LiveStream_.isFavorite, true).build().use { q ->
+                q.property(LiveStream_.id).findLongs().toSet()
+            }
+        }.getOrDefault(emptySet())
+
         val writerJob = launch(Dispatchers.IO) {
             for (batch in writeChannel) {
                 try {
                     // Preserve user data (favorites, last watched) that would be overwritten by sync
                     val existingIds = batch.map { it.id }.toLongArray()
                     val existing = runCatching {
-                        liveBox.query().`in`(LiveStream_.id, existingIds).build().use { it.find() }
+                        liveBox.get(existingIds).filterNotNull()
                     }.getOrDefault(emptyList())
                     val existingMap = existing.associateBy { it.id }
                     batch.forEach { newLive ->
+                        val isFav = favoriteLiveIds.contains(newLive.id) || existingMap[newLive.id]?.isFavorite == true
+                        newLive.isFavorite = isFav
                         existingMap[newLive.id]?.let { old ->
-                            newLive.isFavorite = old.isFavorite
                             newLive.lastWatchedAt = old.lastWatchedAt
                         }
                     }
@@ -140,18 +147,25 @@ class XtreamStreamParser @Inject constructor(
         var count = 0
         val writeChannel = Channel<List<Movie>>(capacity = 50)
         
+        val favoriteMovieIds = runCatching {
+            movieBox.query().equal(Movie_.isFavorite, true).build().use { q ->
+                q.property(Movie_.id).findLongs().toSet()
+            }
+        }.getOrDefault(emptySet())
+
         val writerJob = launch(Dispatchers.IO) {
             for (batch in writeChannel) {
                 try {
                     // Preserve user data (favorites, progress) that would be overwritten by sync
                     val existingIds = batch.map { it.id }.toLongArray()
                     val existing = runCatching {
-                        movieBox.query().`in`(Movie_.id, existingIds).build().use { it.find() }
+                        movieBox.get(existingIds).filterNotNull()
                     }.getOrDefault(emptyList())
                     val existingMap = existing.associateBy { it.id }
                     batch.forEach { newMovie ->
+                        val isFav = favoriteMovieIds.contains(newMovie.id) || existingMap[newMovie.id]?.isFavorite == true
+                        newMovie.isFavorite = isFav
                         existingMap[newMovie.id]?.let { old ->
-                            newMovie.isFavorite = old.isFavorite
                             newMovie.watchProgress = old.watchProgress
                             newMovie.totalDuration = old.totalDuration
                             newMovie.lastWatchedAt = old.lastWatchedAt
@@ -225,18 +239,25 @@ class XtreamStreamParser @Inject constructor(
         var count = 0
         val writeChannel = Channel<List<Series>>(capacity = 50)
         
+        val favoriteSeriesIds = runCatching {
+            seriesBox.query().equal(Series_.isFavorite, true).build().use { q ->
+                q.property(Series_.id).findLongs().toSet()
+            }
+        }.getOrDefault(emptySet())
+
         val writerJob = launch(Dispatchers.IO) {
             for (batch in writeChannel) {
                 try {
                     // Preserve user data (favorites) that would be overwritten by sync
                     val existingIds = batch.map { it.id }.toLongArray()
                     val existing = runCatching {
-                        seriesBox.query().`in`(Series_.id, existingIds).build().use { it.find() }
+                        seriesBox.get(existingIds).filterNotNull()
                     }.getOrDefault(emptyList())
                     val existingMap = existing.associateBy { it.id }
                     batch.forEach { newSeries ->
+                        val isFav = favoriteSeriesIds.contains(newSeries.id) || existingMap[newSeries.id]?.isFavorite == true
+                        newSeries.isFavorite = isFav
                         existingMap[newSeries.id]?.let { old ->
-                            newSeries.isFavorite = old.isFavorite
                             newSeries.lastWatchedAt = old.lastWatchedAt
                         }
                     }

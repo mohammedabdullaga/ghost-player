@@ -198,7 +198,11 @@ fun TvSeriesScreen(
         onSelectCategory = { catId ->
             uiState.categories.find { it.id == catId }?.let { cat ->
                 viewModel.selectCategoryForRestore(cat)
-                viewModel.showSidebar()
+                if (lastFocusedItemId != null) {
+                    viewModel.enterFullScreen()
+                } else {
+                    viewModel.showSidebar()
+                }
             }
         },
         categoryListState = sidebarListState,
@@ -358,12 +362,9 @@ fun TvSeriesScreen(
                             modifier = Modifier
                                 .focusRequester(requester)
                                 .onFocusChanged {
-                                    if (it.isFocused && !isGridFocused && lastFocusedItemId == null) {
+                                    if (it.isFocused && !isGridFocused) {
                                         lastSidebarFocusKey = category.id
                                         viewModel.recordFocusedCategory(category.id)
-                                        if (searchText.isEmpty()) {
-                                            viewModel.selectCategory(category)
-                                        }
                                     }
                                 }
                                 .onPreviewKeyEvent {

@@ -46,26 +46,27 @@ fun FocusRestoration(
 ) {
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(trigger, targetItemId, targetCategoryId) {
+    LaunchedEffect(trigger) {
         if (!trigger) return@LaunchedEffect
         if (targetItemId != null || targetCategoryId != null) {
             val capturedItemId = targetItemId
+            val capturedCatId = targetCategoryId
             scope.launch {
                 // 1. Switch category if needed
-                if (targetCategoryId != null && targetCategoryId != selectedCategory?.id) {
-                    onSelectCategory(targetCategoryId)
+                if (capturedCatId != null && capturedCatId != selectedCategory?.id) {
+                    onSelectCategory(capturedCatId)
                     delay(50)
                 }
 
                 // Focus sidebar category ONLY if no item in grid/list was selected
-                if (capturedItemId == null && categoryListState != null && targetCategoryId != null) {
-                    try { categoryFocusRequesters[targetCategoryId]?.requestFocus() } catch (_: Exception) {}
+                if (capturedItemId == null && categoryListState != null && capturedCatId != null) {
+                    try { categoryFocusRequesters[capturedCatId]?.requestFocus() } catch (_: Exception) {}
                 }
 
                 // 2. Scroll to and focus the target item
                 if (capturedItemId != null) {
                     var index = -1
-                    repeat(20) {
+                    repeat(15) {
                         index = findItemIndex(capturedItemId)
                         if (index >= 0) return@repeat
                         delay(50)
@@ -73,14 +74,12 @@ fun FocusRestoration(
                     if (index >= 0) {
                         itemListState.scrollToItem(index)
                         delay(50)
-                        repeat(15) {
-                            try {
-                                val requester = itemFocusRequesters[capturedItemId]
-                                if (requester != null) {
-                                    requester.requestFocus()
-                                    return@launch
-                                }
-                            } catch (_: Exception) {}
+                        repeat(10) {
+                            val requester = itemFocusRequesters[capturedItemId]
+                            if (requester != null) {
+                                val success = runCatching { requester.requestFocus() }.isSuccess
+                                if (success) return@launch
+                            }
                             delay(50)
                         }
                     }
@@ -107,26 +106,27 @@ fun FocusRestoration(
 ) {
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(trigger, targetItemId, targetCategoryId) {
+    LaunchedEffect(trigger) {
         if (!trigger) return@LaunchedEffect
         if (targetItemId != null || targetCategoryId != null) {
             val capturedItemId = targetItemId
+            val capturedCatId = targetCategoryId
             scope.launch {
                 // 1. Switch category if needed
-                if (targetCategoryId != null && targetCategoryId != selectedCategory?.id) {
-                    onSelectCategory(targetCategoryId)
+                if (capturedCatId != null && capturedCatId != selectedCategory?.id) {
+                    onSelectCategory(capturedCatId)
                     delay(50)
                 }
 
                 // Focus sidebar category ONLY if no item in grid was selected
-                if (capturedItemId == null && categoryListState != null && targetCategoryId != null) {
-                    try { categoryFocusRequesters[targetCategoryId]?.requestFocus() } catch (_: Exception) {}
+                if (capturedItemId == null && categoryListState != null && capturedCatId != null) {
+                    try { categoryFocusRequesters[capturedCatId]?.requestFocus() } catch (_: Exception) {}
                 }
 
                 // 2. Scroll to and focus the target item
                 if (capturedItemId != null) {
                     var index = -1
-                    repeat(20) {
+                    repeat(15) {
                         index = findItemIndex(capturedItemId)
                         if (index >= 0) return@repeat
                         delay(50)
@@ -134,14 +134,12 @@ fun FocusRestoration(
                     if (index >= 0) {
                         gridState.scrollToItem(index)
                         delay(50)
-                        repeat(15) {
-                            try {
-                                val requester = itemFocusRequesters[capturedItemId]
-                                if (requester != null) {
-                                    requester.requestFocus()
-                                    return@launch
-                                }
-                            } catch (_: Exception) {}
+                        repeat(10) {
+                            val requester = itemFocusRequesters[capturedItemId]
+                            if (requester != null) {
+                                val success = runCatching { requester.requestFocus() }.isSuccess
+                                if (success) return@launch
+                            }
                             delay(50)
                         }
                     }
