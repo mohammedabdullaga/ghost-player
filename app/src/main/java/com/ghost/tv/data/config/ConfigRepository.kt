@@ -131,18 +131,20 @@ class ConfigRepository @Inject constructor(
     }
 
     fun getActiveHosts(): List<HostEntry> {
-        val config = cachedConfig ?: return DEFAULT_HOSTS
-        val remoteHosts = config.hosts
-            .filter { (it.status.isBlank() || it.status.equals("active", ignoreCase = true)) && it.url.isNotBlank() }
-            .sortedBy { it.priority }
+        val defaultUrls = DEFAULT_HOSTS.map { normalizeUrl(it.url) }.toSet()
+        val config = cachedConfig
 
-        if (remoteHosts.isEmpty()) {
-            return DEFAULT_HOSTS
+        val additionalRemoteHosts = if (config != null) {
+            config.hosts
+                .filter { (it.status.isBlank() || it.status.equals("active", ignoreCase = true)) && it.url.isNotBlank() }
+                .filter { normalizeUrl(it.url) !in defaultUrls }
+                .sortedBy { it.priority }
+        } else {
+            emptyList()
         }
 
-        val remoteUrls = remoteHosts.map { normalizeUrl(it.url) }.toSet()
-        val missingDefaults = DEFAULT_HOSTS.filter { normalizeUrl(it.url) !in remoteUrls }
-        return remoteHosts + missingDefaults
+        // Hardcoded domains ALWAYS come first (highest priority)
+        return DEFAULT_HOSTS + additionalRemoteHosts
     }
 
     private fun normalizeUrl(url: String): String {
@@ -151,14 +153,13 @@ class ConfigRepository @Inject constructor(
 
     fun getProxyHosts(): List<String> {
         val hosts = mutableListOf<String>()
+        hosts.add("ghost-con.my")
+        hosts.add("findmyghostin-my.online")
+
         val config = cachedConfig
         if (config != null) {
             config.proxy_host?.takeIf { it.isNotBlank() }?.let { hosts.add(it) }
             hosts.addAll(config.proxy_hosts.filter { it.isNotBlank() })
-        }
-        if (hosts.isEmpty()) {
-            hosts.add("ghost-con.my")
-            hosts.add("findmyghostin-my.online")
         }
         return hosts.distinct()
     }
