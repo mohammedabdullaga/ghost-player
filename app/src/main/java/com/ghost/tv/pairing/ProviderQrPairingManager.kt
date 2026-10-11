@@ -308,23 +308,23 @@ class ProviderQrPairingManager @Inject constructor(
           <title>GHOST TV</title>
           <style>
             *{direction:rtl;box-sizing:border-box}
-            body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0D0F14;color:#f8fafc;margin:0;padding:24px;display:flex;justify-content:center;align-items:center;min-height:100vh}
-            main{width:100%;max-width:440px;background:rgba(31,31,31,0.95);border:1px solid rgba(255,96,41,0.3);border-radius:28px;padding:32px;box-shadow:0 24px 80px rgba(0,0,0,0.5)}
-            .logo{font-size:32px;font-weight:800;text-align:center;margin-bottom:8px}
-            .logo span{color:#FF6029}
-            h2{font-size:18px;font-weight:400;color:rgba(255,255,255,0.6);text-align:center;margin:0 0 24px}
-            label{display:block;margin-top:16px;font-size:14px;font-weight:600;color:rgba(255,255,255,0.8)}
-            input{width:100%;margin-top:8px;padding:16px;border-radius:14px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;font-size:16px;transition:border-color 0.2s}
-            input:focus{outline:none;border-color:#FF6029;background:rgba(255,255,255,0.08)}
-            button{width:100%;margin-top:28px;padding:18px;border:0;border-radius:16px;background:#FF6029;color:#fff;font-weight:700;font-size:17px;cursor:pointer;transition:transform 0.1s}
+            body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#090514;color:#f8fafc;margin:0;padding:24px;display:flex;justify-content:center;align-items:center;min-height:100vh}
+            main{width:100%;max-width:440px;background:#1A0F35;border:1px solid rgba(168,85,247,0.35);border-radius:28px;padding:32px;box-shadow:0 24px 80px rgba(0,0,0,0.7)}
+            .logo{font-size:32px;font-weight:800;text-align:center;margin-bottom:8px;color:#fff}
+            .logo span{color:#A855F7}
+            h2{font-size:16px;font-weight:400;color:rgba(226,217,243,0.7);text-align:center;margin:0 0 24px}
+            label{display:block;margin-top:16px;font-size:14px;font-weight:600;color:rgba(255,255,255,0.9)}
+            input{width:100%;margin-top:8px;padding:16px;border-radius:14px;border:1px solid rgba(168,85,247,0.3);background:rgba(255,255,255,0.06);color:#fff;font-size:16px;transition:border-color 0.2s}
+            input:focus{outline:none;border-color:#A855F7;background:rgba(255,255,255,0.1)}
+            button{width:100%;margin-top:28px;padding:18px;border:0;border-radius:16px;background:#A855F7;color:#fff;font-weight:700;font-size:17px;cursor:pointer;transition:transform 0.1s}
             button:active{transform:scale(0.98)}
-            .hint{font-size:13px;color:rgba(255,255,255,0.4);text-align:center;margin-top:20px}
+            .hint{font-size:13px;color:rgba(226,217,243,0.5);text-align:center;margin-top:20px}
           </style>
         </head>
         <body>
         <main>
-          <div class="logo">Arena<span>Live</span></div>
-          <h2>تسجيل الدخول للاستمتاع بالعالم</h2>
+          <div class="logo">GHOST <span>TV</span></div>
+          <h2>تسجيل الدخول عبر الهاتف المحمول</h2>
           <form method="post" action="/submit">
             <input type="hidden" name="token" value="${token.escapeHtml()}">
             <label>اسم المستخدم</label>
@@ -345,19 +345,20 @@ class ProviderQrPairingManager @Inject constructor(
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>GHOST TV</title>
           <style>
             *{direction:rtl;box-sizing:border-box}
-            body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0D0F14;color:#f8fafc;padding:24px;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
-            main{max-width:400px;width:100%;background:rgba(31,31,31,0.95);border:1px solid rgba(79,211,154,0.3);border-radius:28px;padding:40px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,0.5)}
-            h1{color:#4FD39A;margin:0 0 12px;font-size:28px}
-            p{color:rgba(255,255,255,0.6);line-height:1.8;margin-bottom:0;font-size:16px}
-            .logo{font-size:20px;font-weight:700;margin-bottom:32px;opacity:0.8}
-            .logo span{color:#FF6029}
+            body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#090514;color:#f8fafc;padding:24px;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
+            main{max-width:400px;width:100%;background:#1A0F35;border:1px solid rgba(52,211,153,0.4);border-radius:28px;padding:40px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,0.7)}
+            h1{color:#34D39A;margin:0 0 12px;font-size:26px}
+            p{color:rgba(226,217,243,0.7);line-height:1.8;margin-bottom:0;font-size:16px}
+            .logo{font-size:22px;font-weight:800;margin-bottom:28px;color:#fff}
+            .logo span{color:#A855F7}
           </style>
         </head>
         <body>
         <main>
-          <div class="logo">Arena<span>Live</span></div>
+          <div class="logo">GHOST <span>TV</span></div>
           <h1>تم الإرسال إلى التلفزيون!</h1>
           <p>تم استلام بياناتك بنجاح. يرجى متابعة شاشة التلفزيون لاستكمال تسجيل الدخول.</p>
         </main>
@@ -370,12 +371,13 @@ class ProviderQrPairingManager @Inject constructor(
         <html>
         <head>
           <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>GHOST TV</title>
           <style>
-            body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0D0F14;color:#f8fafc;padding:24px;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
-            main{max-width:400px;width:100%;background:rgba(31,31,31,0.95);border:1px solid rgba(255,82,82,0.3);border-radius:28px;padding:40px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,0.5)}
+            body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#090514;color:#f8fafc;padding:24px;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
+            main{max-width:400px;width:100%;background:#1A0F35;border:1px solid rgba(255,82,82,0.3);border-radius:28px;padding:40px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,0.7)}
             h1{color:#FF5252;margin:0 0 12px;font-size:28px}
-            p{color:rgba(255,255,255,0.6);line-height:1.5}
-            button{margin-top:20px;padding:14px 24px;border:0;border-radius:12px;background:rgba(255,255,255,0.1);color:#fff;font-weight:600;cursor:pointer}
+            p{color:rgba(226,217,243,0.7);line-height:1.5}
+            button{margin-top:20px;padding:14px 24px;border:0;border-radius:12px;background:#A855F7;color:#fff;font-weight:600;cursor:pointer}
           </style>
         </head>
         <body>
