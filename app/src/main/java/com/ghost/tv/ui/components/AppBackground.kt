@@ -38,7 +38,7 @@ fun AppBackground(
                 Modifier.fillMaxSize()
             }
 
-            val resId = R.drawable.new_tv_background
+            val resId = R.drawable.ghost_app_background
 
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)

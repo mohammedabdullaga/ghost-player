@@ -114,7 +114,7 @@ class DownloadService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText("Downloading • $speedText")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.mipmap.ic_launcher_foreground)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .setContentIntent(pendingIntent)

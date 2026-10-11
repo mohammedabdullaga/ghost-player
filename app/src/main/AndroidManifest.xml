@@ -36,6 +36,8 @@
             android:screenOrientation="sensorLandscape"
             android:windowSoftInputMode="adjustResize|stateAlwaysHidden"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:icon="@mipmap/tv_icon"
+            android:banner="@mipmap/tv_banner"
             android:theme="@style/Theme.MyApplication">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
