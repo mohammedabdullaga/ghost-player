@@ -17,15 +17,23 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 @Composable
-fun ArenaLiveTheme(
+fun GhostTvTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    // We always use dark theme for IPTV apps
+    // Always use dark theme for IPTV app
     val colorScheme = DarkColorScheme
 
     MaterialTheme(
         colorScheme = colorScheme,
         content = content
     )
+}
+
+@Composable
+fun ArenaLiveTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    GhostTvTheme(darkTheme = darkTheme, content = content)
 }
