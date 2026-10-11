@@ -36,14 +36,14 @@ fun NavTabButton(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (isActive) AppColors.ArenaOrange.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.05f),
-                focusedContainerColor = Color.White,
-                pressedContainerColor = Color.White
+                containerColor = if (isActive) AppColors.Brand.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.05f),
+                focusedContainerColor = AppColors.Brand.copy(alpha = 0.35f),
+                pressedContainerColor = AppColors.Brand
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             border = ClickableSurfaceDefaults.border(
-                border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent)),
-                focusedBorder = Border(BorderStroke(2.dp, Color.White))
+                border = Border(BorderStroke(2.dp, if (isActive) AppColors.Brand.copy(alpha = 0.85f) else Color.Transparent)),
+                focusedBorder = Border(BorderStroke(2.5.dp, AppColors.Brand))
             )
         ) {
             Box(modifier = Modifier.fillMaxHeight().padding(horizontal = 20.dp), contentAlignment = Alignment.Center) {

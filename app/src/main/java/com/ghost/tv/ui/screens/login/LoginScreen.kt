@@ -39,7 +39,7 @@ import com.ghost.tv.ui.components.ArenaLiveLogo
 import com.ghost.tv.util.isTelevisionDevice
 import kotlinx.coroutines.delay
 
-private val ArenaOrange = Color(0xFFFF6029)
+private val ArenaOrange = Color(0xFFA855F7)
 
 @Composable
 fun LoginScreen(
