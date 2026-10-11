@@ -54,7 +54,7 @@ fun TodMatchCard(
         label = "tod_card_scale"
     )
 
-    val backgroundUrl = event.competitionBackground?.ifBlank { null } ?: event.imageUrl
+    val backgroundUrl = event.resolvedBackgroundUrl
     val isLive = event.status.equals("LIVE", ignoreCase = true) || event.eventMode.equals("LIVE", ignoreCase = true)
 
     val todayLabel = stringResource(R.string.sports_today)
@@ -175,11 +175,7 @@ fun TodMatchCard(
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-                        val tournamentName = event.displayTournament?.ifBlank { null }
-                            ?: event.tournament?.ifBlank { null }
-                            ?: event.displayTitle
-                            ?: event.title
-                            ?: ""
+                        val tournamentName = event.resolvedTournamentName
                         if (tournamentName.isNotBlank()) {
                             Text(
                                 text = tournamentName,
@@ -284,7 +280,7 @@ private fun FrostedTeamRow(team: TeamItem) {
             if (!crestUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = crestUrl,
-                    contentDescription = team.displayName ?: team.name,
+                    contentDescription = team.resolvedName,
                     contentScale = ContentScale.Fit,
                     modifier = Modifier.size(28.dp)
                 )
@@ -297,7 +293,7 @@ private fun FrostedTeamRow(team: TeamItem) {
                 )
             }
 
-            val teamName = team.displayName?.ifBlank { null } ?: team.name ?: ""
+            val teamName = team.resolvedName
             Text(
                 text = teamName,
                 color = Color.White,

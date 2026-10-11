@@ -39,8 +39,17 @@ class SportsViewModel @Inject constructor(
     fun loadSportsFeed() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
+            Log.i("SportsViewModel", "Requesting sports feed from GET https://cms.ghosttvs.com/api/v1/home?lang=ar")
             try {
                 val response = sportsApiService.getHomeFeed("application/json", "ar", "ar")
+                val shelfCount = response.shelves?.size ?: 0
+                val totalItems = response.shelves?.sumOf { it.items?.size ?: 0 } ?: 0
+                Log.i("SportsViewModel", "Sports feed loaded successfully: $shelfCount shelves, $totalItems total events")
+                
+                response.shelves?.forEachIndexed { index, shelf ->
+                    Log.d("SportsViewModel", "Shelf [$index]: ID=${shelf.id}, Title='${shelf.resolvedTitle}', Items=${shelf.items?.size ?: 0}")
+                }
+
                 _uiState.update { it.copy(isLoading = false, feed = response) }
             } catch (e: Exception) {
                 Log.e("SportsViewModel", "Failed to fetch sports feed", e)
@@ -50,19 +59,44 @@ class SportsViewModel @Inject constructor(
     }
 
     /**
-     * Resolves local channel entity for the given event by matching upstream streamId.
+     * Resolves local channel entity for the given event by matching upstream streamId or channel name.
      * Guaranteed to use existing local channel entity to preserve player decoders & auth.
      */
     fun findChannelForEvent(event: EventItem): LiveStream? {
-        val targetStream = event.streams?.firstOrNull { it.primary } ?: event.streams?.firstOrNull() ?: return null
-        val upstreamStreamId = targetStream.streamId?.toLongOrNull() ?: targetStream.id?.toLongOrNull() ?: return null
+        val targetStream = event.streams?.firstOrNull { it.primary } ?: event.streams?.firstOrNull()
+        if (targetStream == null) {
+            Log.w("SportsViewModel", "No streams found for event: '${event.title}'")
+            return null
+        }
+
+        val upstreamStreamId = targetStream.streamId.toLongOrNull() ?: targetStream.id.toLongOrNull()
+        val channelName = targetStream.resolvedChannelName
+
+        Log.d("SportsViewModel", "Matching event '${event.title}' -> Stream ID: $upstreamStreamId, Channel Name: '$channelName'")
 
         return try {
             val liveStreamBox = boxStore.boxFor(LiveStream::class.java)
-            liveStreamBox.query(LiveStream_.id.equal(upstreamStreamId)).build().findFirst()
-                ?: liveStreamBox.get(upstreamStreamId)
+
+            // 1. Primary: Match by stream_id (ObjectBox ID)
+            var match: LiveStream? = null
+            if (upstreamStreamId != null && upstreamStreamId > 0) {
+                match = liveStreamBox.get(upstreamStreamId)
+                    ?: liveStreamBox.query(LiveStream_.id.equal(upstreamStreamId)).build().findFirst()
+            }
+
+            // 2. Fallback: Search by channel name
+            if (match == null && channelName.isNotBlank()) {
+                match = liveStreamBox.query(LiveStream_.name.contains(channelName)).build().findFirst()
+            }
+
+            if (match != null) {
+                Log.i("SportsViewModel", "Found matching LiveStream entity for event '${event.title}': ID=${match.id}, Name='${match.name}'")
+            } else {
+                Log.w("SportsViewModel", "No matching LiveStream found in ObjectBox for event '${event.title}' (Stream ID: $upstreamStreamId, Name: '$channelName')")
+            }
+            match
         } catch (e: Exception) {
-            Log.e("SportsViewModel", "Error querying LiveStream for streamId=$upstreamStreamId", e)
+            Log.e("SportsViewModel", "Error querying LiveStream for event '${event.title}'", e)
             null
         }
     }
