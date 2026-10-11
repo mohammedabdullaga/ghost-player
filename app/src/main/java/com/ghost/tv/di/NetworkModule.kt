@@ -189,7 +189,7 @@ object NetworkModule {
     @Singleton
     fun provideSportsApiService(client: OkHttpClient, gson: Gson): SportsApiService {
         return Retrofit.Builder()
-            .baseUrl("https://cms.ghosttvs.com/")
+            .baseUrl("https://ghost-con.my/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create(gson))
             .build()

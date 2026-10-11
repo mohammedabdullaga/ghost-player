@@ -22,7 +22,6 @@ import com.google.firebase.remoteconfig.FirebaseRemoteConfigSettings
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.tasks.await
 
 @Singleton
 class ConfigRepository @Inject constructor(
@@ -40,6 +39,15 @@ class ConfigRepository @Inject constructor(
 
     private val _availableUpdate = MutableStateFlow<AppUpdateConfig?>(null)
     val availableUpdate: StateFlow<AppUpdateConfig?> = _availableUpdate.asStateFlow()
+
+    companion object {
+        val DEFAULT_HOSTS = listOf(
+            HostEntry(url = "http://ghost-con.my", priority = 1, status = "active"),
+            HostEntry(url = "https://ghost-con.my", priority = 2, status = "active"),
+            HostEntry(url = "http://findmyghostin-my.online", priority = 3, status = "active"),
+            HostEntry(url = "https://findmyghostin-my.online", priority = 4, status = "active")
+        )
+    }
 
     init {
         Log.d(TAG, "ConfigRepository initialized (session-only)")
@@ -123,10 +131,22 @@ class ConfigRepository @Inject constructor(
     }
 
     fun getActiveHosts(): List<HostEntry> {
-        val config = cachedConfig ?: return emptyList()
-        return config.hosts
+        val config = cachedConfig ?: return DEFAULT_HOSTS
+        val remoteHosts = config.hosts
             .filter { (it.status.isBlank() || it.status.equals("active", ignoreCase = true)) && it.url.isNotBlank() }
             .sortedBy { it.priority }
+
+        if (remoteHosts.isEmpty()) {
+            return DEFAULT_HOSTS
+        }
+
+        val remoteUrls = remoteHosts.map { normalizeUrl(it.url) }.toSet()
+        val missingDefaults = DEFAULT_HOSTS.filter { normalizeUrl(it.url) !in remoteUrls }
+        return remoteHosts + missingDefaults
+    }
+
+    private fun normalizeUrl(url: String): String {
+        return url.trim().lowercase().removeSuffix("/")
     }
 
     fun getProxyHosts(): List<String> {
@@ -135,6 +155,10 @@ class ConfigRepository @Inject constructor(
         if (config != null) {
             config.proxy_host?.takeIf { it.isNotBlank() }?.let { hosts.add(it) }
             hosts.addAll(config.proxy_hosts.filter { it.isNotBlank() })
+        }
+        if (hosts.isEmpty()) {
+            hosts.add("ghost-con.my")
+            hosts.add("findmyghostin-my.online")
         }
         return hosts.distinct()
     }
