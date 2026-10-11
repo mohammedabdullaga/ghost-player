@@ -129,8 +129,8 @@ fun SubFilterChip(
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(10.dp)),
             border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-                border = Border(BorderStroke(2.dp, if (isActive) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+                focusedBorder = Border(BorderStroke(2.5.dp, AppColors.Brand)),
+                border = Border(BorderStroke(2.dp, if (isActive) AppColors.Brand.copy(alpha = 0.85f) else Color.Transparent))
             )
         ) {
             SubFilterChipContent(label, icon, isActive, isFocused)
@@ -201,8 +201,8 @@ fun CategoryTab(
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(16.dp)),
             border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+                focusedBorder = Border(BorderStroke(2.5.dp, AppColors.Brand)),
+                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.Brand.copy(alpha = 0.85f) else Color.Transparent))
             )
         ) {
             CategoryTabContent(category, isSelected, isFocused, count)
@@ -288,8 +288,8 @@ fun ChannelRow(
             ),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(12.dp)),
             border = ClickableSurfaceDefaults.border(
-                focusedBorder = Border(BorderStroke(2.dp, Color.White)),
-                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.ArenaOrange.copy(alpha = 0.85f) else Color.Transparent))
+                focusedBorder = Border(BorderStroke(2.5.dp, AppColors.Brand)),
+                border = Border(BorderStroke(2.dp, if (isSelected) AppColors.Brand.copy(alpha = 0.85f) else Color.Transparent))
             )
         ) {
             ChannelRowContent(channel, isSelected, isFocused)
@@ -470,8 +470,8 @@ private fun VodPosterCardContent(
             .clip(RoundedCornerShape(12.dp))
             .background(Color(0xFF121212))
             .border(
-                width = if (isFocused) 2.dp else if (isFavorite) 1.5.dp else 0.dp,
-                color = if (isFocused) Color.White else if (isFavorite) AppColors.ArenaOrange else Color.Transparent,
+                width = if (isFocused) 2.5.dp else if (isFavorite) 1.5.dp else 0.dp,
+                color = if (isFocused) AppColors.Brand else if (isFavorite) AppColors.Brand else Color.Transparent,
                 shape = RoundedCornerShape(12.dp)
             ),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -748,7 +748,7 @@ fun ContinueWatchingCard(
                 .onFocusChanged { isFocused = it.isFocused },
             scale = ClickableSurfaceDefaults.scale(focusedScale = 1.05f),
             shape = ClickableSurfaceDefaults.shape(RoundedCornerShape(14.dp)),
-            border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White)))
+            border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.5.dp, AppColors.Brand)))
         ) {
             content()
         }
