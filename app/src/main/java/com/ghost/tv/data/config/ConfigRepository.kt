@@ -176,20 +176,9 @@ class ConfigRepository @Inject constructor(
     }
 
     fun checkForAppUpdate(config: ConfigResponse? = cachedConfig): AppUpdateConfig? {
-        val update = config?.update ?: return null
-        val currentVersionCode = BuildConfig.VERSION_CODE
-        val isForced = update.force_update || currentVersionCode < update.min_supported_version_code
-
-        return if (update.resolvedVersionCode > currentVersionCode && update.resolvedApkUrl.isNotBlank()) {
-            Log.i(TAG, "New app update available: v${update.resolvedVersionName} (code ${update.resolvedVersionCode}) vs current code $currentVersionCode, isForced=$isForced")
-            if (!isDismissedForSession || isForced) {
-                _availableUpdate.value = update
-            }
-            update
-        } else {
-            Log.d(TAG, "No update available. Current version code $currentVersionCode is up to date (server code ${update.resolvedVersionCode}).")
-            _availableUpdate.value = null
-            null
-        }
+        // Temporarily disabled auto update until backend updates are complete
+        Log.d(TAG, "Auto update check temporarily disabled")
+        _availableUpdate.value = null
+        return null
     }
 }
